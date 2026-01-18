@@ -69,7 +69,7 @@ class EnvironmentController extends Controller
 
     public function create(): \Inertia\Response
     {
-        $sshKeys = \App\Models\SshKey::orderBy('is_default', 'desc')->orderBy('name')->get();
+        $sshKeys = \HardImpact\Orbit\Models\SshKey::orderBy('is_default', 'desc')->orderBy('name')->get();
         $availableSshKeys = Setting::getAvailableSshKeys();
         $hasLocalEnvironment = Environment::where('is_local', true)->exists();
 
