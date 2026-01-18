@@ -30,7 +30,7 @@ src/
     SshService.php           # SSH operations
     OrbitCli/                # CLI interaction
       ProjectService.php
-      ConfigurationService.php
+      ConfigurationService.php  # Includes DNS mapping methods
       ServiceControlService.php
       StatusService.php
       Shared/
@@ -38,6 +38,7 @@ src/
         ConnectorService.php
   Http/
     Controllers/             # All route handlers
+      DnsController.php      # DNS mappings management
     Middleware/
       HandleInertiaRequests.php
       ImplicitEnvironment.php
@@ -51,6 +52,7 @@ resources/
   js/
     pages/                   # Vue page components
     components/              # Reusable Vue components
+      DnsSettings.vue        # DNS mappings management UI
     layouts/                 # App layouts
     stores/                  # Pinia stores
     composables/             # Vue composables
