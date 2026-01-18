@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
 import Heading from '@/components/Heading.vue';
+import DnsSettings from '@/components/DnsSettings.vue';
 import {
     Loader2,
     Trash2,
@@ -571,6 +572,13 @@ onMounted(() => {
                     </Button>
                 </div>
             </template>
+        </div>
+
+        <hr class="border-zinc-800" />
+
+        <!-- DNS Settings -->
+        <div class="py-6">
+            <DnsSettings :environment-id="environment.id" />
         </div>
 
         <hr class="border-zinc-800" />
