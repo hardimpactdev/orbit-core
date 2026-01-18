@@ -41,12 +41,12 @@ class HandleInertiaRequests extends Middleware
 
         // Cache current environment to avoid duplicate queries
         $currentEnv = null;
-        $getCurrentEnv = function () use (&$currentEnv, $multiEnvironment): ?\App\Models\Environment {
+        $getCurrentEnv = function () use (&$currentEnv, $multiEnvironment): ?\HardImpact\Orbit\Models\Environment {
             if ($multiEnvironment) {
                 return null;
             }
 
-            if (! $currentEnv instanceof \App\Models\Environment) {
+            if (! $currentEnv instanceof \HardImpact\Orbit\Models\Environment) {
                 $currentEnv = Environment::where('is_local', true)->first();
             }
 
