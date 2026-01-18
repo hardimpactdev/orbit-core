@@ -7,7 +7,6 @@ use HardImpact\Orbit\Services\OrbitCli\ConfigurationService;
 use HardImpact\Orbit\Services\OrbitCli\ServiceControlService;
 use HardImpact\Orbit\Services\SshService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 class DnsController extends Controller
