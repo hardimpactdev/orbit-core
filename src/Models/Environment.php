@@ -11,7 +11,9 @@ class Environment extends Model
     use HasFactory;
 
     const STATUS_PROVISIONING = 'provisioning';
+
     const STATUS_ACTIVE = 'active';
+
     const STATUS_ERROR = 'error';
 
     protected $table = 'environments';

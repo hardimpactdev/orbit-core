@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace HardImpact\Orbit\Http\Middleware;
 
-use HardImpact\Orbit\Models\Environment;
 use Closure;
+use HardImpact\Orbit\Models\Environment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
@@ -20,7 +20,7 @@ class ImplicitEnvironment
         }
 
         $route = $request->route();
-        if (!$route) {
+        if (! $route) {
             return $next($request);
         }
 
@@ -36,30 +36,30 @@ class ImplicitEnvironment
 
         $environment = Environment::where('is_local', true)->first()
             ?? Environment::first();
-        
-        if (!$environment) {
+
+        if (! $environment) {
             abort(500, 'No environment found. Run: php artisan orbit:init');
         }
-        
+
         // Warn if multiple is_local environments exist
         $count = Environment::where('is_local', true)->count();
         if ($count > 1) {
             Log::warning("Multiple is_local=true environments found ({$count}). Using first.");
         }
-        
+
         // Inject into route so controllers receive it as parameter
         // We ensure it's the FIRST parameter to match controller method signatures
         $params = $route->parameters();
         foreach (array_keys($params) as $key) {
             $route->forgetParameter($key);
         }
-        
+
         $route->setParameter('environment', $environment);
-        
+
         foreach ($params as $key => $value) {
             $route->setParameter($key, $value);
         }
-        
+
         return $next($request);
     }
 }

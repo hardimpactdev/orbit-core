@@ -29,10 +29,11 @@ class OrbitInit extends Command
     {
         if (Environment::where('is_local', true)->exists()) {
             $this->info('Local environment already exists. Skipping.');
+
             return Command::SUCCESS;
         }
 
-        $configPath = rtrim(getenv('HOME'), '/') . '/.config/orbit/config.json';
+        $configPath = rtrim(getenv('HOME'), '/').'/.config/orbit/config.json';
         $tld = 'test';
 
         if (File::exists($configPath)) {
@@ -43,7 +44,7 @@ class OrbitInit extends Command
         }
 
         $user = get_current_user();
-        if (!$user) {
+        if (! $user) {
             $user = exec('whoami');
         }
 

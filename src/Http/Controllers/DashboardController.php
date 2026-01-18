@@ -9,7 +9,7 @@ class DashboardController extends Controller
 {
     public function index(): RedirectResponse
     {
-        if (!config('orbit.multi_environment')) {
+        if (! config('orbit.multi_environment')) {
             return redirect()->route('environments.projects');
         }
 

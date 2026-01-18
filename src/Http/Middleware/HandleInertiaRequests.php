@@ -68,12 +68,12 @@ class HandleInertiaRequests extends Middleware
             'navigation' => function () use ($currentPath, $getCurrentEnv, $multiEnvironment, $request): array {
                 // In web mode, get current environment from middleware injection or query
                 $currentEnv = $multiEnvironment ? null : $getCurrentEnv();
-                
+
                 // In desktop mode, try to get environment from route parameter
                 if ($multiEnvironment && $request->route('environment')) {
                     $currentEnv = $request->route('environment');
                 }
-                
+
                 $envId = $currentEnv?->id;
                 $hasOrchestrator = $currentEnv?->orchestrator_url !== null;
 
@@ -82,7 +82,7 @@ class HandleInertiaRequests extends Middleware
                 $pathPrefix = $multiEnvironment && $envId ? "environments/{$envId}/" : '';
 
                 $mainItems = [];
-                
+
                 // In web mode, always show navigation (single implicit environment)
                 // In desktop mode, only show when an environment is selected
                 if ($envId || ! $multiEnvironment) {

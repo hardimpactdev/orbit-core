@@ -8,8 +8,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Deployment extends Model
 {
     const STATUS_PENDING = 'pending';
+
     const STATUS_DEPLOYING = 'deploying';
+
     const STATUS_ACTIVE = 'active';
+
     const STATUS_ERROR = 'error';
 
     protected $fillable = [

@@ -7,6 +7,7 @@ use HardImpact\Orbit\Models\Setting;
 use HardImpact\Orbit\Models\TemplateFavorite;
 use HardImpact\Orbit\Services\DnsResolverService;
 use HardImpact\Orbit\Services\DoctorService;
+use HardImpact\Orbit\Services\MacPhpFpmConfigService;
 use HardImpact\Orbit\Services\OrbitCli\ConfigurationService;
 use HardImpact\Orbit\Services\OrbitCli\OrchestratorService;
 use HardImpact\Orbit\Services\OrbitCli\PackageService;
@@ -15,7 +16,6 @@ use HardImpact\Orbit\Services\OrbitCli\ServiceControlService;
 use HardImpact\Orbit\Services\OrbitCli\StatusService;
 use HardImpact\Orbit\Services\OrbitCli\WorkspaceService;
 use HardImpact\Orbit\Services\OrbitCli\WorktreeService;
-use HardImpact\Orbit\Services\MacPhpFpmConfigService;
 use HardImpact\Orbit\Services\SshService;
 use Illuminate\Http\Request;
 
@@ -1693,7 +1693,7 @@ class EnvironmentController extends Controller
         // Build new orbit.ini content
         $settings = [];
         $allowedKeys = ['upload_max_filesize', 'post_max_size', 'memory_limit', 'max_execution_time'];
-        
+
         foreach ($allowedKeys as $key) {
             if ($request->has($key) && $request->input($key)) {
                 $settings[$key] = $request->input($key);
@@ -1717,7 +1717,7 @@ class EnvironmentController extends Controller
         }
 
         // PHP-FPM will auto-restart due to file watcher (LaunchAgent)
-        
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -1757,7 +1757,7 @@ class EnvironmentController extends Controller
         try {
             $client = new \GuzzleHttp\Client(['verify' => false]);
             $options = ['timeout' => 30];
-            
+
             if ($method === 'POST' && ! empty($data)) {
                 $options['json'] = $data;
             }

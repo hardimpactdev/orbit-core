@@ -130,35 +130,35 @@ APPLESCRIPT;
 
     // Include environment-scoped routes WITH prefix
     Route::prefix('environments/{environment}')
-        ->group(__DIR__ . '/environment.php');
+        ->group(__DIR__.'/environment.php');
 } else {
     // Gate desktop-only management routes with 403 in web mode
     // These MUST come before the compatibility routes below
-    Route::any('/environments', fn() => abort(403));
-    Route::any('/environments/create', fn() => abort(403));
-    Route::any('/ssh-keys/{any?}', fn() => abort(403))->where('any', '.*');
-    Route::any('/open-terminal', fn() => abort(403));
-    Route::any('/open-external', fn() => abort(403));
+    Route::any('/environments', fn () => abort(403));
+    Route::any('/environments/create', fn () => abort(403));
+    Route::any('/ssh-keys/{any?}', fn () => abort(403))->where('any', '.*');
+    Route::any('/open-terminal', fn () => abort(403));
+    Route::any('/open-external', fn () => abort(403));
 
     // Web: Flat routes, middleware injects implicit environment
     // Web: Routes
-    Route::middleware('implicit.environment')->group(function() {
+    Route::middleware('implicit.environment')->group(function () {
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
-        
+
         // Flat routes (e.g. /projects)
-        Route::group([], __DIR__ . '/environment.php');
+        Route::group([], __DIR__.'/environment.php');
     });
 
     // Prefixed routes for compatibility (e.g. /environments/1/projects)
     // These work in web mode too, but are not the primary way to access them
     Route::prefix('environments/{environment}')
-        ->group(__DIR__ . '/environment.php');
-            
+        ->group(__DIR__.'/environment.php');
+
     // Add show route for compatibility
     Route::get('environments/{environment}', [EnvironmentController::class, 'show'])->name('environments.show');
 
     // Gate environment edit route specifically
-    Route::any('/environments/{environment}/edit', fn() => abort(403));
+    Route::any('/environments/{environment}/edit', fn () => abort(403));
 }
 
 // SHARED ROUTES (Outside conditional)
