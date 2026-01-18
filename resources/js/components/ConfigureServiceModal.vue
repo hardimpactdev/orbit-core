@@ -145,7 +145,7 @@ onMounted(() => {
 
             <form v-else @submit.prevent="saveConfig" class="space-y-6">
                 <div
-                    v-for="(field, key) in serviceInfo.configSchema"
+                    v-for="(field, key) in serviceInfo?.configSchema ?? {}"
                     :key="key"
                     class="space-y-1.5"
                 >
