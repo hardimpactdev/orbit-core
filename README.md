@@ -1,84 +1,135 @@
-# Orbit core provides core funtionality for both orbit-web and orbit-desktop 
+# Orbit Core
+
+A Laravel package providing shared functionality for the Orbit ecosystem - managing local development environments powered by [Orbit CLI](https://github.com/nckrtl/orbit-cli).
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/hardimpactdev/orbit-core.svg?style=flat-square)](https://packagist.org/packages/hardimpactdev/orbit-core)
-[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/hardimpactdev/orbit-core/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/hardimpactdev/orbit-core/actions?query=workflow%3Arun-tests+branch%3Amain)
-[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/hardimpactdev/orbit-core/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/hardimpactdev/orbit-core/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
-[![Total Downloads](https://img.shields.io/packagist/dt/hardimpactdev/orbit-core.svg?style=flat-square)](https://packagist.org/packages/hardimpactdev/orbit-core)
 
-This is where your description should go. Limit it to a paragraph or two. Consider adding a small example.
+## Overview
 
-## Support us
+Orbit Core is the shared foundation for both [orbit-desktop](https://github.com/hardimpactdev/orbit) (NativePHP desktop app) and [orbit-web](https://github.com/hardimpactdev/orbit-web) (web dashboard). It contains:
 
-[<img src="https://github-ads.s3.eu-central-1.amazonaws.com/orbit-core.jpg?t=1" width="419px" />](https://spatie.be/github-ad-click/orbit-core)
-
-We invest a lot of resources into creating [best in class open source packages](https://spatie.be/open-source). You can support us by [buying one of our paid products](https://spatie.be/open-source/support-us).
-
-We highly appreciate you sending us a postcard from your hometown, mentioning which of our package(s) you are using. You'll find our address on [our contact page](https://spatie.be/about-us). We publish all received postcards on [our virtual postcard wall](https://spatie.be/open-source/postcards).
+- **Models**: Environment, Project, Deployment, Setting, SshKey, TemplateFavorite, UserPreference
+- **Services**: OrbitCli services (ProjectService, ConfigurationService, etc.), DoctorService, SshService
+- **Controllers**: All HTTP controllers for the Orbit UI
+- **Middleware**: HandleInertiaRequests, ImplicitEnvironment, DesktopOnly
+- **HTTP Integrations**: Saloon connectors for Orbit API communication
+- **Vue Frontend**: Pages, components, layouts, stores, and composables
+- **Routes**: Web and API routes with mode-aware registration
 
 ## Installation
-
-You can install the package via composer:
 
 ```bash
 composer require hardimpactdev/orbit-core
 ```
 
-You can publish and run the migrations with:
+### Publish Migrations
 
 ```bash
 php artisan vendor:publish --tag="orbit-core-migrations"
 php artisan migrate
 ```
 
-You can publish the config file with:
+### Publish Config (optional)
 
 ```bash
 php artisan vendor:publish --tag="orbit-core-config"
 ```
 
-This is the contents of the published config file:
-
-```php
-return [
-];
-```
-
-Optionally, you can publish the views using
-
-```bash
-php artisan vendor:publish --tag="orbit-core-views"
-```
-
 ## Usage
 
+### Register Routes
+
+In your `AppServiceProvider`:
+
 ```php
-$orbit = new HardImpact\Orbit();
-echo $orbit->echoPhrase('Hello, Hard Impact!');
+use HardImpact\Orbit\OrbitServiceProvider;
+
+public function boot(): void
+{
+    OrbitServiceProvider::routes();
+}
 ```
 
-## Testing
+### Configure Mode
 
-```bash
-composer test
+In your `.env`:
+
+```env
+# Web mode (single environment, flat routes)
+ORBIT_MODE=web
+MULTI_ENVIRONMENT_MANAGEMENT=false
+
+# Desktop mode (multi-environment, prefixed routes)
+ORBIT_MODE=desktop
+MULTI_ENVIRONMENT_MANAGEMENT=true
 ```
 
-## Changelog
+### Frontend Assets
 
-Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed recently.
+Configure Vite to compile assets from the package:
 
-## Contributing
+```typescript
+// vite.config.ts
+export default defineConfig({
+    build: {
+        rollupOptions: {
+            input: "vendor/hardimpactdev/orbit-core/resources/js/app.ts",
+        },
+    },
+    resolve: {
+        alias: {
+            "@": path.resolve(__dirname, "vendor/hardimpactdev/orbit-core/resources/js"),
+        },
+    },
+});
+```
 
-Please see [CONTRIBUTING](CONTRIBUTING.md) for details.
+## Architecture
 
-## Security Vulnerabilities
+### Namespace Structure
 
-Please review [our security policy](../../security/policy) on how to report security vulnerabilities.
+All classes use the `HardImpact\Orbit` namespace:
 
-## Credits
+```
+HardImpact\Orbit\
+  Models\              # Eloquent models
+  Services\            # Business logic
+    OrbitCli\          # CLI interaction services
+      Shared\          # Shared utilities
+  Http\
+    Controllers\       # HTTP controllers
+    Middleware\        # HTTP middleware
+    Integrations\      # Saloon API connectors
+```
 
-- [Nick Ratel](https://github.com/nckrtl)
-- [All Contributors](../../contributors)
+### Mode-Aware Behavior
+
+The package supports two modes controlled by `config("orbit.multi_environment")`:
+
+| Aspect | Web Mode | Desktop Mode |
+|--------|----------|--------------|
+| Routes | Flat (`/projects`) | Prefixed (`/environments/{id}/projects`) |
+| Environment | Single, implicit | Multiple, explicit |
+| Environment UI | Hidden | Visible |
+
+### Service Pattern
+
+Services return consistent response structures:
+
+```php
+[
+    "success" => bool,
+    "data" => mixed,
+    "error" => ?string,
+]
+```
+
+## Related Projects
+
+- [Orbit Desktop](https://github.com/hardimpactdev/orbit) - NativePHP desktop app (requires this package)
+- [Orbit Web](https://github.com/hardimpactdev/orbit-web) - Web dashboard (requires this package)
+- [Orbit CLI](https://github.com/nckrtl/orbit-cli) - The CLI tool that powers local development
 
 ## License
 
-The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
+MIT
