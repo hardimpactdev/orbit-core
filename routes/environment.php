@@ -1,5 +1,6 @@
 <?php
 
+use HardImpact\Orbit\Http\Controllers\DnsController;
 use HardImpact\Orbit\Http\Controllers\EnvironmentController;
 use Illuminate\Support\Facades\Route;
 
@@ -66,6 +67,10 @@ Route::get('github-user', [EnvironmentController::class, 'githubUser'])->name('e
 Route::get('github-orgs', [EnvironmentController::class, 'githubOrgs'])->name('environments.github-orgs');
 Route::post('github-repo-exists', [EnvironmentController::class, 'githubRepoExists'])->name('environments.github-repo-exists');
 Route::get('linear-teams', [EnvironmentController::class, 'linearTeams'])->name('environments.linear-teams');
+
+// DNS mapping routes
+Route::get('dns', [DnsController::class, 'index'])->name('environments.dns.index');
+Route::post('dns', [DnsController::class, 'update'])->name('environments.dns.update');
 
 // Workspace routes (API endpoints moved to routes/api.php for stateless access)
 Route::get('workspaces', [EnvironmentController::class, 'workspaces'])->name('environments.workspaces');

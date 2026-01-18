@@ -345,4 +345,45 @@ class ConfigurationService
             'data' => $config,
         ];
     }
+
+    /**
+     * Get DNS mappings for an environment.
+     */
+    public function getDnsMappings(Environment $environment): array
+    {
+        $configResult = $this->getConfig($environment);
+
+        if (! $configResult['success']) {
+            return $configResult;
+        }
+
+        $config = $configResult['data'];
+        $mappings = $config['dns_mappings'] ?? [
+            ['type' => 'address', 'tld' => 'test', 'value' => '127.0.0.1'],
+            ['type' => 'server', 'value' => '8.8.8.8'],
+            ['type' => 'server', 'value' => '8.8.4.4'],
+        ];
+
+        return [
+            'success' => true,
+            'mappings' => $mappings,
+        ];
+    }
+
+    /**
+     * Set DNS mappings for an environment.
+     */
+    public function setDnsMappings(Environment $environment, array $mappings): array
+    {
+        $configResult = $this->getConfig($environment);
+
+        if (! $configResult['success']) {
+            return $configResult;
+        }
+
+        $config = $configResult['data'];
+        $config['dns_mappings'] = $mappings;
+
+        return $this->saveConfig($environment, $config);
+    }
 }
