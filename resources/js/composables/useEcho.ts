@@ -33,16 +33,16 @@ export function useEcho() {
         // Disconnect from previous environment
         disconnect();
 
-        const reverbHost = `orbit.${environment.tld}`;
+        const reverbHost = `reverb.${environment.tld}`;
 
         try {
             echoInstance = new Echo({
                 broadcaster: 'reverb',
                 key: 'orbit-key',
                 wsHost: reverbHost,
-                wsPort: 8080,
-                wssPort: 8080,
-                forceTLS: false,
+                wsPort: 443,
+                wssPort: 443,
+                forceTLS: true,
                 enabledTransports: ['ws', 'wss'],
                 disableStats: true,
             });
