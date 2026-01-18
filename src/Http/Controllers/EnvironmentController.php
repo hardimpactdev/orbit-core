@@ -1147,7 +1147,7 @@ class EnvironmentController extends Controller
         ];
 
         if ($envContent !== null) {
-            $envParser = app(\App\Services\TemplateAnalyzer\EnvParser::class);
+            $envParser = app(\HardImpact\Orbit\Services\TemplateAnalyzer\EnvParser::class);
             $envVars = $envParser->parse($envContent);
 
             $drivers = [
