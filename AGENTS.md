@@ -105,8 +105,21 @@ composer format         # Format with Pint
 
 ## After Making Changes
 
-1. Run tests locally
-2. Commit with descriptive message
-3. Push to GitHub
-4. Update orbit-web: `composer update hardimpactdev/orbit-core`
-5. Update orbit-desktop: `composer update hardimpactdev/orbit-core`
+**IMPORTANT: Always complete the full workflow below:**
+
+1. **Test locally**: `composer test` (if applicable)
+2. **Commit changes**: Use descriptive commit message
+3. **Push via gh CLI**: `git push`
+4. **Update orbit-web** (if changes affect frontend or backend):
+   ```bash
+   cd ~/projects/orbit-web
+   composer update hardimpactdev/orbit-core
+   bun run build  # CRITICAL: Always rebuild assets after package update
+   ```
+5. **Update orbit-desktop** (when on Mac):
+   ```bash
+   composer update hardimpactdev/orbit-core
+   npm run build  # Use npm for NativePHP projects
+   ```
+
+**Never skip step 4 - orbit-web must be updated and rebuilt after every push!**
