@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import Modal from './Modal.vue';
+import DnsSettings from './DnsSettings.vue';
 import { Loader2, Save, AlertCircle, Eye, EyeOff } from 'lucide-vue-next';
 import { Button, Switch } from '@hardimpactdev/craft-ui';
 
@@ -24,6 +25,7 @@ interface ServiceInfo {
 const props = defineProps<{
     show: boolean;
     serviceName: string | null;
+    environmentId: number;
     getApiUrl: (path: string) => string;
     csrfToken: string;
 }>();
@@ -38,6 +40,8 @@ const saving = ref(false);
 const serviceInfo = ref<ServiceInfo | null>(null);
 const formData = ref<Record<string, any>>({});
 const showSecrets = ref<Record<string, boolean>>({});
+
+const isDnsService = computed(() => props.serviceName === 'dns');
 
 const fetchInfo = async () => {
     if (!props.serviceName) return;
@@ -129,9 +133,14 @@ onMounted(() => {
                 <p class="text-zinc-500">Loading configuration...</p>
             </div>
 
-            <div v-else-if="!serviceInfo" class="py-12 text-center">
+            <div v-else-if="!serviceInfo && !isDnsService" class="py-12 text-center">
                 <AlertCircle class="w-8 h-8 mx-auto text-red-500/50 mb-3" />
                 <p class="text-zinc-500">Failed to load service information.</p>
+            </div>
+
+            <!-- DNS Service: Show DNS Mappings Management -->
+            <div v-else-if="isDnsService">
+                <DnsSettings :environment-id="environmentId" />
             </div>
 
             <form v-else @submit.prevent="saveConfig" class="space-y-6">

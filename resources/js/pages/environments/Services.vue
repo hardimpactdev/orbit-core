@@ -855,6 +855,7 @@ onUnmounted(() => {
         <ConfigureServiceModal
             :show="showConfigureModal"
             :service-name="selectedService"
+            :environment-id="environment.id"
             :get-api-url="getApiUrl"
             :csrf-token="csrfToken"
             @close="showConfigureModal = false"
