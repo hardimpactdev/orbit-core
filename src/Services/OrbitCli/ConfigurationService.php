@@ -113,15 +113,13 @@ class ConfigurationService
         // Get TLD from environment cache or status
         $tld = $environment->tld ?? $statusData['tld'] ?? 'test';
 
-        // Get Reverb port from service config, default to 6001 (Soketi default)
-        $reverbPort = $reverbService['port'] ?? 6001;
-
+        // Caddy terminates TLS for reverb.{tld} and proxies to the Reverb container
         return [
             'success' => true,
             'enabled' => true,
-            'host' => "orbit.{$tld}",
-            'port' => $reverbPort,
-            'scheme' => 'http',
+            'host' => "reverb.{$tld}",
+            'port' => 443,
+            'scheme' => 'https',
             'app_key' => 'orbit-key',
         ];
     }

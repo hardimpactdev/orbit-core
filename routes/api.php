@@ -50,3 +50,11 @@ Route::prefix('environments/{environment}')->group(function (): void {
     Route::get('php/config/{version?}', [EnvironmentController::class, 'getPhpConfig']);
     Route::post('php/config/{version?}', [EnvironmentController::class, 'setPhpConfig']);
 });
+
+// Project routes (without environment prefix - used when remoteApiUrl is set)
+// These are accessed directly via orbit.{tld}/api/projects/{slug}
+// Uses implicit.environment middleware to inject the local environment
+Route::middleware('implicit.environment')->group(function (): void {
+    Route::delete('projects/{projectName}', [EnvironmentController::class, 'destroyProject']);
+    Route::post('projects/{projectName}/rebuild', [EnvironmentController::class, 'rebuildProject']);
+});

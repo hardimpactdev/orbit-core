@@ -333,12 +333,10 @@ async function deleteProject() {
         const { data: result } = await api.delete(getApiUrl(`/projects/${slug}`));
 
         if (result.success) {
-            // Async deletion - WebSocket will broadcast 'deleted' when done
-            // The deletingProjects watcher will reload the list
-            if (!isConnected.value) {
-                // Without WebSocket, reload after a delay as fallback
-                setTimeout(() => loadProjects(true), 3000);
-            }
+            // Mark deletion complete immediately - the API is synchronous
+            markDeletionComplete(slug);
+            // Reload projects to update the list
+            await loadProjects(true);
         } else {
             markDeletionFailed(slug, result.error || 'Failed to delete project');
         }
