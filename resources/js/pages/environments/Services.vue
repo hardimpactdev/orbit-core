@@ -160,7 +160,7 @@ const serviceMeta: Record<string, ServiceMeta> = {
         name: 'Laravel Reverb',
         description: 'WebSocket server for real-time features',
         icon: Wifi,
-        ports: '6001',
+        ports: '8080',
         category: 'utility',
         required: true,
     },

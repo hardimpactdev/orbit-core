@@ -103,6 +103,42 @@ composer format         # Format with Pint
 - Routes are registered via `OrbitServiceProvider::routes()` in consumer apps
 - Frontend assets live in `resources/js/` and are compiled by consumer apps
 
+## CLI Integration (CommandService)
+
+The web app calls orbit-cli commands via `CommandService::executeLocalCommand()`:
+
+```php
+$pharPath = $this->cliUpdate->getPharPath();
+$result = Process::timeout(60)->run("php {$pharPath} {$command}");
+$decoded = json_decode($result->output(), true);
+```
+
+### Critical Requirements
+
+1. **CLI must output clean JSON to stdout** when `--json` flag is passed
+2. **stderr is separate** - warnings via `error_log()` don't corrupt JSON parsing
+3. **Timeout is 60 seconds** - long operations must complete within this window
+4. **JSON structure expected**: `{"success": bool, "data": {...}}` or `{"success": false, "error": "message"}`
+
+### Common Failure Modes
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| "Failed to parse JSON: Syntax error" | CLI outputs console messages to stdout | Pass `--json` properly, suppress console output in CLI |
+| 502 Bad Gateway | CLI restarts PHP-FPM | Remove PHP-FPM restarts from web-callable operations |
+| Timeout | Operation exceeds 60s | Optimize operation or increase timeout |
+
+### Testing CLI Integration
+
+Test CLI JSON output directly before assuming web integration works:
+
+```bash
+# stdout only (simulates what Process::run() captures)
+php ~/.local/bin/orbit site:create "test" --json 2>/dev/null
+
+# Should output ONLY valid JSON, nothing else
+```
+
 ## After Making Changes
 
 **IMPORTANT: Always complete the full workflow below:**
