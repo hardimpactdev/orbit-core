@@ -74,6 +74,7 @@ class CommandService
                     'stdout' => $result->output(),
                     'stderr' => $result->errorOutput(),
                 ]);
+
                 return [
                     'success' => false,
                     'error' => $error,
