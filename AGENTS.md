@@ -103,9 +103,29 @@ composer format         # Format with Pint
 - Routes are registered via `OrbitServiceProvider::routes()` in consumer apps
 - Frontend assets live in `resources/js/` and are compiled by consumer apps
 
+## Flow Documentation
+
+**Critical workflow documentation lives in `/docs/flows/`.**
+
+| Flow | Document | Status |
+|------|----------|--------|
+| Site Creation | [docs/flows/site-creation.md](docs/flows/site-creation.md) | Authoritative |
+
+**Always reference these documents during refactoring to ensure consistency.**
+
+### Core Architecture Principle
+
+All long-running operations (site creation, provisioning, etc.) MUST:
+1. Dispatch a Job to the queue
+2. Return immediately to the user
+3. Process asynchronously via Horizon
+4. Broadcast progress via WebSocket
+
+**Never call CLI commands synchronously from controllers.**
+
 ## CLI Integration (CommandService)
 
-The web app calls orbit-cli commands via `CommandService::executeLocalCommand()`:
+The CLI is called from **Jobs only**, not directly from controllers:
 
 ```php
 $pharPath = $this->cliUpdate->getPharPath();

@@ -2,9 +2,11 @@
 
 namespace HardImpact\Orbit\Http\Controllers;
 
+use HardImpact\Orbit\Jobs\CreateSiteJob;
 use HardImpact\Orbit\Models\Environment;
 use HardImpact\Orbit\Models\Setting;
 use HardImpact\Orbit\Models\TemplateFavorite;
+use HardImpact\Orbit\Models\TrackedJob;
 use HardImpact\Orbit\Services\DnsResolverService;
 use HardImpact\Orbit\Services\DoctorService;
 use HardImpact\Orbit\Services\MacPhpFpmConfigService;
@@ -920,38 +922,45 @@ class EnvironmentController extends Controller
             ]);
         }
 
-        // Always use CLI for project creation - CLI handles orchestrator registration at the end
-        // Orchestrator handles Linear/VibeKanban integrations internally
+        // Build options for the job
+        // @see /docs/flows/site-creation.md
         $projectOptions = [
             'name' => $validated['name'],
-            'org' => $validated['org'] ?? null, // GitHub org/user to create repo under
+            'org' => $validated['org'] ?? null,
             'template' => $validated['template'] ?? null,
-            'is_template' => $validated['is_template'] ?? false, // true = GitHub template, false = clone directly
-            'fork' => $isImportScenario ? ($validated['fork'] ?? false) : false, // Only relevant for import scenario
+            'is_template' => $validated['is_template'] ?? false,
+            'fork' => $isImportScenario ? ($validated['fork'] ?? false) : false,
             'visibility' => $validated['visibility'] ?? 'private',
-            // PHP version
             'php_version' => $validated['php_version'] ?? null,
-            // Driver options
             'db_driver' => $validated['db_driver'] ?? null,
             'session_driver' => $validated['session_driver'] ?? null,
             'cache_driver' => $validated['cache_driver'] ?? null,
             'queue_driver' => $validated['queue_driver'] ?? null,
         ];
 
-        $result = $this->project->createProject($environment, $projectOptions);
+        $projectSlug = \Illuminate\Support\Str::slug($validated['name']);
 
-        if (! $result['success']) {
-            $errorMessage = $result['error'] ?? 'Failed to create site';
+        // Create tracked job for status monitoring
+        $trackedJob = TrackedJob::create([
+            'name' => "create-site:{$projectSlug}",
+            'status' => 'pending',
+        ]);
 
-            return back()
-                ->withErrors(['create' => $errorMessage])
-                ->with('error', $errorMessage);
+        // Dispatch async job - processed by Horizon
+        // The job calls CLI and broadcasts progress via WebSocket
+        CreateSiteJob::dispatch($environment->id, $projectOptions, (string) $trackedJob->id);
+
+        // API requests get 202 Accepted with job tracking info
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Site creation queued',
+                'slug' => $projectSlug,
+                'job_id' => $trackedJob->id,
+            ], 202);
         }
 
-        // CLI is source of truth - no local tracking needed
-        // Just pass the slug for WebSocket provisioning status updates
-        $projectSlug = $result['data']['project_slug'] ?? $result['data']['slug'] ?? \Illuminate\Support\Str::slug($validated['name']);
-
+        // Web requests get redirect with provisioning slug for WebSocket tracking
         return redirect()->route('environments.sites', $environment)
             ->with([
                 'provisioning' => $projectSlug,
