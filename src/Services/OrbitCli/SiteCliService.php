@@ -4,8 +4,8 @@ namespace HardImpact\Orbit\Services\OrbitCli;
 
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\CreateSiteRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\DeleteSiteRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetSitesRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetProvisionStatusRequest;
+use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetSitesRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\RebuildSiteRequest;
 use HardImpact\Orbit\Models\Environment;
 use HardImpact\Orbit\Services\OrbitCli\Shared\CommandService;

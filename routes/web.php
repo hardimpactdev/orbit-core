@@ -5,7 +5,6 @@ use HardImpact\Orbit\Http\Controllers\EnvironmentController;
 use HardImpact\Orbit\Http\Controllers\ProvisioningController;
 use HardImpact\Orbit\Http\Controllers\SettingsController;
 use HardImpact\Orbit\Http\Controllers\SshKeyController;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 if (config('orbit.multi_environment')) {
