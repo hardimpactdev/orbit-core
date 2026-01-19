@@ -60,13 +60,15 @@ describe('CommandService', function () {
             $this->cliUpdateService->shouldReceive('isInstalled')->andReturn(true);
             $this->cliUpdateService->shouldReceive('getPharPath')->andReturn('/custom/path/orbit.phar');
 
+            $phpBinary = PHP_BINARY;
+
             Process::fake([
-                'php /custom/path/orbit.phar *' => Process::result(output: '{"success": true}'),
+                "{$phpBinary} /custom/path/orbit.phar *" => Process::result(output: '{"success": true}'),
             ]);
 
             $this->commandService->executeLocalCommand('status --json');
 
-            Process::assertRan('php /custom/path/orbit.phar status --json');
+            Process::assertRan("{$phpBinary} /custom/path/orbit.phar status --json");
         });
 
         it('passes timeout to process', function () {
@@ -77,7 +79,7 @@ describe('CommandService', function () {
                 '*' => Process::result(output: '{"success": true}'),
             ]);
 
-            $result = $this->commandService->executeLocalCommand('provision test --json', 600);
+            $result = $this->commandService->executeLocalCommand('site:create test --json', 600);
 
             // The timeout is passed internally - we verify the command executed successfully
             expect($result)->toBe(['success' => true]);

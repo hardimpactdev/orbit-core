@@ -61,7 +61,8 @@ class CommandService
         }
 
         $pharPath = $this->cliUpdate->getPharPath();
-        $fullCommand = "php {$pharPath} {$command}";
+        $phpBinary = PHP_BINARY;
+        $fullCommand = "{$phpBinary} {$pharPath} {$command}";
 
         try {
             \Illuminate\Support\Facades\Log::info("CommandService executing: {$fullCommand}");
@@ -175,7 +176,8 @@ BASH;
             }
 
             $pharPath = $this->cliUpdate->getPharPath();
-            $result = Process::timeout($timeout)->run("php {$pharPath} {$command}");
+            $phpBinary = PHP_BINARY;
+            $result = Process::timeout($timeout)->run("{$phpBinary} {$pharPath} {$command}");
 
             return [
                 'success' => $result->successful(),

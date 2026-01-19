@@ -61,7 +61,8 @@ class CliUpdateService
         }
 
         $path = $this->getPharPath();
-        $output = shell_exec("php {$path} --version 2>/dev/null");
+        $phpBinary = PHP_BINARY;
+        $output = shell_exec("{$phpBinary} {$path} --version 2>/dev/null");
 
         return $output ? trim($output) : null;
     }
