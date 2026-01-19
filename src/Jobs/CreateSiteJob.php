@@ -16,7 +16,7 @@ use Illuminate\Support\Str;
  * Async job for creating a new site.
  *
  * This job is dispatched by the controller and processed by Horizon.
- * It calls the CLI provision command which broadcasts progress via WebSocket.
+ * It calls the CLI site:create command which broadcasts progress via WebSocket.
  * The frontend tracks status via Reverb WebSocket (site.provision.status events),
  * not via polling - TrackedJob is not needed.
  *

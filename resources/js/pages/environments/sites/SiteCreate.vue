@@ -18,7 +18,6 @@ interface Environment {
     id: number;
     name: string;
     is_local: boolean;
-    orchestrator_url: string | null;
 }
 
 interface TemplateFavorite {
@@ -62,8 +61,6 @@ const form = ref({
     template: '',
     is_template: false,
     fork: false,
-    integrate: !!props.environment.orchestrator_url,
-    linear_team_id: '',
     visibility: 'private',
     php_version: null as string | null,
     db_driver: null as string | null,
@@ -138,23 +135,6 @@ const loadingDefaults = ref(false);
 const defaultsError = ref<string | null>(null);
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-
-interface OrchestratorService {
-    name: string;
-    enabled: boolean;
-    label: string;
-}
-
-const orchestratorServices = ref<OrchestratorService[]>([]);
-const loadingServices = ref(false);
-
-const canIntegrate = computed(() => {
-    return props.environment.orchestrator_url;
-});
-
-const enabledServices = computed(() => {
-    return orchestratorServices.value.filter((s) => s.enabled);
-});
 
 const formatDriverName = (driver: string | null): string => {
     if (!driver) return 'Not set';
@@ -334,10 +314,6 @@ const fetchTemplateDefaults = async (template: string) => {
 };
 
 onMounted(async () => {
-    if (canIntegrate.value) {
-        loadOrchestratorServices();
-    }
-
     // Fetch GitHub user and organizations in parallel
     loadingOrgs.value = true;
 
@@ -391,23 +367,6 @@ onMounted(async () => {
         loadingOrgs.value = false;
     }
 });
-
-const loadOrchestratorServices = async () => {
-    loadingServices.value = true;
-
-    try {
-        const response = await fetch(`/environments/${props.environment.id}/orchestrator/services`);
-        const result = await response.json();
-
-        if (result.success) {
-            orchestratorServices.value = result.services || [];
-        }
-    } catch (error) {
-        console.error('Failed to load orchestrator services:', error);
-    } finally {
-        loadingServices.value = false;
-    }
-};
 
 const selectTemplate = (template: TemplateFavorite) => {
     form.value.template = template.repo_url;
@@ -877,45 +836,6 @@ const submit = () => {
                                 </Select>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </template>
-
-            <!-- Orchestrator Integration -->
-            <template v-if="canIntegrate">
-                <hr class="border-zinc-800" />
-
-                <div class="grid grid-cols-2 gap-8 py-6">
-                    <div>
-                        <h3 class="text-sm font-medium text-white">Orchestrator Integration</h3>
-                        <p class="text-sm text-zinc-500 mt-1">
-                            Configure site in orchestrator for full integration.
-                        </p>
-                        <!-- Services list -->
-                        <div v-if="loadingServices" class="flex items-center text-zinc-500 mt-2">
-                            <Loader2 class="w-3 h-3 mr-1.5 animate-spin" />
-                            <span class="text-xs">Loading services...</span>
-                        </div>
-                        <div
-                            v-else-if="enabledServices.length > 0"
-                            class="flex items-center gap-2 mt-2"
-                        >
-                            <span
-                                v-for="service in enabledServices"
-                                :key="service.name"
-                                class="text-xs px-1.5 py-0.5 rounded bg-zinc-700 text-zinc-400"
-                            >
-                                {{ service.label }}
-                            </span>
-                        </div>
-                    </div>
-                    <div class="flex items-start">
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input v-model="form.integrate" type="checkbox" class="sr-only peer" />
-                            <div
-                                class="w-11 h-6 bg-zinc-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-lime-500/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-600 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-lime-500"
-                            ></div>
-                        </label>
                     </div>
                 </div>
             </template>

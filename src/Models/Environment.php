@@ -25,7 +25,6 @@ class Environment extends Model
         'port',
         'is_local',
         'is_default',
-        'orchestrator_url',
         'tld',
         'cli_version',
         'cli_path',

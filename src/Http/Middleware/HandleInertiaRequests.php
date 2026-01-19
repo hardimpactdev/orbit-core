@@ -75,7 +75,6 @@ class HandleInertiaRequests extends Middleware
                 }
 
                 $envId = $currentEnv?->id;
-                $hasOrchestrator = $currentEnv?->orchestrator_url !== null;
 
                 // Build URLs based on mode
                 $urlPrefix = $multiEnvironment && $envId ? "/environments/{$envId}" : '';
@@ -118,16 +117,6 @@ class HandleInertiaRequests extends Middleware
                             'isActive' => str_starts_with($currentPath, "{$pathPrefix}settings"),
                         ],
                     ];
-
-                    // Only show Orchestrator menu item if configured
-                    if ($hasOrchestrator) {
-                        array_splice($mainItems, 3, 0, [[
-                            'title' => 'Orchestrator',
-                            'href' => "{$urlPrefix}/orchestrator",
-                            'icon' => 'Workflow',
-                            'isActive' => str_starts_with($currentPath, "{$pathPrefix}orchestrator"),
-                        ]]);
-                    }
                 }
 
                 $footerItems = [

@@ -5,9 +5,9 @@ namespace HardImpact\Orbit\Http\Integrations\Orbit\Requests;
 use Saloon\Enums\Method;
 use Saloon\Http\Request;
 
-class DeleteProjectRequest extends Request
+class RebuildSiteRequest extends Request
 {
-    protected Method $method = Method::DELETE;
+    protected Method $method = Method::POST;
 
     public function __construct(
         protected string $slug,
@@ -15,6 +15,13 @@ class DeleteProjectRequest extends Request
 
     public function resolveEndpoint(): string
     {
-        return "/projects/{$this->slug}";
+        return "/sites/{$this->slug}/rebuild";
+    }
+
+    protected function defaultConfig(): array
+    {
+        return [
+            'timeout' => 300,
+        ];
     }
 }

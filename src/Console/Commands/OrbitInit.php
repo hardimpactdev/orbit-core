@@ -13,7 +13,7 @@ class OrbitInit extends Command
      *
      * @var string
      */
-    protected $signature = 'orbit:init';
+    protected $signature = 'orbit:init {--name= : Display name for this environment}';
 
     /**
      * The console command description.
@@ -48,8 +48,15 @@ class OrbitInit extends Command
             $user = exec('whoami');
         }
 
+        // Get environment name: option > prompt > hostname
+        $name = $this->option('name');
+        if (! $name) {
+            $hostname = gethostname() ?: 'Local';
+            $name = $this->ask('Environment display name', $hostname);
+        }
+
         Environment::create([
-            'name' => 'Local',
+            'name' => $name,
             'host' => 'localhost',
             'user' => $user,
             'is_local' => true,
@@ -58,7 +65,7 @@ class OrbitInit extends Command
             'status' => Environment::STATUS_ACTIVE,
         ]);
 
-        $this->info("Local environment initialized with TLD: {$tld}");
+        $this->info("Local environment '{$name}' initialized with TLD: {$tld}");
 
         return Command::SUCCESS;
     }

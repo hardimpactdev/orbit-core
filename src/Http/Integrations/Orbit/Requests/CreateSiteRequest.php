@@ -7,7 +7,7 @@ use Saloon\Enums\Method;
 use Saloon\Http\Request;
 use Saloon\Traits\Body\HasJsonBody;
 
-class CreateProjectRequest extends Request implements HasBody
+class CreateSiteRequest extends Request implements HasBody
 {
     use HasJsonBody;
 
@@ -19,7 +19,7 @@ class CreateProjectRequest extends Request implements HasBody
 
     public function resolveEndpoint(): string
     {
-        return '/projects';
+        return '/sites';
     }
 
     protected function defaultBody(): array

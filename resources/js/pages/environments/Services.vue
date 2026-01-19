@@ -272,16 +272,8 @@ const latestPhpVersion = computed(() => {
     return versions[versions.length - 1];
 });
 
-async function openExternal(url: string) {
-    try {
-        await fetch('/open-external', {
-            method: 'POST',
-            headers: { 'X-CSRF-TOKEN': csrfToken, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url }),
-        });
-    } catch {
-        // Silent fail for opening URLs
-    }
+function openExternal(url: string) {
+    window.open(url, '_blank');
 }
 
 async function openPhpSettings() {

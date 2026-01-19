@@ -20,34 +20,56 @@ src/
   Models/                    # Eloquent models
     Environment.php
     Project.php
+    Site.php                 # Site model for local dev sites
+    TrackedJob.php           # Job tracking
     Deployment.php
     Setting.php
     SshKey.php
     TemplateFavorite.php
     UserPreference.php
   Services/
+    OrbitService.php         # Main orchestration service
+    ProvisioningService.php  # Site provisioning logic
+    SiteService.php          # Site management
     DoctorService.php        # Health checks
     SshService.php           # SSH operations
+    CliUpdateService.php     # CLI update handling
+    DnsResolverService.php   # DNS resolution
+    NotificationService.php  # Notifications
+    TemplateAnalyzer/        # Template analysis utilities
     OrbitCli/                # CLI interaction
-      ProjectService.php
+      SiteCliService.php     # Site CLI operations
       ConfigurationService.php  # Includes DNS mapping methods
       ServiceControlService.php
       StatusService.php
+      PackageService.php     # Package management
+      WorkspaceService.php   # Workspace management
+      WorktreeService.php    # Git worktree support
       Shared/
         CommandService.php
         ConnectorService.php
+  Jobs/
+    CreateSiteJob.php        # Async site creation
+  Console/Commands/
+    OrbitInit.php            # CLI initialization
   Http/
     Controllers/             # All route handlers
       DnsController.php      # DNS mappings management
+      EnvironmentController.php  # Main environment operations
+      DashboardController.php
+      JobController.php
+      ProvisioningController.php
+      SettingsController.php
+      SshKeyController.php
     Middleware/
       HandleInertiaRequests.php
       ImplicitEnvironment.php
-      DesktopOnly.php
     Integrations/Orbit/      # Saloon API connectors
 config/
   orbit.php                  # Package configuration
 database/
   migrations/                # Database migrations
+  factories/                 # Model factories
 resources/
   js/
     pages/                   # Vue page components
@@ -56,7 +78,11 @@ resources/
     layouts/                 # App layouts
     stores/                  # Pinia stores
     composables/             # Vue composables
+    types/                   # TypeScript definitions
+    lib/                     # Utility libraries
     app.ts                   # Frontend entry point
+    echo.ts                  # WebSocket setup
+  css/
     app.css                  # Tailwind styles
 routes/
   web.php                    # Web routes
@@ -70,8 +96,8 @@ All classes use `HardImpact\Orbit` namespace:
 
 ```php
 use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Services\OrbitCli\ProjectService;
-use HardImpact\Orbit\Http\Controllers\ProjectController;
+use HardImpact\Orbit\Services\OrbitCli\SiteCliService;
+use HardImpact\Orbit\Http\Controllers\EnvironmentController;
 ```
 
 ## Mode Configuration

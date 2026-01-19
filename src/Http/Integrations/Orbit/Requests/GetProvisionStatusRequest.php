@@ -15,6 +15,6 @@ class GetProvisionStatusRequest extends Request
 
     public function resolveEndpoint(): string
     {
-        return "/projects/{$this->slug}/provision-status";
+        return "/sites/{$this->slug}/provision-status";
     }
 }

@@ -21,7 +21,6 @@ class Deployment extends Model
         'status',
         'local_path',
         'site_url',
-        'orchestrator_id',
     ];
 
     public function project(): BelongsTo

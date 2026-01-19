@@ -157,7 +157,7 @@ const openAddSiteModal = async () => {
     }
 };
 
-const openInEditor = async () => {
+const openInEditor = () => {
     if (!workspace.value) return;
     const user = props.environment.user;
     const host = props.environment.host;
@@ -165,25 +165,16 @@ const openInEditor = async () => {
     const workspaceFile = `${workspacePath}/${workspace.value.name}.code-workspace`;
 
     const url = `${props.editor.scheme}://vscode-remote/ssh-remote+${user}@${host}${workspaceFile}?windowId=_blank`;
-
-    try {
-        await api.post('/open-external', { url });
-    } catch {
-        // Silent fail for opening URLs
-    }
+    window.open(url, '_blank');
 };
 
-const openInTerminal = async () => {
+const openInTerminal = () => {
     if (!workspace.value) return;
-    try {
-        await api.post('/open-terminal', {
-            user: props.environment.user,
-            host: props.environment.host,
-            path: workspace.value.path,
-        });
-    } catch {
-        // Silent fail for opening terminal
-    }
+    const user = props.environment.user;
+    const host = props.environment.host;
+    // Use ssh:// protocol - OS handles opening the terminal
+    const url = `ssh://${user}@${host}`;
+    window.open(url, '_self');
 };
 
 const addSite = async () => {

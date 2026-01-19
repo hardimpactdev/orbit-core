@@ -8,7 +8,6 @@ import {
     Trash2,
     Plus,
     AlertTriangle,
-    Workflow,
     Check,
     AlertCircle,
     Stethoscope,
@@ -40,9 +39,13 @@ interface Config {
 
 const props = defineProps<{
     environment: Environment;
+    remoteApiUrl: string | null;
 }>();
 
 const csrfToken = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content || '';
+
+// Whether this is an external environment viewed from desktop
+const isExternalEnvironment = computed(() => !props.environment.is_local && props.remoteApiUrl);
 
 // Environment form
 const envForm = useForm({
@@ -51,6 +54,11 @@ const envForm = useForm({
     user: props.environment.user,
     port: props.environment.port,
 });
+
+// Instance info sync (for external environments)
+const instanceInfoLoading = ref(false);
+const instanceInfoError = ref<string | null>(null);
+const nameSaving = ref(false);
 
 // CLI config
 const config = ref<Config | null>(null);
@@ -168,13 +176,13 @@ async function fixIssue(checkKey: string) {
     }
 }
 
+// Orchestrator functions
 async function enableOrchestrator() {
     orchestratorBusy.value = true;
     orchestratorError.value = null;
     orchestratorStatus.value = 'Scanning for existing installations...';
 
     try {
-        // Step 1: Detect existing installations
         const detectResponse = await fetch(
             `/environments/${props.environment.id}/orchestrator/detect`,
         );
@@ -183,7 +191,6 @@ async function enableOrchestrator() {
         if (detectResult.success) {
             tld.value = detectResult.tld || 'test';
 
-            // Step 2: If found, reconcile it
             if (detectResult.installations && detectResult.installations.length > 0) {
                 orchestratorStatus.value = 'Found existing installation, linking...';
                 const installation = detectResult.installations[0];
@@ -207,15 +214,13 @@ async function enableOrchestrator() {
                     setTimeout(() => router.reload(), 1000);
                     return;
                 } else {
-                    orchestratorError.value =
-                        reconcileResult.error || 'Failed to link orchestrator';
+                    orchestratorError.value = reconcileResult.error || 'Failed to link orchestrator';
                     orchestratorStatus.value = null;
                     orchestratorBusy.value = false;
                     return;
                 }
             }
 
-            // Step 3: If not found, install new
             orchestratorStatus.value = 'Installing orchestrator...';
 
             const installResponse = await fetch(
@@ -261,6 +266,57 @@ function disableOrchestrator() {
     );
 }
 
+// Instance info sync (for external environments)
+async function loadInstanceInfo() {
+    if (!isExternalEnvironment.value || !props.remoteApiUrl) return;
+
+    instanceInfoLoading.value = true;
+    instanceInfoError.value = null;
+
+    try {
+        const response = await fetch(`${props.remoteApiUrl}/instance-info`);
+        const result = await response.json();
+
+        if (result.success && result.data) {
+            // Update form with the canonical name from remote
+            envForm.name = result.data.name;
+        } else {
+            instanceInfoError.value = result.error || 'Failed to load instance info';
+        }
+    } catch (error) {
+        instanceInfoError.value = 'Failed to connect to remote environment';
+    } finally {
+        instanceInfoLoading.value = false;
+    }
+}
+
+async function saveRemoteName() {
+    if (!props.remoteApiUrl) return;
+
+    nameSaving.value = true;
+    instanceInfoError.value = null;
+
+    try {
+        const response = await fetch(`${props.remoteApiUrl}/instance-info`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ name: envForm.name }),
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+            instanceInfoError.value = result.error || 'Failed to update name';
+        }
+    } catch (error) {
+        instanceInfoError.value = 'Failed to connect to remote environment';
+    } finally {
+        nameSaving.value = false;
+    }
+}
+
 async function loadConfig() {
     configLoading.value = true;
     try {
@@ -285,7 +341,12 @@ async function loadConfig() {
     }
 }
 
-function saveEnvSettings() {
+async function saveEnvSettings() {
+    // For external environments, update the remote's canonical name via API
+    if (isExternalEnvironment.value) {
+        await saveRemoteName();
+    }
+    // Always save to local database (SSH connection info, etc.)
     envForm.post(`/environments/${props.environment.id}/settings`);
 }
 
@@ -354,6 +415,10 @@ function deleteEnvironment() {
 
 onMounted(() => {
     loadConfig();
+    // For external environments, fetch the canonical name from remote
+    if (isExternalEnvironment.value) {
+        loadInstanceInfo();
+    }
 });
 </script>
 
@@ -371,12 +436,32 @@ onMounted(() => {
             <div class="grid grid-cols-2 gap-8 py-6">
                 <div>
                     <h3 class="text-sm font-medium text-white">Environment Name</h3>
-                    <p class="text-sm text-zinc-500 mt-1">Display name for this environment.</p>
+                    <p class="text-sm text-zinc-500 mt-1">
+                        Display name for this environment.
+                        <template v-if="isExternalEnvironment">
+                            <br /><span class="text-xs text-zinc-600">Changes will be synced to the remote environment.</span>
+                        </template>
+                    </p>
                 </div>
                 <div>
-                    <Input v-model="envForm.name" type="text" id="name" class="w-full" />
+                    <div class="relative">
+                        <Input
+                            v-model="envForm.name"
+                            type="text"
+                            id="name"
+                            class="w-full"
+                            :disabled="instanceInfoLoading"
+                        />
+                        <Loader2
+                            v-if="instanceInfoLoading"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-zinc-500"
+                        />
+                    </div>
                     <p v-if="envForm.errors.name" class="mt-2 text-sm text-red-400">
                         {{ envForm.errors.name }}
+                    </p>
+                    <p v-if="instanceInfoError" class="mt-2 text-sm text-amber-400">
+                        {{ instanceInfoError }}
                     </p>
                 </div>
             </div>
@@ -451,10 +536,10 @@ onMounted(() => {
             <div class="flex justify-end py-6">
                 <Button
                     type="submit"
-                    :disabled="envForm.processing"
+                    :disabled="envForm.processing || nameSaving"
                     variant="secondary"
                 >
-                    {{ envForm.processing ? 'Saving...' : 'Save Environment' }}
+                    {{ envForm.processing || nameSaving ? 'Saving...' : 'Save Environment' }}
                 </Button>
             </div>
         </form>
@@ -579,71 +664,6 @@ onMounted(() => {
         <!-- DNS Settings -->
         <div class="py-6">
             <DnsSettings :environment-id="environment.id" />
-        </div>
-
-        <hr class="border-zinc-800" />
-
-        <!-- Orchestrator -->
-        <div class="grid grid-cols-2 gap-8 py-6">
-            <div>
-                <div class="flex items-center gap-2">
-                    <Workflow
-                        class="w-5 h-5"
-                        :class="isOrchestratorEnabled ? 'text-lime-400' : 'text-zinc-400'"
-                    />
-                    <h3 class="text-sm font-medium text-white">Orchestrator</h3>
-                    <span
-                        v-if="isOrchestratorEnabled"
-                        class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-lime-500/10 text-lime-400"
-                    >
-                        <Check class="w-3 h-3" />
-                        Connected
-                    </span>
-                </div>
-                <p class="text-sm text-zinc-500 mt-1">
-                    {{
-                        isOrchestratorEnabled
-                            ? environment.orchestrator_url
-                            : 'AI-assisted site management with MCP integration.'
-                    }}
-                </p>
-                <!-- Progress/Status -->
-                <div
-                    v-if="!isOrchestratorEnabled && (orchestratorBusy || orchestratorError)"
-                    class="mt-3"
-                >
-                    <div v-if="orchestratorStatus" class="flex items-center gap-2">
-                        <Loader2 class="w-4 h-4 animate-spin text-lime-400" />
-                        <span class="text-sm text-zinc-300">{{ orchestratorStatus }}</span>
-                    </div>
-                    <div
-                        v-if="orchestratorError"
-                        class="flex items-center gap-2 text-sm text-red-400"
-                    >
-                        <AlertCircle class="w-4 h-4" />
-                        {{ orchestratorError }}
-                    </div>
-                </div>
-            </div>
-            <div class="flex items-start">
-                <Button
-                    v-if="isOrchestratorEnabled"
-                    @click="disableOrchestrator"
-                    type="button"
-                    variant="outline"
-                    class="text-red-400 border-red-400/50 hover:bg-red-400/10 hover:text-red-300"
-                >
-                    Disable
-                </Button>
-                <Button
-                    v-else-if="!orchestratorBusy"
-                    @click="enableOrchestrator"
-                    type="button"
-                    variant="secondary"
-                >
-                    Enable
-                </Button>
-            </div>
         </div>
 
         <hr class="border-zinc-800" />

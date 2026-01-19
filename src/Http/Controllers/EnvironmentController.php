@@ -10,9 +10,8 @@ use HardImpact\Orbit\Services\DnsResolverService;
 use HardImpact\Orbit\Services\DoctorService;
 use HardImpact\Orbit\Services\MacPhpFpmConfigService;
 use HardImpact\Orbit\Services\OrbitCli\ConfigurationService;
-use HardImpact\Orbit\Services\OrbitCli\OrchestratorService;
 use HardImpact\Orbit\Services\OrbitCli\PackageService;
-use HardImpact\Orbit\Services\OrbitCli\ProjectService;
+use HardImpact\Orbit\Services\OrbitCli\SiteCliService;
 use HardImpact\Orbit\Services\OrbitCli\ServiceControlService;
 use HardImpact\Orbit\Services\OrbitCli\StatusService;
 use HardImpact\Orbit\Services\OrbitCli\WorkspaceService;
@@ -27,9 +26,8 @@ class EnvironmentController extends Controller
         protected StatusService $status,
         protected ServiceControlService $serviceControl,
         protected ConfigurationService $config,
-        protected ProjectService $project,
+        protected SiteCliService $site,
         protected WorktreeService $worktree,
-        protected OrchestratorService $orchestrator,
         protected WorkspaceService $workspace,
         protected PackageService $package,
         protected DnsResolverService $dnsResolver,
@@ -289,7 +287,7 @@ class EnvironmentController extends Controller
      */
     public function sitesApi(Environment $environment)
     {
-        return response()->json($this->project->projectList($environment));
+        return response()->json($this->site->siteList($environment));
     }
 
     /**
@@ -297,8 +295,11 @@ class EnvironmentController extends Controller
      */
     public function settings(Environment $environment): \Inertia\Response
     {
+        $remoteApiUrl = $this->getRemoteApiUrl($environment);
+
         return \Inertia\Inertia::render('environments/Settings', [
             'environment' => $environment,
+            'remoteApiUrl' => $remoteApiUrl,
         ]);
     }
 
@@ -317,202 +318,6 @@ class EnvironmentController extends Controller
         $environment->update($validated);
 
         return redirect()->back()->with('success', 'Environment settings updated.');
-    }
-
-    /**
-     * Orchestrator page.
-     */
-    public function orchestrator(Environment $environment): \Inertia\Response
-    {
-        return \Inertia\Inertia::render('environments/Orchestrator', [
-            'environment' => $environment,
-        ]);
-    }
-
-    /**
-     * Enable orchestrator for an environment.
-     */
-    public function enableOrchestrator(Request $request, Environment $environment)
-    {
-        $validated = $request->validate([
-            'orchestrator_url' => 'required|url|max:255',
-        ]);
-
-        // Update environment with orchestrator URL
-        $environment->update([
-            'orchestrator_url' => $validated['orchestrator_url'],
-        ]);
-
-        // Update orbit CLI config with orchestrator URL
-        $this->orchestrator->setOrchestratorUrl($environment, $validated['orchestrator_url']);
-
-        return redirect()->back()->with('success', 'Orchestrator enabled successfully.');
-    }
-
-    /**
-     * Disable orchestrator for an environment.
-     */
-    public function disableOrchestrator(Environment $environment)
-    {
-        // Clear orchestrator URL from environment
-        $environment->update([
-            'orchestrator_url' => null,
-        ]);
-
-        // Remove orchestrator URL from orbit CLI config
-        $this->orchestrator->removeOrchestratorUrl($environment);
-
-        return redirect()->back()->with('success', 'Orchestrator disconnected.');
-    }
-
-    /**
-     * Install orchestrator for an environment.
-     */
-    public function installOrchestrator(Environment $environment)
-    {
-        $result = $this->orchestrator->installOrchestrator($environment);
-
-        return response()->json($result);
-    }
-
-    /**
-     * Detect existing orchestrator installations.
-     */
-    public function detectOrchestrator(Environment $environment)
-    {
-        $result = $this->orchestrator->detectOrchestrator($environment);
-
-        return response()->json($result);
-    }
-
-    /**
-     * Reconcile orchestrator configuration.
-     */
-    public function reconcileOrchestrator(Request $request, Environment $environment)
-    {
-        $validated = $request->validate([
-            'path' => 'required|string',
-        ]);
-
-        $result = $this->orchestrator->reconcileOrchestrator($environment, $validated['path']);
-
-        if ($result['success']) {
-            return response()->json($result);
-        }
-
-        return response()->json($result, 400);
-    }
-
-    /**
-     * Get orchestrator services configuration.
-     */
-    public function orchestratorServices(Environment $environment)
-    {
-        if (! $environment->orchestrator_url) {
-            return response()->json([
-                'success' => false,
-                'error' => 'No orchestrator configured',
-                'services' => [],
-            ]);
-        }
-
-        try {
-            $url = rtrim($environment->orchestrator_url, '/').'/api/services';
-
-            // For remote environments, call orchestrator directly (DNS resolver is configured)
-            // This avoids SSH overhead on every page load
-            if (! $environment->is_local) {
-                $response = \Illuminate\Support\Facades\Http::withoutVerifying()
-                    ->timeout(5)
-                    ->get($url);
-
-                if ($response->successful()) {
-                    $data = $response->json();
-
-                    return response()->json([
-                        'success' => true,
-                        'services' => $data['services'] ?? [],
-                    ]);
-                }
-            }
-
-            // For local environments or if direct call fails, use SSH with --resolve
-            $parsed = parse_url($environment->orchestrator_url);
-            $host = $parsed['host'] ?? '';
-            $resolveIp = $environment->is_local ? '127.0.0.1' : $environment->host;
-            $resolve = "--resolve '{$host}:443:{$resolveIp}'";
-
-            $result = $this->ssh->execute($environment, "curl -sk {$resolve} '{$url}'");
-
-            if ($result['success'] && ! empty($result['output'])) {
-                $data = json_decode((string) $result['output'], true);
-                if (json_last_error() === JSON_ERROR_NONE) {
-                    return response()->json([
-                        'success' => true,
-                        'services' => $data['services'] ?? [],
-                    ]);
-                }
-            }
-
-            return response()->json([
-                'success' => false,
-                'error' => 'Failed to fetch services',
-                'services' => [],
-            ]);
-        } catch (\Exception) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Could not connect to orchestrator',
-                'services' => [],
-            ]);
-        }
-    }
-
-    /**
-     * Get sites from orchestrator.
-     */
-    public function orchestratorSites(Environment $environment)
-    {
-        if (! $environment->orchestrator_url) {
-            return response()->json([
-                'success' => false,
-                'error' => 'No orchestrator configured',
-                'sites' => [],
-            ]);
-        }
-
-        try {
-            // Use SSH to fetch from orchestrator with --resolve for custom TLD
-            $url = rtrim($environment->orchestrator_url, '/').'/orchestrator/api/projects';
-            $parsed = parse_url($environment->orchestrator_url);
-            $host = $parsed['host'] ?? '';
-            $resolveIp = $environment->is_local ? '127.0.0.1' : $environment->host;
-            $resolve = "--resolve '{$host}:443:{$resolveIp}'";
-
-            $result = $this->ssh->execute($environment, "curl -sk {$resolve} '{$url}'");
-
-            if ($result['success'] && ! empty($result['output'])) {
-                $data = json_decode((string) $result['output'], true);
-                if (json_last_error() === JSON_ERROR_NONE) {
-                    return response()->json([
-                        'success' => true,
-                        'sites' => $data['projects'] ?? $data['data'] ?? [],
-                    ]);
-                }
-            }
-
-            return response()->json([
-                'success' => false,
-                'error' => $result['error'] ?? 'Failed to fetch sites',
-                'sites' => [],
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Could not connect to orchestrator: '.$e->getMessage(),
-                'sites' => [],
-            ]);
-        }
     }
 
     public function start(Request $request, Environment $environment)
@@ -885,8 +690,6 @@ class EnvironmentController extends Controller
             'template' => 'nullable|string|max:500',
             'is_template' => 'boolean', // Whether the repo is a GitHub template (vs regular repo to clone)
             'fork' => 'boolean', // Whether to fork (true) or import as new repo (false) when cloning non-matching repo
-            'integrate' => 'boolean',
-            'linear_team_id' => 'nullable|string',
             'visibility' => 'nullable|in:private,public',
             // PHP version
             'php_version' => 'nullable|in:8.3,8.4,8.5',
@@ -966,42 +769,13 @@ class EnvironmentController extends Controller
      */
     public function destroySite(Request $request, Environment $environment, string $projectName)
     {
-        $errors = [];
+        $result = $this->site->deleteSite($environment, $projectName, force: true);
 
-        // If orchestrator is enabled, cascade delete to VK/Linear first
-        if ($environment->orchestrator_url) {
-            $orchestratorResult = $this->orchestrator->deleteIntegratedProject($environment, $projectName);
-
-            if (! $orchestratorResult['success']) {
-                // Log but continue - we still want to try deleting from filesystem
-                \Illuminate\Support\Facades\Log::warning("Orchestrator delete failed for {$projectName}: ".($orchestratorResult['error'] ?? 'Unknown error'));
-                $errors['orchestrator'] = $orchestratorResult['error'] ?? 'Failed to delete from orchestrator';
-            }
-        }
-
-        // Delete from filesystem via CLI
-        $cliResult = $this->project->deleteProject($environment, $projectName, force: true);
-
-        if (! $cliResult['success']) {
-            $errors['filesystem'] = $cliResult['error'] ?? 'Failed to delete site files';
-
-            // If both failed, return error
-            if (! empty($errors['orchestrator'])) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Failed to delete site',
-                    'details' => $errors,
-                ], 500);
-            }
-        }
-
-        // If CLI succeeded (even if orchestrator failed), consider it a success with warnings
-        if ($errors !== []) {
+        if (! $result['success']) {
             return response()->json([
-                'success' => true,
-                'warning' => 'Site deleted with some errors',
-                'details' => $errors,
-            ]);
+                'success' => false,
+                'error' => $result['error'] ?? 'Failed to delete site',
+            ], 500);
         }
 
         return response()->json([
@@ -1015,7 +789,7 @@ class EnvironmentController extends Controller
      */
     public function rebuildSite(Request $request, Environment $environment, string $projectName)
     {
-        $result = $this->project->rebuild($environment, $projectName);
+        $result = $this->site->rebuild($environment, $projectName);
 
         return response()->json($result);
     }
@@ -1025,7 +799,7 @@ class EnvironmentController extends Controller
      */
     public function provisionStatus(Environment $environment, string $projectSlug)
     {
-        $result = $this->project->provisionStatus($environment, $projectSlug);
+        $result = $this->site->provisionStatus($environment, $projectSlug);
 
         return response()->json($result);
     }
@@ -1035,7 +809,7 @@ class EnvironmentController extends Controller
      */
     public function githubUser(Environment $environment)
     {
-        $user = $this->project->getGitHubUser($environment);
+        $user = $this->site->getGitHubUser($environment);
 
         return response()->json([
             'success' => $user !== null,
@@ -1048,7 +822,7 @@ class EnvironmentController extends Controller
      */
     public function githubOrgs(Environment $environment)
     {
-        $result = $this->project->getGitHubOrgs($environment);
+        $result = $this->site->getGitHubOrgs($environment);
 
         return response()->json($result);
     }
@@ -1064,23 +838,13 @@ class EnvironmentController extends Controller
         ]);
 
         $repo = $request->input('repo');
-        $result = $this->project->checkGitHubRepoExists($environment, $repo);
+        $result = $this->site->checkGitHubRepoExists($environment, $repo);
 
         return response()->json([
             'success' => true,
             'exists' => $result['exists'] ?? false,
             'error' => $result['error'] ?? null,
         ]);
-    }
-
-    /**
-     * Get Linear teams for an environment.
-     */
-    public function linearTeams(Environment $environment)
-    {
-        $result = $this->orchestrator->getLinearTeams($environment);
-
-        return response()->json($result);
     }
 
     /**
@@ -1443,15 +1207,15 @@ class EnvironmentController extends Controller
     }
 
     /**
-     * Add a project to a workspace.
+     * Add a site to a workspace.
      */
-    public function addWorkspaceProject(Request $request, Environment $environment, string $workspace)
+    public function addWorkspaceSite(Request $request, Environment $environment, string $workspace)
     {
         $validated = $request->validate([
-            'project' => 'required|string|max:255',
+            'site' => 'required|string|max:255',
         ]);
 
-        $result = $this->workspace->workspaceAddProject($environment, $workspace, $validated['project']);
+        $result = $this->workspace->workspaceAddProject($environment, $workspace, $validated['site']);
 
         if (! $result['success']) {
             return response()->json([
@@ -1467,11 +1231,11 @@ class EnvironmentController extends Controller
     }
 
     /**
-     * Remove a project from a workspace.
+     * Remove a site from a workspace.
      */
-    public function removeWorkspaceProject(Environment $environment, string $workspace, string $project)
+    public function removeWorkspaceSite(Environment $environment, string $workspace, string $site)
     {
-        $result = $this->workspace->workspaceRemoveProject($environment, $workspace, $project);
+        $result = $this->workspace->workspaceRemoveProject($environment, $workspace, $site);
 
         if (! $result['success']) {
             return response()->json([
@@ -1771,5 +1535,61 @@ class EnvironmentController extends Controller
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'error' => $e->getMessage()]);
         }
+    }
+
+    /**
+     * Get instance info for the local environment.
+     * Used by desktop app to fetch the canonical display name.
+     */
+    public function instanceInfo(Environment $environment)
+    {
+        $localEnv = Environment::getLocal();
+
+        if (! $localEnv) {
+            return response()->json([
+                'success' => false,
+                'error' => 'No local environment configured',
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'name' => $localEnv->name,
+                'tld' => $localEnv->tld,
+                'cli_version' => $localEnv->cli_version,
+            ],
+        ]);
+    }
+
+    /**
+     * Update instance info for the local environment.
+     * Used by desktop app to rename the environment remotely.
+     */
+    public function updateInstanceInfo(Request $request, Environment $environment)
+    {
+        $localEnv = Environment::getLocal();
+
+        if (! $localEnv) {
+            return response()->json([
+                'success' => false,
+                'error' => 'No local environment configured',
+            ], 404);
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+        ]);
+
+        $localEnv->update(['name' => $validated['name']]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'name' => $localEnv->name,
+                'tld' => $localEnv->tld,
+                'cli_version' => $localEnv->cli_version,
+            ],
+        ]);
     }
 }

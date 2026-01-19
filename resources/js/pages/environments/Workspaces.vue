@@ -84,7 +84,7 @@ const deletingWorkspace = ref<string | null>(null);
 const showDeleteModal = ref(false);
 const workspaceToDelete = ref<string | null>(null);
 
-const openInEditor = async (workspace: Workspace) => {
+const openInEditor = (workspace: Workspace) => {
     const user = props.environment.user;
     const host = props.environment.host;
     const workspacePath = workspace.path;
@@ -92,24 +92,15 @@ const openInEditor = async (workspace: Workspace) => {
 
     // Open the .code-workspace file in the editor via SSH remote
     const url = `${props.editor.scheme}://vscode-remote/ssh-remote+${user}@${host}${workspaceFile}?windowId=_blank`;
-
-    try {
-        await api.post('/open-external', { url });
-    } catch {
-        // Silent fail for opening URLs
-    }
+    window.open(url, '_blank');
 };
 
-const openInTerminal = async (workspace: Workspace) => {
-    try {
-        await api.post('/open-terminal', {
-            user: props.environment.user,
-            host: props.environment.host,
-            path: workspace.path,
-        });
-    } catch {
-        // Silent fail for opening terminal
-    }
+const openInTerminal = (workspace: Workspace) => {
+    const user = props.environment.user;
+    const host = props.environment.host;
+    // Use ssh:// protocol - OS handles opening the terminal
+    const url = `ssh://${user}@${host}`;
+    window.open(url, '_self');
 };
 
 const confirmDelete = (name: string) => {

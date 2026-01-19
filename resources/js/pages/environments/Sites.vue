@@ -34,7 +34,6 @@ interface Environment {
     host: string;
     user: string;
     is_local: boolean;
-    orchestrator_url: string | null;
 }
 
 interface Editor {
@@ -146,9 +145,6 @@ const statusLabels: Record<ProvisionStatus, string> = {
 
 const deletionStatusLabels: Record<DeletionStatus, string> = {
     deleting: 'Deleting...',
-    removing_orchestrator: 'Removing from Orchestrator...',
-    removing_vibekanban: 'Removing from VibeKanban...',
-    removing_linear: 'Removing from Linear...',
     removing_files: 'Removing files...',
     deleted: 'Deleted',
     delete_failed: 'Delete failed',
@@ -240,22 +236,12 @@ async function loadSites(silent = false) {
     }
 }
 
-async function openSite(domain: string) {
+function openSite(domain: string) {
     const url = `https://${domain}`;
-    
-    if (!page.props.multi_environment) {
-        window.open(url, '_blank');
-        return;
-    }
-
-    try {
-        await api.post('/open-external', { url });
-    } catch {
-        // Silent fail for opening URLs
-    }
+    window.open(url, '_blank');
 }
 
-async function openInEditor(path: string) {
+function openInEditor(path: string) {
     let url;
     if (props.environment.is_local) {
         url = `${props.editor.scheme}://file${path}`;
@@ -263,12 +249,7 @@ async function openInEditor(path: string) {
         const sshHost = `${props.environment.user}@${props.environment.host}`;
         url = `${props.editor.scheme}://vscode-remote/ssh-remote+${sshHost}${path}?windowId=_blank`;
     }
-
-    try {
-        await api.post('/open-external', { url });
-    } catch {
-        // Silent fail for opening URLs
-    }
+    window.open(url, '_blank');
 }
 
 async function changePhpVersion(site: Site, version: string) {
@@ -777,9 +758,6 @@ onMounted(() => {
                 <p class="text-zinc-400 text-sm mb-4">This will:</p>
                 <ul class="text-zinc-400 text-sm mb-6 list-disc list-inside space-y-1">
                     <li>Remove the site directory from the server</li>
-                    <li v-if="environment.orchestrator_url">Delete from Orchestrator</li>
-                    <li v-if="environment.orchestrator_url">Delete from VibeKanban</li>
-                    <li v-if="environment.orchestrator_url">Delete from Linear</li>
                 </ul>
                 <p class="text-red-400 text-sm mb-6">This action cannot be undone.</p>
 

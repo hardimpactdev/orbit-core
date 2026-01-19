@@ -26,108 +26,6 @@ if (config('orbit.multi_environment')) {
         Route::get('available', [SshKeyController::class, 'getAvailableKeys'])->name('available');
     });
 
-    // Native desktop operations
-    Route::post('/open-external', function (Request $request) {
-        $url = $request->input('url');
-
-        if (! $url || ! filter_var($url, FILTER_VALIDATE_URL)) {
-            return response()->json(['success' => false, 'error' => 'Invalid URL'], 400);
-        }
-
-        \Native\Laravel\Facades\Shell::openExternal($url);
-
-        return response()->json(['success' => true]);
-    })->name('open-external');
-
-    Route::post('/open-terminal', function (Request $request) {
-        $user = $request->input('user');
-        $host = $request->input('host');
-        $path = $request->input('path');
-
-        if (! $user || ! $host) {
-            return response()->json(['success' => false, 'error' => 'Missing user or host'], 400);
-        }
-
-        $terminal = \App\Models\Setting::getTerminal();
-
-        // Build SSH command - cd to path if provided, then start shell
-        // Use 'bash' explicitly since $SHELL would expand locally
-        $cdCommand = $path ? "cd {$path} && exec bash" : 'exec bash';
-        $sshCommand = "ssh {$user}@{$host} -t \"{$cdCommand}\"";
-
-        $escapedCommand = str_replace('"', '\\"', $sshCommand);
-
-        switch ($terminal) {
-            case 'iTerm':
-                $appleScript = <<<APPLESCRIPT
-tell application "iTerm"
-    activate
-    create window with default profile command "{$escapedCommand}"
-end tell
-APPLESCRIPT;
-                \Illuminate\Support\Facades\Process::run(['osascript', '-e', $appleScript]);
-                break;
-
-            case 'Ghostty':
-                // Use AppleScript to open new window in existing instance and run command
-                $appleScript = <<<APPLESCRIPT
-tell application "Ghostty"
-    activate
-end tell
-delay 0.3
-tell application "System Events"
-    tell process "Ghostty"
-        click menu item "New Window" of menu "File" of menu bar 1
-    end tell
-end tell
-delay 0.3
-tell application "System Events"
-    keystroke "{$escapedCommand}"
-    keystroke return
-end tell
-APPLESCRIPT;
-                \Illuminate\Support\Facades\Process::run(['osascript', '-e', $appleScript]);
-                break;
-
-            case 'Warp':
-                // Warp supports opening with a command via AppleScript
-                $appleScript = <<<APPLESCRIPT
-tell application "Warp" to activate
-delay 0.5
-tell application "System Events"
-    keystroke "t" using command down
-    delay 0.3
-    keystroke "{$escapedCommand}"
-    keystroke return
-end tell
-APPLESCRIPT;
-                \Illuminate\Support\Facades\Process::run(['osascript', '-e', $appleScript]);
-                break;
-
-            case 'kitty':
-                \Illuminate\Support\Facades\Process::run(['kitty', '--single-instance', 'sh', '-c', $sshCommand]);
-                break;
-
-            case 'Alacritty':
-                \Illuminate\Support\Facades\Process::run(['open', '-na', 'Alacritty', '--args', '-e', 'sh', '-c', $sshCommand]);
-                break;
-
-            case 'Hyper':
-                \Illuminate\Support\Facades\Process::run(['open', '-a', 'Hyper']);
-                // Hyper doesn't have great CLI support, so we just open it
-                break;
-
-            case 'Terminal':
-            default:
-                $appleScript = "tell application \"Terminal\" to do script \"{$escapedCommand}\"";
-                \Illuminate\Support\Facades\Process::run(['osascript', '-e', $appleScript]);
-                \Illuminate\Support\Facades\Process::run(['osascript', '-e', 'tell application "Terminal" to activate']);
-                break;
-        }
-
-        return response()->json(['success' => true]);
-    })->name('open-terminal');
-
     // Include environment-scoped routes WITH prefix
     Route::prefix('environments/{environment}')
         ->group(__DIR__.'/environment.php');
@@ -137,8 +35,6 @@ APPLESCRIPT;
     Route::any('/environments', fn () => abort(403));
     Route::any('/environments/create', fn () => abort(403));
     Route::any('/ssh-keys/{any?}', fn () => abort(403))->where('any', '.*');
-    Route::any('/open-terminal', fn () => abort(403));
-    Route::any('/open-external', fn () => abort(403));
 
     // Web: Flat routes, middleware injects implicit environment
     // Web: Routes

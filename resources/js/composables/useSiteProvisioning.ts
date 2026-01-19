@@ -16,9 +16,6 @@ export type ProvisionStatus =
 
 export type DeletionStatus =
     | 'deleting'
-    | 'removing_orchestrator'
-    | 'removing_vibekanban'
-    | 'removing_linear'
     | 'removing_files'
     | 'deleted'
     | 'delete_failed';

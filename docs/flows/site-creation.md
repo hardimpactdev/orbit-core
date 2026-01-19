@@ -3,6 +3,18 @@
 > **Single Source of Truth** for the site creation workflow.  
 > Reference this document during any refactoring to ensure consistency.
 
+## Prerequisites
+
+**Horizon must be running** for site creation to work. Without it, jobs won't be processed and sites will be stuck in "Initializing" state forever.
+
+```bash
+# Start Horizon (development)
+cd ~/projects/orbit-web && php artisan horizon
+
+# Verify it's running
+php artisan horizon:status
+```
+
 ## Core Principle
 
 **The flow is IDENTICAL for local and remote environments.**
@@ -156,7 +168,7 @@ Jobs exist specifically to move synchronous CLI calls off the request thread. Th
 
 ## Related Files
 
-- `src/Http/Controllers/EnvironmentController.php:879` - `storeSite()` method
+- `src/Http/Controllers/EnvironmentController.php:685` - `storeSite()` method
 - `src/Jobs/CreateSiteJob.php` - Async job class
 - `src/Models/TrackedJob.php` - Job status tracking
 - `orbit-cli/app/Commands/SiteCreateCommand.php` - CLI site creation
@@ -183,6 +195,27 @@ The `CreateSiteJob::buildCommand()` constructs CLI commands. Flags must match `s
 
 Tests in `tests/Unit/Jobs/CreateSiteJobTest.php` verify these mappings.
 
+## Browser Tests
+
+E2E browser tests are available in `orbit-web/tests/e2e/site-creation.spec.ts`.
+
+```bash
+# Run all site creation tests
+cd ~/projects/orbit-web
+npx playwright test tests/e2e/site-creation.spec.ts
+
+# Run specific test group
+npx playwright test tests/e2e/site-creation.spec.ts --grep "Site Creation Form"
+```
+
+Test coverage:
+- Form loading and elements
+- Organization dropdown (GitHub integration)
+- Form validation and submit button state
+- Template detection and metadata
+- Site creation submission and status tracking
+- Full provisioning completion (90s timeout)
+
 ## Changelog
 
 | Date | Change |
@@ -191,3 +224,4 @@ Tests in `tests/Unit/Jobs/CreateSiteJobTest.php` verify these mappings.
 | 2026-01-19 | Implemented CreateSiteJob, updated controller to dispatch async |
 | 2026-01-19 | Fixed `--org` -> `--organization` flag, added CLI flag reference |
 | 2026-01-19 | Consolidated `provision` into `site:create` - single command for all site creation |
+| 2026-01-19 | Added Playwright e2e browser tests for site creation flow |

@@ -18,7 +18,6 @@ return new class extends Migration
             $table->string('status')->default('pending');
             $table->string('local_path')->nullable();
             $table->string('site_url')->nullable();
-            $table->string('orchestrator_id')->nullable(); // Orchestrator's project ID
             $table->timestamps();
 
             $table->unique(['project_id', 'server_id']);

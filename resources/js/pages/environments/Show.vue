@@ -269,16 +269,12 @@ async function resetPhpVersion(site: string) {
     }
 }
 
-async function openSite(domain: string, isSecure: boolean) {
+function openSite(domain: string, isSecure: boolean) {
     const url = `${isSecure ? 'https' : 'http'}://${domain}`;
-    try {
-        await api.post('/open-external', { url });
-    } catch {
-        // Silent fail for opening URLs
-    }
+    window.open(url, '_blank');
 }
 
-async function openInEditor(path: string) {
+function openInEditor(path: string) {
     if (!path) {
         toast.error('No path available for this site');
         return;
@@ -291,12 +287,7 @@ async function openInEditor(path: string) {
         const sshHost = `${props.environment.user}@${props.environment.host}`;
         url = `${props.editor.scheme}://vscode-remote/ssh-remote+${sshHost}${path}?windowId=_blank`;
     }
-
-    try {
-        await api.post('/open-external', { url });
-    } catch {
-        // Silent fail for opening URLs
-    }
+    window.open(url, '_blank');
 }
 
 async function unlinkWorktree(siteName: string, worktreeName: string) {

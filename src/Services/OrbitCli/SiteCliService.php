@@ -2,11 +2,11 @@
 
 namespace HardImpact\Orbit\Services\OrbitCli;
 
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\CreateProjectRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\DeleteProjectRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetProjectsRequest;
+use HardImpact\Orbit\Http\Integrations\Orbit\Requests\CreateSiteRequest;
+use HardImpact\Orbit\Http\Integrations\Orbit\Requests\DeleteSiteRequest;
+use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetSitesRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetProvisionStatusRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\RebuildProjectRequest;
+use HardImpact\Orbit\Http\Integrations\Orbit\Requests\RebuildSiteRequest;
 use HardImpact\Orbit\Models\Environment;
 use HardImpact\Orbit\Services\OrbitCli\Shared\CommandService;
 use HardImpact\Orbit\Services\OrbitCli\Shared\ConnectorService;
@@ -15,9 +15,9 @@ use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Str;
 
 /**
- * Service for project management operations.
+ * Service for site management operations via CLI.
  */
-class ProjectService
+class SiteCliService
 {
     public function __construct(
         protected ConnectorService $connector,
@@ -27,38 +27,38 @@ class ProjectService
     ) {}
 
     /**
-     * Get all projects from CLI (fresh, no caching).
+     * Get all sites from CLI (fresh, no caching).
      * Returns all directories in scan paths, with has_public_folder flag.
      */
-    public function projectList(Environment $environment): array
+    public function siteList(Environment $environment): array
     {
         if ($environment->is_local) {
             return $this->command->executeCommand($environment, 'site:list --json');
         }
 
-        return $this->connector->sendRequest($environment, new GetProjectsRequest);
+        return $this->connector->sendRequest($environment, new GetSitesRequest);
     }
 
     /**
-     * Create a new project via the CLI.
+     * Create a new site via the CLI.
      *
      * @param  array  $options  Array containing: name, org (optional), template (optional), is_template (optional), directory (optional), visibility (optional), db_driver, session_driver, cache_driver, queue_driver
      */
-    public function createProject(Environment $environment, array $options): array
+    public function createSite(Environment $environment, array $options): array
     {
         // For local environments, use CLI command directly
         if ($environment->is_local) {
-            return $this->createProjectViaCommand($environment, $options);
+            return $this->createSiteViaCommand($environment, $options);
         }
 
         // For remote environments, use HTTP API
-        return $this->createProjectViaHttp($environment, $options);
+        return $this->createSiteViaHttp($environment, $options);
     }
 
     /**
-     * Create project via CLI command (for local environments).
+     * Create site via CLI command (for local environments).
      */
-    protected function createProjectViaCommand(Environment $environment, array $options): array
+    protected function createSiteViaCommand(Environment $environment, array $options): array
     {
         $name = escapeshellarg($options['name']);
         $command = "site:create {$name}";
@@ -109,7 +109,7 @@ class ProjectService
                 'data' => [
                     'slug' => $result['data']['slug'] ?? $result['data']['site_slug'] ?? Str::slug($options['name']),
                     'status' => $result['data']['status'] ?? 'provisioning',
-                    'message' => $result['data']['message'] ?? 'Project creation started',
+                    'message' => $result['data']['message'] ?? 'Site creation started',
                 ],
             ];
         }
@@ -118,9 +118,9 @@ class ProjectService
     }
 
     /**
-     * Create project via HTTP API (for remote environments).
+     * Create site via HTTP API (for remote environments).
      */
-    protected function createProjectViaHttp(Environment $environment, array $options): array
+    protected function createSiteViaHttp(Environment $environment, array $options): array
     {
         // Build request payload
         $payload = [
@@ -173,7 +173,7 @@ class ProjectService
             $payload['php_version'] = $options['php_version'];
         }
 
-        $result = $this->connector->sendRequest($environment, new CreateProjectRequest($payload));
+        $result = $this->connector->sendRequest($environment, new CreateSiteRequest($payload));
 
         if ($result['success']) {
             return [
@@ -181,7 +181,7 @@ class ProjectService
                 'data' => [
                     'slug' => $result['slug'] ?? Str::slug($options['name']),
                     'status' => 'provisioning',
-                    'message' => $result['message'] ?? 'Project creation queued',
+                    'message' => $result['message'] ?? 'Site creation queued',
                 ],
             ];
         }
@@ -190,23 +190,23 @@ class ProjectService
     }
 
     /**
-     * Rebuild a project (re-run deps install, build, migrations without git pull).
+     * Rebuild a site (re-run deps install, build, migrations without git pull).
      */
     public function rebuild(Environment $environment, string $site): array
     {
         if ($environment->is_local) {
             $escapedSite = escapeshellarg($site);
 
-            return $this->command->executeCommand($environment, "project:update --site={$escapedSite} --no-git --json");
+            return $this->command->executeCommand($environment, "site:update --site={$escapedSite} --no-git --json");
         }
 
-        return $this->connector->sendRequest($environment, new RebuildProjectRequest($site));
+        return $this->connector->sendRequest($environment, new RebuildSiteRequest($site));
     }
 
     /**
-     * Scan for existing projects on a server.
+     * Scan for existing sites on a server.
      */
-    public function scanProjects(Environment $environment, ?string $path = null, int $depth = 2): array
+    public function scanSites(Environment $environment, ?string $path = null, int $depth = 2): array
     {
         $command = 'site:scan';
 
@@ -221,12 +221,12 @@ class ProjectService
     }
 
     /**
-     * Update a project (git pull + dependencies + migrations).
+     * Update a site (git pull + dependencies + migrations).
      */
-    public function updateProject(Environment $environment, string $path, array $options = []): array
+    public function updateSite(Environment $environment, string $path, array $options = []): array
     {
         $escapedPath = escapeshellarg($path);
-        $command = "project:update {$escapedPath}";
+        $command = "site:update {$escapedPath}";
 
         if (! empty($options['no_deps'])) {
             $command .= ' --no-deps';
@@ -242,27 +242,26 @@ class ProjectService
     }
 
     /**
-     * Delete a project's files from the filesystem.
-     * Note: Orchestrator deletion (VK/Linear cleanup) should be done separately via OrchestratorService.
+     * Delete a site's files from the filesystem.
      */
-    public function deleteProject(Environment $environment, string $slug, bool $force = false): array
+    public function deleteSite(Environment $environment, string $slug, bool $force = false): array
     {
         if (! $environment->is_local) {
-            return $this->connector->sendRequest($environment, new DeleteProjectRequest($slug));
+            return $this->connector->sendRequest($environment, new DeleteSiteRequest($slug));
         }
 
         // For local environments, use SSH-based deletion
 
-        // Get the project path from config
+        // Get the site path from config
         $config = $this->config->getConfig($environment);
         if (! $config['success']) {
             return ['success' => false, 'error' => 'Could not read orbit config'];
         }
 
         $paths = $config['data']['paths'] ?? ['~/projects'];
-        $projectPath = null;
+        $sitePath = null;
 
-        // Find the project directory
+        // Find the site directory
         foreach ($paths as $basePath) {
             $checkPath = rtrim((string) $basePath, '/').'/'.$slug;
             $expandedPath = str_starts_with($checkPath, '~/') ? '$HOME'.substr($checkPath, 1) : $checkPath;
@@ -270,33 +269,33 @@ class ProjectService
             // Check if directory exists
             $checkResult = $this->ssh->execute($environment, "test -d {$expandedPath} && echo 'exists'");
             if ($checkResult['success'] && str_contains($checkResult['output'] ?? '', 'exists')) {
-                $projectPath = $expandedPath;
+                $sitePath = $expandedPath;
                 break;
             }
         }
 
-        if (! $projectPath) {
-            // Project directory doesn't exist - that's fine, maybe already deleted
-            return ['success' => true, 'data' => ['message' => 'Project directory not found (already deleted?)']];
+        if (! $sitePath) {
+            // Site directory doesn't exist - that's fine, maybe already deleted
+            return ['success' => true, 'data' => ['message' => 'Site directory not found (already deleted?)']];
         }
 
-        // Delete the project directory (sudo needed because FrankenPHP runs as root and creates root-owned cache files)
-        $deleteResult = $this->ssh->execute($environment, "sudo rm -rf {$projectPath}");
+        // Delete the site directory (sudo needed because FrankenPHP runs as root and creates root-owned cache files)
+        $deleteResult = $this->ssh->execute($environment, "sudo rm -rf {$sitePath}");
         if (! $deleteResult['success']) {
-            return ['success' => false, 'error' => 'Failed to delete project directory: '.($deleteResult['error'] ?? 'Unknown error')];
+            return ['success' => false, 'error' => 'Failed to delete site directory: '.($deleteResult['error'] ?? 'Unknown error')];
         }
 
         // Regenerate Caddy config to remove the site
         $this->command->executeCommand($environment, 'sites --json'); // This triggers Caddy regeneration
 
-        return ['success' => true, 'data' => ['message' => "Project '{$slug}' deleted from filesystem", 'path' => $projectPath]];
+        return ['success' => true, 'data' => ['message' => "Site '{$slug}' deleted from filesystem", 'path' => $sitePath]];
     }
 
     /**
      * Check if a GitHub repository already exists.
-     * Used to validate project names BEFORE starting provisioning.
+     * Used to validate site names BEFORE starting provisioning.
      *
-     * @param  string  $repo  Repository in "owner/name" format (e.g., "nckrtl/my-project")
+     * @param  string  $repo  Repository in "owner/name" format (e.g., "nckrtl/my-site")
      * @return array{exists: bool, error?: string}
      */
     public function checkGitHubRepoExists(Environment $environment, string $repo): array
@@ -392,7 +391,7 @@ class ProjectService
     }
 
     /**
-     * Check the provisioning status of a project.
+     * Check the provisioning status of a site.
      */
     public function provisionStatus(Environment $environment, string $slug): array
     {
@@ -404,12 +403,12 @@ class ProjectService
     }
 
     /**
-     * Setup a Laravel project (configure env, create database, run composer setup).
+     * Setup a Laravel site (configure env, create database, run composer setup).
      */
-    public function setupProject(Environment $environment, string $project): array
+    public function setupSite(Environment $environment, string $site): array
     {
-        $escapedProject = escapeshellarg($project);
+        $escapedSite = escapeshellarg($site);
 
-        return $this->command->executeCommand($environment, "setup {$escapedProject} --json");
+        return $this->command->executeCommand($environment, "setup {$escapedSite} --json");
     }
 }
