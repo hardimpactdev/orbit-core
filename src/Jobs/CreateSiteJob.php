@@ -3,20 +3,22 @@
 namespace HardImpact\Orbit\Jobs;
 
 use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Models\TrackedJob;
 use HardImpact\Orbit\Services\OrbitCli\Shared\CommandService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
  * Async job for creating a new site.
  *
  * This job is dispatched by the controller and processed by Horizon.
- * It calls the CLI provision command and broadcasts progress via WebSocket.
+ * It calls the CLI provision command which broadcasts progress via WebSocket.
+ * The frontend tracks status via Reverb WebSocket (site.provision.status events),
+ * not via polling - TrackedJob is not needed.
  *
  * @see /docs/flows/site-creation.md
  */
@@ -39,7 +41,6 @@ class CreateSiteJob implements ShouldQueue
     public function __construct(
         protected int $environmentId,
         protected array $options,
-        protected ?string $trackedJobId = null
     ) {
         $this->slug = Str::slug($options['name']);
     }
@@ -50,36 +51,25 @@ class CreateSiteJob implements ShouldQueue
     public function handle(CommandService $commandService): void
     {
         $environment = Environment::findOrFail($this->environmentId);
-        $trackedJob = $this->getOrCreateTrackedJob();
 
-        $trackedJob->update([
-            'status' => 'processing',
-            'started_at' => now(),
-        ]);
+        Log::info("CreateSiteJob: Starting site creation for {$this->slug}");
 
         try {
             $command = $this->buildCommand();
             // Use 600s timeout to match job timeout - provisioning can take several minutes
+            // CLI broadcasts progress via WebSocket (site.provision.status events)
             $result = $commandService->executeCommand($environment, $command, 600);
 
             if ($result['success']) {
-                $trackedJob->update([
-                    'status' => 'completed',
-                    'output' => json_encode($result['data'] ?? []),
-                    'finished_at' => now(),
-                ]);
+                Log::info("CreateSiteJob: Site {$this->slug} created successfully");
             } else {
-                $trackedJob->update([
-                    'status' => 'failed',
-                    'output' => $result['error'] ?? 'Unknown error',
-                    'finished_at' => now(),
+                Log::error("CreateSiteJob: Site {$this->slug} creation failed", [
+                    'error' => $result['error'] ?? 'Unknown error',
                 ]);
             }
         } catch (\Throwable $e) {
-            $trackedJob->update([
-                'status' => 'failed',
-                'output' => $e->getMessage(),
-                'finished_at' => now(),
+            Log::error("CreateSiteJob: Site {$this->slug} creation threw exception", [
+                'error' => $e->getMessage(),
             ]);
 
             throw $e;
@@ -136,21 +126,6 @@ class CreateSiteJob implements ShouldQueue
         $command .= ' --json';
 
         return $command;
-    }
-
-    /**
-     * Get or create the tracked job record.
-     */
-    protected function getOrCreateTrackedJob(): TrackedJob
-    {
-        if ($this->trackedJobId) {
-            return TrackedJob::findOrFail($this->trackedJobId);
-        }
-
-        return TrackedJob::create([
-            'name' => "create-site:{$this->slug}",
-            'status' => 'pending',
-        ]);
     }
 
     /**

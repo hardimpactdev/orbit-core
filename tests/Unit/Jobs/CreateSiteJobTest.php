@@ -2,8 +2,8 @@
 
 use HardImpact\Orbit\Jobs\CreateSiteJob;
 use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Models\TrackedJob;
 use HardImpact\Orbit\Services\OrbitCli\Shared\CommandService;
+use Illuminate\Support\Facades\Log;
 
 beforeEach(function () {
     $this->environment = Environment::factory()->local()->create();
@@ -303,11 +303,13 @@ describe('CreateSiteJob', function () {
     });
 
     describe('handle', function () {
-        it('creates tracked job when trackedJobId is null', function () {
+        it('executes command via CommandService on success', function () {
+            Log::shouldReceive('info')
+                ->twice(); // Starting + success messages
+
             $job = new CreateSiteJob(
                 environmentId: $this->environment->id,
                 options: ['name' => 'test-site'],
-                trackedJobId: null,
             );
 
             $commandService = mock(CommandService::class);
@@ -316,41 +318,15 @@ describe('CreateSiteJob', function () {
                 ->andReturn(['success' => true, 'data' => ['status' => 'ready']]);
 
             $job->handle($commandService);
-
-            $trackedJob = TrackedJob::where('name', 'create-site:test-site')->first();
-            expect($trackedJob)->not->toBeNull();
-            expect($trackedJob->status)->toBe('completed');
         });
 
-        it('uses existing tracked job when trackedJobId is provided', function () {
-            $existingJob = TrackedJob::factory()->pending()->create([
-                'name' => 'create-site:test-site',
-            ]);
+        it('logs error on command failure', function () {
+            Log::shouldReceive('info')->once(); // Starting message
+            Log::shouldReceive('error')->once(); // Error message
 
             $job = new CreateSiteJob(
                 environmentId: $this->environment->id,
                 options: ['name' => 'test-site'],
-                trackedJobId: $existingJob->id,
-            );
-
-            $commandService = mock(CommandService::class);
-            $commandService->shouldReceive('executeCommand')
-                ->once()
-                ->andReturn(['success' => true, 'data' => ['status' => 'ready']]);
-
-            $job->handle($commandService);
-
-            $existingJob->refresh();
-            expect($existingJob->status)->toBe('completed');
-        });
-
-        it('marks job as failed on command failure', function () {
-            $trackedJob = TrackedJob::factory()->pending()->create();
-
-            $job = new CreateSiteJob(
-                environmentId: $this->environment->id,
-                options: ['name' => 'test-site'],
-                trackedJobId: $trackedJob->id,
             );
 
             $commandService = mock(CommandService::class);
@@ -359,19 +335,15 @@ describe('CreateSiteJob', function () {
                 ->andReturn(['success' => false, 'error' => 'CLI error message']);
 
             $job->handle($commandService);
-
-            $trackedJob->refresh();
-            expect($trackedJob->status)->toBe('failed');
-            expect($trackedJob->output)->toBe('CLI error message');
         });
 
-        it('marks job as failed on exception', function () {
-            $trackedJob = TrackedJob::factory()->pending()->create();
+        it('logs error and rethrows on exception', function () {
+            Log::shouldReceive('info')->once(); // Starting message
+            Log::shouldReceive('error')->once(); // Error message
 
             $job = new CreateSiteJob(
                 environmentId: $this->environment->id,
                 options: ['name' => 'test-site'],
-                trackedJobId: $trackedJob->id,
             );
 
             $commandService = mock(CommandService::class);
@@ -381,13 +353,11 @@ describe('CreateSiteJob', function () {
 
             expect(fn () => $job->handle($commandService))
                 ->toThrow(\RuntimeException::class);
-
-            $trackedJob->refresh();
-            expect($trackedJob->status)->toBe('failed');
-            expect($trackedJob->output)->toBe('Connection failed');
         });
 
         it('passes correct timeout to CommandService', function () {
+            Log::shouldReceive('info')->twice();
+
             $job = new CreateSiteJob(
                 environmentId: $this->environment->id,
                 options: ['name' => 'test-site'],

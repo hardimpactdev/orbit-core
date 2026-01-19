@@ -6,7 +6,6 @@ use HardImpact\Orbit\Jobs\CreateSiteJob;
 use HardImpact\Orbit\Models\Environment;
 use HardImpact\Orbit\Models\Setting;
 use HardImpact\Orbit\Models\TemplateFavorite;
-use HardImpact\Orbit\Models\TrackedJob;
 use HardImpact\Orbit\Services\DnsResolverService;
 use HardImpact\Orbit\Services\DoctorService;
 use HardImpact\Orbit\Services\MacPhpFpmConfigService;
@@ -940,23 +939,17 @@ class EnvironmentController extends Controller
 
         $projectSlug = \Illuminate\Support\Str::slug($validated['name']);
 
-        // Create tracked job for status monitoring
-        $trackedJob = TrackedJob::create([
-            'name' => "create-site:{$projectSlug}",
-            'status' => 'pending',
-        ]);
-
         // Dispatch async job - processed by Horizon
-        // The job calls CLI and broadcasts progress via WebSocket
-        CreateSiteJob::dispatch($environment->id, $projectOptions, (string) $trackedJob->id);
+        // The job calls CLI which broadcasts progress via WebSocket (site.provision.status events)
+        // Frontend tracks status via Reverb WebSocket, not polling
+        CreateSiteJob::dispatch($environment->id, $projectOptions);
 
-        // API requests get 202 Accepted with job tracking info
+        // API requests get 202 Accepted
         if ($request->wantsJson()) {
             return response()->json([
                 'success' => true,
                 'message' => 'Site creation queued',
                 'slug' => $projectSlug,
-                'job_id' => $trackedJob->id,
             ], 202);
         }
 

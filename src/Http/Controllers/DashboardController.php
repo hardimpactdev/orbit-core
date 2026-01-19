@@ -4,18 +4,36 @@ namespace HardImpact\Orbit\Http\Controllers;
 
 use HardImpact\Orbit\Models\Environment;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
-    public function index(): RedirectResponse
+    public function index(Request $request): RedirectResponse
     {
+        // Web mode: redirect to environment show page (injected by ImplicitEnvironment middleware)
         if (! config('orbit.multi_environment')) {
+            $environment = $request->route('environment');
+
+            if ($environment instanceof Environment) {
+                return redirect()->route('environments.show', $environment);
+            }
+
+            // Fallback: find local environment
+            $environment = Environment::where('is_local', true)->first()
+                ?? Environment::first();
+
+            if ($environment) {
+                return redirect()->route('environments.show', $environment);
+            }
+
+            // No environment exists
             return redirect()->route('environments.projects');
         }
 
+        // Desktop mode: redirect to default environment
         $defaultEnvironment = Environment::getDefault();
 
-        if ($defaultEnvironment instanceof \App\Models\Environment) {
+        if ($defaultEnvironment instanceof Environment) {
             return redirect()->route('environments.show', $defaultEnvironment);
         }
 
