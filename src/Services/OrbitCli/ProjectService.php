@@ -46,6 +46,82 @@ class ProjectService
      */
     public function createProject(Environment $environment, array $options): array
     {
+        // For local environments, use CLI command directly
+        if ($environment->is_local) {
+            return $this->createProjectViaCommand($environment, $options);
+        }
+
+        // For remote environments, use HTTP API
+        return $this->createProjectViaHttp($environment, $options);
+    }
+
+    /**
+     * Create project via CLI command (for local environments).
+     */
+    protected function createProjectViaCommand(Environment $environment, array $options): array
+    {
+        $name = escapeshellarg($options['name']);
+        $command = "site:create {$name}";
+
+        // Handle template vs clone
+        if (! empty($options['template'])) {
+            $isTemplate = $options['is_template'] ?? false;
+            if ($isTemplate) {
+                $command .= ' --template='.escapeshellarg($options['template']);
+            } else {
+                $command .= ' --clone='.escapeshellarg($options['template']);
+                if (! empty($options['fork'])) {
+                    $command .= ' --fork';
+                }
+            }
+        }
+
+        // Optional flags
+        if (! empty($options['visibility'])) {
+            $command .= ' --visibility='.escapeshellarg($options['visibility']);
+        }
+        if (! empty($options['directory'])) {
+            $command .= ' --path='.escapeshellarg($options['directory']);
+        }
+        if (! empty($options['php_version'])) {
+            $command .= ' --php='.escapeshellarg($options['php_version']);
+        }
+        if (! empty($options['db_driver'])) {
+            $command .= ' --db-driver='.escapeshellarg($options['db_driver']);
+        }
+        if (! empty($options['session_driver'])) {
+            $command .= ' --session-driver='.escapeshellarg($options['session_driver']);
+        }
+        if (! empty($options['cache_driver'])) {
+            $command .= ' --cache-driver='.escapeshellarg($options['cache_driver']);
+        }
+        if (! empty($options['queue_driver'])) {
+            $command .= ' --queue-driver='.escapeshellarg($options['queue_driver']);
+        }
+
+        $command .= ' --json';
+
+        $result = $this->command->executeCommand($environment, $command);
+
+        if ($result['success']) {
+            return [
+                'success' => true,
+                'data' => [
+                    'slug' => $result['data']['slug'] ?? $result['data']['site_slug'] ?? Str::slug($options['name']),
+                    'status' => $result['data']['status'] ?? 'provisioning',
+                    'message' => $result['data']['message'] ?? 'Project creation started',
+                ],
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Create project via HTTP API (for remote environments).
+     */
+    protected function createProjectViaHttp(Environment $environment, array $options): array
+    {
         // Build request payload
         $payload = [
             'name' => $options['name'],
