@@ -64,12 +64,19 @@ class CommandService
         $fullCommand = "php {$pharPath} {$command}";
 
         try {
+            \Illuminate\Support\Facades\Log::info("CommandService executing: {$fullCommand}");
             $result = Process::timeout($timeout)->run($fullCommand);
 
             if (! $result->successful()) {
+                $error = $result->errorOutput() ?: $result->output() ?: 'Command failed';
+                \Illuminate\Support\Facades\Log::error("CommandService failed: {$error}", [
+                    'exit_code' => $result->exitCode(),
+                    'stdout' => $result->output(),
+                    'stderr' => $result->errorOutput(),
+                ]);
                 return [
                     'success' => false,
-                    'error' => $result->errorOutput() ?: 'Command failed',
+                    'error' => $error,
                     'exit_code' => $result->exitCode(),
                 ];
             }
