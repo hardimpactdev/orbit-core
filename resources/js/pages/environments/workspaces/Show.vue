@@ -39,7 +39,7 @@ interface Editor {
     name: string;
 }
 
-interface WorkspaceProject {
+interface WorkspaceSite {
     name: string;
     path: string;
 }
@@ -47,13 +47,13 @@ interface WorkspaceProject {
 interface Workspace {
     name: string;
     path: string;
-    projects: WorkspaceProject[];
-    project_count: number;
+    sites: WorkspaceSite[];
+    site_count: number;
     has_workspace_file: boolean;
     has_claude_md: boolean;
 }
 
-interface Project {
+interface Site {
     name: string;
     display_name?: string;
     path: string;
@@ -89,10 +89,10 @@ const workspace = ref<Workspace | null>(null);
 const loadingWorkspace = ref(true);
 const workspaceError = ref<string | null>(null);
 
-const showAddProjectModal = ref(false);
-const selectedProject = ref('');
-const addingProject = ref(false);
-const removingProject = ref<string | null>(null);
+const showAddSiteModal = ref(false);
+const selectedSite = ref('');
+const addingSite = ref(false);
+const removingSite = ref<string | null>(null);
 
 async function loadWorkspace() {
     loadingWorkspace.value = true;
@@ -113,46 +113,46 @@ async function loadWorkspace() {
     }
 }
 
-// Lazy-loaded projects for "Add project" dropdown
-const allProjects = ref<Project[]>([]);
-const loadingProjects = ref(false);
+// Lazy-loaded sites for "Add site" dropdown
+const allSites = ref<Site[]>([]);
+const loadingSites = ref(false);
 
 // Package linking state
-const expandedProjects = ref<Set<string>>(new Set());
+const expandedSites = ref<Set<string>>(new Set());
 const linkedPackages = ref<Record<string, LinkedPackage[]>>({});
 const loadingPackages = ref<Set<string>>(new Set());
 const showLinkPackageModal = ref(false);
-const linkingToProject = ref<string | null>(null);
+const linkingToSite = ref<string | null>(null);
 const selectedPackage = ref('');
 const linkingPackage = ref(false);
 const unlinkingPackage = ref<string | null>(null);
 
-// Projects available to add (not already in workspace)
-const availableProjects = computed(() => {
+// Sites available to add (not already in workspace)
+const availableSites = computed(() => {
     if (!workspace.value) return [];
-    const workspaceProjectNames = new Set(
-        workspace.value.projects.map((p: WorkspaceProject) => p.name),
+    const workspaceSiteNames = new Set(
+        workspace.value.sites.map((p: WorkspaceSite) => p.name),
     );
-    return allProjects.value.filter((p) => !workspaceProjectNames.has(p.name));
+    return allSites.value.filter((p) => !workspaceSiteNames.has(p.name));
 });
 
-// Load projects when opening the add project modal
-const openAddProjectModal = async () => {
-    showAddProjectModal.value = true;
+// Load sites when opening the add site modal
+const openAddSiteModal = async () => {
+    showAddSiteModal.value = true;
 
     // Only load if not already loaded
-    if (allProjects.value.length === 0) {
-        loadingProjects.value = true;
+    if (allSites.value.length === 0) {
+        loadingSites.value = true;
         try {
-            const { data: result } = await api.get(getApiUrl('/projects'));
-            if (result.success && result.data?.projects) {
-                allProjects.value = result.data.projects;
+            const { data: result } = await api.get(getApiUrl('/sites'));
+            if (result.success && result.data?.sites) {
+                allSites.value = result.data.sites;
             }
         } catch (error) {
             if (axios.isCancel(error)) return;
-            console.error('Failed to load projects:', error);
+            console.error('Failed to load sites:', error);
         } finally {
-            loadingProjects.value = false;
+            loadingSites.value = false;
         }
     }
 };
@@ -186,130 +186,130 @@ const openInTerminal = async () => {
     }
 };
 
-const addProject = async () => {
-    if (!selectedProject.value || !workspace.value) return;
+const addSite = async () => {
+    if (!selectedSite.value || !workspace.value) return;
 
-    const projectName = selectedProject.value;
-    addingProject.value = true;
+    const siteName = selectedSite.value;
+    addingSite.value = true;
 
     try {
         const { data } = await api.post(
-            getApiUrl(`/workspaces/${workspace.value.name}/projects`),
-            { project: projectName },
+            getApiUrl(`/workspaces/${workspace.value.name}/sites`),
+            { site: siteName },
             {},
         );
 
         if (data.success && data.workspace) {
             workspace.value = data.workspace;
-            toast.success(`Project "${projectName}" added to workspace`);
+            toast.success(`Site "${siteName}" added to workspace`);
         } else {
-            toast.error('Failed to add project', {
+            toast.error('Failed to add site', {
                 description: data.error || 'Unknown error',
             });
         }
 
-        showAddProjectModal.value = false;
-        selectedProject.value = '';
+        showAddSiteModal.value = false;
+        selectedSite.value = '';
     } catch {
         // Error toast handled by axios interceptor
     } finally {
-        addingProject.value = false;
+        addingSite.value = false;
     }
 };
 
-const removeProject = async (projectName: string) => {
+const removeSite = async (siteName: string) => {
     if (!workspace.value) return;
-    removingProject.value = projectName;
+    removingSite.value = siteName;
 
     try {
         const { data } = await api.delete(
-            getApiUrl(`/workspaces/${workspace.value.name}/projects/${projectName}`),
+            getApiUrl(`/workspaces/${workspace.value.name}/sites/${siteName}`),
             {},
         );
 
         if (data.success && data.workspace) {
             workspace.value = data.workspace;
-            toast.success(`Project "${projectName}" removed from workspace`);
+            toast.success(`Site "${siteName}" removed from workspace`);
         } else {
-            toast.error('Failed to remove project', {
+            toast.error('Failed to remove site', {
                 description: data.error || 'Unknown error',
             });
         }
     } catch {
         // Error toast handled by axios interceptor
     } finally {
-        removingProject.value = null;
+        removingSite.value = null;
     }
 };
 
-const getProjectDisplayName = (name: string) => {
-    const project = allProjects.value.find((p: Project) => p.name === name);
-    return project?.display_name || name;
+const getSiteDisplayName = (name: string) => {
+    const site = allSites.value.find((p: Site) => p.name === name);
+    return site?.display_name || name;
 };
 
 // Package linking functions
-const toggleProjectExpanded = (projectName: string) => {
-    if (expandedProjects.value.has(projectName)) {
-        expandedProjects.value.delete(projectName);
+const toggleSiteExpanded = (siteName: string) => {
+    if (expandedSites.value.has(siteName)) {
+        expandedSites.value.delete(siteName);
     } else {
-        expandedProjects.value.add(projectName);
+        expandedSites.value.add(siteName);
         // Load linked packages if not already loaded
-        if (!linkedPackages.value[projectName]) {
-            loadLinkedPackages(projectName);
+        if (!linkedPackages.value[siteName]) {
+            loadLinkedPackages(siteName);
         }
     }
     // Force reactivity
-    expandedProjects.value = new Set(expandedProjects.value);
+    expandedSites.value = new Set(expandedSites.value);
 };
 
-const loadLinkedPackages = async (projectName: string) => {
-    loadingPackages.value.add(projectName);
+const loadLinkedPackages = async (siteName: string) => {
+    loadingPackages.value.add(siteName);
     loadingPackages.value = new Set(loadingPackages.value);
 
     try {
-        const { data } = await api.get(getApiUrl(`/packages/${projectName}/linked`), {});
+        const { data } = await api.get(getApiUrl(`/packages/${siteName}/linked`), {});
 
         if (data.success) {
-            linkedPackages.value[projectName] = data.linked_packages || [];
+            linkedPackages.value[siteName] = data.linked_packages || [];
         }
     } catch {
         // Error toast handled by axios interceptor
     } finally {
-        loadingPackages.value.delete(projectName);
+        loadingPackages.value.delete(siteName);
         loadingPackages.value = new Set(loadingPackages.value);
     }
 };
 
-// Get packages available to link (other projects in workspace that aren't the target app)
+// Get packages available to link (other sites in workspace that aren't the target app)
 const availablePackagesToLink = computed(() => {
-    if (!linkingToProject.value || !workspace.value) return [];
-    return workspace.value.projects.filter((p) => p.name !== linkingToProject.value);
+    if (!linkingToSite.value || !workspace.value) return [];
+    return workspace.value.sites.filter((p) => p.name !== linkingToSite.value);
 });
 
-const openLinkPackageModal = (projectName: string) => {
-    linkingToProject.value = projectName;
+const openLinkPackageModal = (siteName: string) => {
+    linkingToSite.value = siteName;
     selectedPackage.value = '';
     showLinkPackageModal.value = true;
 };
 
 const linkPackage = async () => {
-    if (!selectedPackage.value || !linkingToProject.value) return;
+    if (!selectedPackage.value || !linkingToSite.value) return;
 
     const packageName = selectedPackage.value;
-    const projectName = linkingToProject.value;
+    const siteName = linkingToSite.value;
     linkingPackage.value = true;
 
     try {
         const { data } = await api.post(
-            getApiUrl(`/packages/${projectName}/link`),
+            getApiUrl(`/packages/${siteName}/link`),
             { package: packageName },
             {},
         );
 
         if (data.success) {
-            toast.success(`Package "${packageName}" linked to "${projectName}"`);
-            // Reload linked packages for this project
-            await loadLinkedPackages(projectName);
+            toast.success(`Package "${packageName}" linked to "${siteName}"`);
+            // Reload linked packages for this site
+            await loadLinkedPackages(siteName);
         } else {
             toast.error('Failed to link package', {
                 description: data.error || 'Unknown error',
@@ -325,19 +325,19 @@ const linkPackage = async () => {
     }
 };
 
-const unlinkPackage = async (projectName: string, packageName: string) => {
-    unlinkingPackage.value = `${projectName}:${packageName}`;
+const unlinkPackage = async (siteName: string, packageName: string) => {
+    unlinkingPackage.value = `${siteName}:${packageName}`;
 
     try {
         const { data } = await api.delete(
-            getApiUrl(`/packages/${projectName}/unlink/${encodeURIComponent(packageName)}`),
+            getApiUrl(`/packages/${siteName}/unlink/${encodeURIComponent(packageName)}`),
             {},
         );
 
         if (data.success) {
-            toast.success(`Package "${packageName}" unlinked from "${projectName}"`);
-            // Reload linked packages for this project
-            await loadLinkedPackages(projectName);
+            toast.success(`Package "${packageName}" unlinked from "${siteName}"`);
+            // Reload linked packages for this site
+            await loadLinkedPackages(siteName);
         } else {
             toast.error('Failed to unlink package', {
                 description: data.error || 'Unknown error',
@@ -419,8 +419,8 @@ onMounted(() => {
                         <h1 class="text-xl font-semibold text-white">{{ workspace.name }}</h1>
                     </div>
                     <p class="text-sm text-zinc-400 mt-1">
-                        {{ workspace.project_count }} project{{
-                            workspace.project_count !== 1 ? 's' : ''
+                        {{ workspace.site_count }} site{{
+                            workspace.site_count !== 1 ? 's' : ''
                         }}
                     </p>
                 </div>
@@ -438,37 +438,37 @@ onMounted(() => {
                     <EditorIcon :editor="editor.scheme" class="w-4 h-4 mr-2" />
                     Open in {{ editor.name }}
                 </Button>
-                <Button @click="openAddProjectModal" variant="secondary">
+                <Button @click="openAddSiteModal" variant="secondary">
                     <Plus class="w-4 h-4 mr-2" />
-                    Add Project
+                    Add Site
                 </Button>
             </div>
             <div v-else class="flex items-center gap-2">
-                <Button @click="openAddProjectModal" variant="secondary">
+                <Button @click="openAddSiteModal" variant="secondary">
                     <Plus class="w-4 h-4 mr-2" />
-                    Add Project
+                    Add Site
                 </Button>
             </div>
         </div>
 
-        <!-- Projects List -->
+        <!-- Sites List -->
         <div class="border border-zinc-800 rounded-xl px-0.5 pt-4 pb-0.5">
             <div class="px-4 mb-4">
-                <h2 class="text-sm font-medium text-zinc-400 uppercase tracking-wider">Projects</h2>
+                <h2 class="text-sm font-medium text-zinc-400 uppercase tracking-wider">Sites</h2>
             </div>
             <div class="border border-zinc-700/50 rounded-lg overflow-hidden">
-                <div v-if="workspace.projects.length === 0" class="p-8 text-center">
+                <div v-if="workspace.sites.length === 0" class="p-8 text-center">
                     <FolderGit2 class="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-                    <p class="text-muted-foreground mb-4">No projects in this workspace yet.</p>
-                    <Button @click="openAddProjectModal" variant="secondary">
+                    <p class="text-muted-foreground mb-4">No sites in this workspace yet.</p>
+                    <Button @click="openAddSiteModal" variant="secondary">
                         <Plus class="w-4 h-4 mr-2" />
-                        Add Your First Project
+                        Add Your First Site
                     </Button>
                 </div>
                 <div v-else class="divide-y divide-zinc-700/50">
                     <div
-                        v-for="project in workspace.projects"
-                        :key="project.name"
+                        v-for="site in workspace.sites"
+                        :key="site.name"
                         class="bg-zinc-800/30"
                     >
                         <div
@@ -476,11 +476,11 @@ onMounted(() => {
                         >
                             <div class="flex items-center gap-3">
                                 <button
-                                    @click="toggleProjectExpanded(project.name)"
+                                    @click="toggleSiteExpanded(site.name)"
                                     class="p-0.5 rounded hover:bg-white/10 text-zinc-400"
                                 >
                                     <ChevronDown
-                                        v-if="expandedProjects.has(project.name)"
+                                        v-if="expandedSites.has(site.name)"
                                         class="w-4 h-4"
                                     />
                                     <ChevronRight v-else class="w-4 h-4" />
@@ -488,16 +488,16 @@ onMounted(() => {
                                 <FolderGit2 class="w-4 h-4 text-lime-400" />
                                 <div>
                                     <span class="font-medium text-white">{{
-                                        getProjectDisplayName(project.name)
+                                        getSiteDisplayName(site.name)
                                     }}</span>
                                     <span class="ml-2 text-xs text-zinc-500 font-mono">{{
-                                        project.name
+                                        site.name
                                     }}</span>
                                 </div>
                             </div>
                             <div class="flex items-center gap-2">
                                 <Button
-                                    @click="openLinkPackageModal(project.name)"
+                                    @click="openLinkPackageModal(site.name)"
                                     variant="ghost"
                                     size="sm"
                                     class="text-muted-foreground hover:text-lime-400"
@@ -506,14 +506,14 @@ onMounted(() => {
                                     <Link2 class="w-3.5 h-3.5" />
                                 </Button>
                                 <Button
-                                    @click="removeProject(project.name)"
+                                    @click="removeSite(site.name)"
                                     variant="ghost"
                                     size="sm"
                                     class="text-muted-foreground hover:text-red-400"
-                                    :disabled="removingProject === project.name"
+                                    :disabled="removingSite === site.name"
                                 >
                                     <Loader2
-                                        v-if="removingProject === project.name"
+                                        v-if="removingSite === site.name"
                                         class="w-3.5 h-3.5 animate-spin"
                                     />
                                     <X v-else class="w-3.5 h-3.5" />
@@ -523,7 +523,7 @@ onMounted(() => {
 
                         <!-- Expanded: Linked Packages -->
                         <div
-                            v-if="expandedProjects.has(project.name)"
+                            v-if="expandedSites.has(site.name)"
                             class="px-4 pb-3 pl-12 border-t border-zinc-700/30"
                         >
                             <div class="pt-3">
@@ -535,7 +535,7 @@ onMounted(() => {
                                 </div>
 
                                 <div
-                                    v-if="loadingPackages.has(project.name)"
+                                    v-if="loadingPackages.has(site.name)"
                                     class="py-2 text-center"
                                 >
                                     <Loader2 class="w-4 h-4 animate-spin text-zinc-500 mx-auto" />
@@ -543,8 +543,8 @@ onMounted(() => {
 
                                 <div
                                     v-else-if="
-                                        !linkedPackages[project.name] ||
-                                        linkedPackages[project.name].length === 0
+                                        !linkedPackages[site.name] ||
+                                        linkedPackages[site.name].length === 0
                                     "
                                     class="py-2"
                                 >
@@ -553,7 +553,7 @@ onMounted(() => {
 
                                 <div v-else class="space-y-1">
                                     <div
-                                        v-for="pkg in linkedPackages[project.name]"
+                                        v-for="pkg in linkedPackages[site.name]"
                                         :key="pkg.name"
                                         class="flex items-center justify-between py-1.5 px-2 rounded bg-zinc-700/30"
                                     >
@@ -564,17 +564,17 @@ onMounted(() => {
                                             }}</span>
                                         </div>
                                         <button
-                                            @click="unlinkPackage(project.name, pkg.name)"
+                                            @click="unlinkPackage(site.name, pkg.name)"
                                             class="p-1 rounded hover:bg-zinc-600 text-zinc-400 hover:text-red-400"
                                             :disabled="
-                                                unlinkingPackage === `${project.name}:${pkg.name}`
+                                                unlinkingPackage === `${site.name}:${pkg.name}`
                                             "
                                             title="Unlink package"
                                         >
                                             <Loader2
                                                 v-if="
                                                     unlinkingPackage ===
-                                                    `${project.name}:${pkg.name}`
+                                                    `${site.name}:${pkg.name}`
                                                 "
                                                 class="w-3 h-3 animate-spin"
                                             />
@@ -623,47 +623,47 @@ onMounted(() => {
         </div>
     </div>
 
-    <!-- Add Project Modal -->
+    <!-- Add Site Modal -->
     <Modal
-        :show="showAddProjectModal"
-        title="Add Project to Workspace"
-        @close="showAddProjectModal = false"
+        :show="showAddSiteModal"
+        title="Add Site to Workspace"
+        @close="showAddSiteModal = false"
     >
         <div class="p-6">
-            <div v-if="loadingProjects" class="text-center py-6">
+            <div v-if="loadingSites" class="text-center py-6">
                 <Loader2 class="w-6 h-6 mx-auto text-zinc-400 animate-spin mb-2" />
-                <p class="text-zinc-400">Loading projects...</p>
+                <p class="text-zinc-400">Loading sites...</p>
             </div>
 
-            <div v-else-if="availableProjects.length === 0" class="text-center py-6">
-                <p class="text-zinc-400">All projects are already in this workspace.</p>
+            <div v-else-if="availableSites.length === 0" class="text-center py-6">
+                <p class="text-zinc-400">All sites are already in this workspace.</p>
             </div>
 
             <div v-else>
-                <label for="project-select" class="block text-sm font-medium text-zinc-300 mb-2">
-                    Select a project
+                <label for="site-select" class="block text-sm font-medium text-zinc-300 mb-2">
+                    Select a site
                 </label>
-                <select id="project-select" v-model="selectedProject" class="w-full">
-                    <option value="">Choose a project...</option>
+                <select id="site-select" v-model="selectedSite" class="w-full">
+                    <option value="">Choose a site...</option>
                     <option
-                        v-for="project in availableProjects"
-                        :key="project.name"
-                        :value="project.name"
+                        v-for="site in availableSites"
+                        :key="site.name"
+                        :value="site.name"
                     >
-                        {{ project.display_name || project.name }}
+                        {{ site.display_name || site.name }}
                     </option>
                 </select>
             </div>
 
             <div class="flex justify-end gap-3 mt-6">
-                <Button @click="showAddProjectModal = false" variant="ghost">Cancel</Button>
+                <Button @click="showAddSiteModal = false" variant="ghost">Cancel</Button>
                 <Button
-                    @click="addProject"
+                    @click="addSite"
                     variant="secondary"
-                    :disabled="!selectedProject || addingProject"
+                    :disabled="!selectedSite || addingSite"
                 >
-                    <Loader2 v-if="addingProject" class="w-4 h-4 mr-2 animate-spin" />
-                    Add Project
+                    <Loader2 v-if="addingSite" class="w-4 h-4 mr-2 animate-spin" />
+                    Add Site
                 </Button>
             </div>
         </div>
@@ -674,13 +674,13 @@ onMounted(() => {
         <div class="p-6">
             <p class="text-zinc-400 mb-4">
                 Link a package from this workspace to
-                <span class="text-white font-medium">{{ linkingToProject }}</span> for local
+                <span class="text-white font-medium">{{ linkingToSite }}</span> for local
                 development.
             </p>
 
             <div v-if="availablePackagesToLink.length === 0" class="text-center py-6">
                 <p class="text-zinc-400">
-                    No other projects in this workspace to link as packages.
+                    No other sites in this workspace to link as packages.
                 </p>
             </div>
 
@@ -691,15 +691,15 @@ onMounted(() => {
                 <select id="package-select" v-model="selectedPackage" class="w-full">
                     <option value="">Choose a package...</option>
                     <option
-                        v-for="project in availablePackagesToLink"
-                        :key="project.name"
-                        :value="project.name"
+                        v-for="site in availablePackagesToLink"
+                        :key="site.name"
+                        :value="site.name"
                     >
-                        {{ getProjectDisplayName(project.name) }}
+                        {{ getSiteDisplayName(site.name) }}
                     </option>
                 </select>
                 <p class="text-xs text-zinc-500 mt-2">
-                    The selected project will be symlinked as a Composer dependency.
+                    The selected site will be symlinked as a Composer dependency.
                 </p>
             </div>
 

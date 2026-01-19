@@ -27,7 +27,7 @@ export interface ProvisionEvent {
     slug: string;
     status: ProvisionStatus;
     error?: string | null;
-    project_id?: number | null;
+    site_id?: number | null;
     timestamp: string;
 }
 
@@ -38,14 +38,14 @@ export interface DeletionEvent {
     timestamp: string;
 }
 
-export interface ProvisioningProject {
+export interface ProvisioningSite {
     slug: string;
     status: ProvisionStatus;
     error?: string | null;
-    projectId?: number | null;
+    siteId?: number | null;
 }
 
-export interface DeletingProject {
+export interface DeletingSite {
     slug: string;
     status: DeletionStatus;
     error?: string | null;
@@ -62,18 +62,18 @@ interface ReverbConfigResponse {
 }
 
 /**
- * Composable for listening to project provisioning events via WebSocket.
+ * Composable for listening to site provisioning events via WebSocket.
  * Connects to the standalone Reverb service configured in the environment.
  */
-export function useProjectProvisioning(environmentId: number) {
-    const provisioningProjects: Ref<Map<string, ProvisioningProject>> = ref(new Map());
-    const deletingProjects: Ref<Map<string, DeletingProject>> = ref(new Map());
+export function useSiteProvisioning(environmentId: number) {
+    const provisioningSites: Ref<Map<string, ProvisioningSite>> = ref(new Map());
+    const deletingSites: Ref<Map<string, DeletingSite>> = ref(new Map());
     const isConnected = ref(false);
     const connectionError = ref<string | null>(null);
 
     // Reactive counters that increment on terminal events - easier to watch than Maps
-    const projectReadyCount = ref(0);
-    const projectDeletedCount = ref(0);
+    const siteReadyCount = ref(0);
+    const siteDeletedCount = ref(0);
 
     let echo: Echo<'reverb'> | null = null;
 
@@ -104,10 +104,10 @@ export function useProjectProvisioning(environmentId: number) {
 
             // Listen to the provisioning channel for all provision events
             echo.channel('provisioning')
-                .listen('.project.provision.status', (event: ProvisionEvent) => {
+                .listen('.site.provision.status', (event: ProvisionEvent) => {
                     handleProvisionEvent(event);
                 })
-                .listen('.project.deletion.status', (event: DeletionEvent) => {
+                .listen('.site.deletion.status', (event: DeletionEvent) => {
                     handleDeletionEvent(event);
                 });
 
@@ -129,25 +129,25 @@ export function useProjectProvisioning(environmentId: number) {
         }
         processedEvents.set(event.slug, event.status);
 
-        const existing = provisioningProjects.value.get(event.slug);
+        const existing = provisioningSites.value.get(event.slug);
 
         // Always use .set() to ensure Vue reactivity triggers properly
-        provisioningProjects.value.set(event.slug, {
+        provisioningSites.value.set(event.slug, {
             slug: event.slug,
             status: event.status,
             error: event.error,
-            projectId: event.project_id ?? existing?.projectId,
+            siteId: event.site_id ?? existing?.siteId,
         });
 
         // Remove from tracking if terminal state
         if (event.status === 'ready' || event.status === 'failed') {
             // Increment counter for watchers
             if (event.status === 'ready') {
-                projectReadyCount.value++;
+                siteReadyCount.value++;
             }
             // Keep in list longer so UI can show final state
             setTimeout(() => {
-                provisioningProjects.value.delete(event.slug);
+                provisioningSites.value.delete(event.slug);
                 processedEvents.delete(event.slug);
             }, 15000);
         }
@@ -163,7 +163,7 @@ export function useProjectProvisioning(environmentId: number) {
         }
         processedDeletionEvents.set(event.slug, event.status);
 
-        deletingProjects.value.set(event.slug, {
+        deletingSites.value.set(event.slug, {
             slug: event.slug,
             status: event.status,
             error: event.error,
@@ -173,27 +173,27 @@ export function useProjectProvisioning(environmentId: number) {
         if (event.status === 'deleted' || event.status === 'delete_failed') {
             // Increment counter for watchers
             if (event.status === 'deleted') {
-                projectDeletedCount.value++;
+                siteDeletedCount.value++;
             }
             setTimeout(() => {
-                deletingProjects.value.delete(event.slug);
+                deletingSites.value.delete(event.slug);
                 processedDeletionEvents.delete(event.slug);
             }, 2000);
         }
     }
 
     function trackDeletion(slug: string) {
-        if (!deletingProjects.value.has(slug)) {
-            deletingProjects.value.set(slug, {
+        if (!deletingSites.value.has(slug)) {
+            deletingSites.value.set(slug, {
                 slug,
                 status: 'deleting',
             });
         }
 
-        // Subscribe to project-specific channel for deletion events
+        // Subscribe to site-specific channel for deletion events
         if (echo) {
-            echo.channel(`project.${slug}`).listen(
-                '.project.deletion.status',
+            echo.channel(`site.${slug}`).listen(
+                '.site.deletion.status',
                 (event: DeletionEvent) => {
                     handleDeletionEvent(event);
                 },
@@ -201,22 +201,22 @@ export function useProjectProvisioning(environmentId: number) {
         }
     }
 
-    function getDeletionStatus(slug: string): DeletingProject | undefined {
-        return deletingProjects.value.get(slug);
+    function getDeletionStatus(slug: string): DeletingSite | undefined {
+        return deletingSites.value.get(slug);
     }
 
     function markDeletionComplete(slug: string) {
-        deletingProjects.value.set(slug, {
+        deletingSites.value.set(slug, {
             slug,
             status: 'deleted',
         });
         setTimeout(() => {
-            deletingProjects.value.delete(slug);
+            deletingSites.value.delete(slug);
         }, 2000);
     }
 
     function markDeletionFailed(slug: string, error?: string) {
-        deletingProjects.value.set(slug, {
+        deletingSites.value.set(slug, {
             slug,
             status: 'delete_failed',
             error,
@@ -224,22 +224,22 @@ export function useProjectProvisioning(environmentId: number) {
     }
 
     function clearDeletion(slug: string) {
-        deletingProjects.value.delete(slug);
+        deletingSites.value.delete(slug);
         processedDeletionEvents.delete(slug);
     }
 
-    function trackProject(slug: string) {
-        if (!provisioningProjects.value.has(slug)) {
-            provisioningProjects.value.set(slug, {
+    function trackSite(slug: string) {
+        if (!provisioningSites.value.has(slug)) {
+            provisioningSites.value.set(slug, {
                 slug,
                 status: 'provisioning',
             });
         }
 
-        // Also subscribe to project-specific channel
+        // Also subscribe to site-specific channel
         if (echo) {
-            echo.channel(`project.${slug}`).listen(
-                '.project.provision.status',
+            echo.channel(`site.${slug}`).listen(
+                '.site.provision.status',
                 (event: ProvisionEvent) => {
                     handleProvisionEvent(event);
                 },
@@ -247,8 +247,8 @@ export function useProjectProvisioning(environmentId: number) {
         }
     }
 
-    function getProjectStatus(slug: string): ProvisioningProject | undefined {
-        return provisioningProjects.value.get(slug);
+    function getSiteStatus(slug: string): ProvisioningSite | undefined {
+        return provisioningSites.value.get(slug);
     }
 
     function disconnect() {
@@ -262,16 +262,16 @@ export function useProjectProvisioning(environmentId: number) {
     });
 
     return {
-        provisioningProjects,
-        deletingProjects,
+        provisioningSites,
+        deletingSites,
         isConnected,
         connectionError,
-        projectReadyCount,
-        projectDeletedCount,
+        siteReadyCount,
+        siteDeletedCount,
         connect,
         disconnect,
-        trackProject,
-        getProjectStatus,
+        trackSite,
+        getSiteStatus,
         trackDeletion,
         getDeletionStatus,
         markDeletionComplete,

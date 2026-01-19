@@ -23,7 +23,7 @@ Route::prefix('environments/{environment}')->group(function (): void {
     Route::get('worktrees', [EnvironmentController::class, 'worktrees']);
 
     // Async data loading endpoints
-    Route::get('projects', [EnvironmentController::class, 'projectsApi']);
+    Route::get('sites', [EnvironmentController::class, 'sitesApi']);
     Route::get('workspaces', [EnvironmentController::class, 'workspacesApi']);
     Route::get('workspaces/{workspace}', [EnvironmentController::class, 'workspaceApi']);
 
@@ -52,26 +52,30 @@ Route::prefix('environments/{environment}')->group(function (): void {
     Route::post('php/config/{version?}', [EnvironmentController::class, 'setPhpConfig']);
 });
 
-// Project routes (without environment prefix - used when remoteApiUrl is set)
-// These are accessed directly via orbit.{tld}/api/projects/{slug}
+// Site routes (without environment prefix - used when remoteApiUrl is set)
+// These are accessed directly via orbit.{tld}/api/sites/{slug}
 // Uses implicit.environment middleware to inject the local environment
 Route::middleware('implicit.environment')->group(function (): void {
     // Legacy flat routes for desktop app compatibility
     Route::get('status', [EnvironmentController::class, 'status']);
-    Route::get('sites', [EnvironmentController::class, 'sites']);
+    Route::get('sites', [EnvironmentController::class, 'sitesApi']);
     Route::get('config', [EnvironmentController::class, 'getConfig']);
     Route::get('worktrees', [EnvironmentController::class, 'worktrees']);
-    Route::get('projects', [EnvironmentController::class, 'projectsApi']);
+    Route::get('projects', [EnvironmentController::class, 'sitesApi']); // Redirect projects to sitesApi
     Route::get('workspaces', [EnvironmentController::class, 'workspacesApi']);
 
     Route::post('start', [EnvironmentController::class, 'start']);
     Route::post('stop', [EnvironmentController::class, 'stop']);
     Route::post('restart', [EnvironmentController::class, 'restart']);
 
-    Route::post('projects', [EnvironmentController::class, 'storeProject']);
-    Route::delete('projects/{projectName}', [EnvironmentController::class, 'destroyProject']);
-    Route::post('projects/{projectName}/rebuild', [EnvironmentController::class, 'rebuildProject']);
-    Route::get('projects/{projectSlug}/provision-status', [EnvironmentController::class, 'provisionStatus']);
+    Route::post('sites', [EnvironmentController::class, 'storeSite']);
+    Route::post('projects', [EnvironmentController::class, 'storeSite']); // Legacy compat
+    Route::delete('sites/{projectName}', [EnvironmentController::class, 'destroySite']);
+    Route::delete('projects/{projectName}', [EnvironmentController::class, 'destroySite']); // Legacy compat
+    Route::post('sites/{projectName}/rebuild', [EnvironmentController::class, 'rebuildSite']);
+    Route::post('projects/{projectName}/rebuild', [EnvironmentController::class, 'rebuildSite']); // Legacy compat
+    Route::get('sites/{projectSlug}/provision-status', [EnvironmentController::class, 'provisionStatus']);
+    Route::get('projects/{projectSlug}/provision-status', [EnvironmentController::class, 'provisionStatus']); // Legacy compat
 
     // Service control endpoints (legacy paths)
     Route::get('services/status', [EnvironmentController::class, 'status']);

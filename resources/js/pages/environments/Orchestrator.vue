@@ -33,7 +33,7 @@ interface OrchestratorInstallation {
     configured: boolean;
 }
 
-interface OrchestratorProject {
+interface OrchestratorSite {
     id: string;
     name: string;
     slug: string;
@@ -52,10 +52,10 @@ const csrfToken = document.querySelector<HTMLMetaElement>('meta[name="csrf-token
 
 const isEnabled = computed(() => !!props.environment.orchestrator_url);
 
-// Projects state
-const projects = ref<OrchestratorProject[]>([]);
-const loadingProjects = ref(false);
-const projectsError = ref<string | null>(null);
+// Sites state
+const sites = ref<OrchestratorSite[]>([]);
+const loadingSites = ref(false);
+const sitesError = ref<string | null>(null);
 
 // Detection state
 const detecting = ref(false);
@@ -177,9 +177,9 @@ async function openOrchestrator() {
     }
 }
 
-async function openProjectInOrchestrator(project: OrchestratorProject) {
+async function openSiteInOrchestrator(site: OrchestratorSite) {
     if (props.environment.orchestrator_url) {
-        const url = `${props.environment.orchestrator_url.replace(/\/$/, '')}/projects/${project.slug}`;
+        const url = `${props.environment.orchestrator_url.replace(/\/$/, '')}/sites/${site.slug}`;
         try {
             await fetch('/open-external', {
                 method: 'POST',
@@ -187,30 +187,30 @@ async function openProjectInOrchestrator(project: OrchestratorProject) {
                 body: JSON.stringify({ url }),
             });
         } catch (error) {
-            console.error('Failed to open project:', error);
+            console.error('Failed to open site:', error);
         }
     }
 }
 
-async function loadProjects() {
+async function loadSites() {
     if (!props.environment.orchestrator_url) return;
 
-    loadingProjects.value = true;
-    projectsError.value = null;
+    loadingSites.value = true;
+    sitesError.value = null;
 
     try {
-        const response = await fetch(`/environments/${props.environment.id}/orchestrator/projects`);
+        const response = await fetch(`/environments/${props.environment.id}/orchestrator/sites`);
         const result = await response.json();
 
         if (result.success) {
-            projects.value = result.projects || [];
+            sites.value = result.sites || [];
         } else {
-            projectsError.value = result.error || 'Failed to load projects';
+            sitesError.value = result.error || 'Failed to load sites';
         }
     } catch (error) {
-        projectsError.value = 'Could not connect to orchestrator';
+        sitesError.value = 'Could not connect to orchestrator';
     } finally {
-        loadingProjects.value = false;
+        loadingSites.value = false;
     }
 }
 
@@ -221,7 +221,7 @@ function formatDate(dateString: string) {
 
 onMounted(() => {
     if (isEnabled.value) {
-        loadProjects();
+        loadSites();
     } else {
         detectOrchestrator();
     }
@@ -234,7 +234,7 @@ onMounted(() => {
     <div>
         <div class="mb-8">
             <Heading title="Orchestrator" />
-            <p class="text-zinc-400 mt-1">Manage projects and tasks with AI assistance</p>
+            <p class="text-zinc-400 mt-1">Manage sites and tasks with AI assistance</p>
         </div>
 
         <!-- Orchestrator Enabled -->
@@ -272,45 +272,45 @@ onMounted(() => {
                 </div>
             </div>
 
-            <!-- Projects -->
+            <!-- Sites -->
             <div class="border border-zinc-800 rounded-lg overflow-hidden">
                 <div class="px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
-                    <h3 class="text-sm font-medium text-white">Projects</h3>
+                    <h3 class="text-sm font-medium text-white">Sites</h3>
                     <button
-                        @click="loadProjects"
-                        :disabled="loadingProjects"
+                        @click="loadSites"
+                        :disabled="loadingSites"
                         class="text-zinc-400 hover:text-white transition-colors"
                     >
-                        <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': loadingProjects }" />
+                        <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': loadingSites }" />
                     </button>
                 </div>
 
                 <!-- Loading -->
-                <div v-if="loadingProjects" class="p-8 text-center">
+                <div v-if="loadingSites" class="p-8 text-center">
                     <Loader2 class="w-6 h-6 mx-auto text-zinc-600 animate-spin mb-2" />
-                    <p class="text-sm text-zinc-500">Loading projects...</p>
+                    <p class="text-sm text-zinc-500">Loading sites...</p>
                 </div>
 
                 <!-- Error -->
-                <div v-else-if="projectsError" class="p-6">
+                <div v-else-if="sitesError" class="p-6">
                     <div class="flex items-center gap-2 text-sm text-red-400">
                         <AlertCircle class="w-4 h-4" />
-                        {{ projectsError }}
+                        {{ sitesError }}
                     </div>
                 </div>
 
                 <!-- Empty State -->
-                <div v-else-if="projects.length === 0" class="p-8 text-center">
+                <div v-else-if="sites.length === 0" class="p-8 text-center">
                     <FolderGit2 class="w-10 h-10 mx-auto text-zinc-600 mb-3" />
-                    <p class="text-sm text-zinc-400">No projects configured yet</p>
-                    <p class="text-xs text-zinc-500 mt-1">Create a project to get started</p>
+                    <p class="text-sm text-zinc-400">No sites configured yet</p>
+                    <p class="text-xs text-zinc-500 mt-1">Create a site to get started</p>
                 </div>
 
-                <!-- Projects List -->
+                <!-- Sites List -->
                 <div v-else class="divide-y divide-zinc-800/50">
                     <div
-                        v-for="project in projects"
-                        :key="project.id"
+                        v-for="site in sites"
+                        :key="site.id"
                         class="px-6 py-4 hover:bg-zinc-800/30 transition-colors"
                     >
                         <div class="flex items-center justify-between">
@@ -322,36 +322,36 @@ onMounted(() => {
                                 </div>
                                 <div>
                                     <h4 class="text-sm font-medium text-white">
-                                        {{ project.name }}
+                                        {{ site.name }}
                                     </h4>
                                     <div class="flex items-center gap-3 mt-0.5">
                                         <span
-                                            v-if="project.github_url"
+                                            v-if="site.github_url"
                                             class="text-xs text-zinc-500 flex items-center gap-1"
                                         >
                                             <GitBranch class="w-3 h-3" />
                                             {{
-                                                project.github_url.replace(
+                                                site.github_url.replace(
                                                     'https://github.com/',
                                                     '',
                                                 )
                                             }}
                                         </span>
                                         <span
-                                            v-if="project.linear_team_name"
+                                            v-if="site.linear_team_name"
                                             class="text-xs text-zinc-500"
                                         >
-                                            {{ project.linear_team_name }}
+                                            {{ site.linear_team_name }}
                                         </span>
                                         <span class="text-xs text-zinc-600 flex items-center gap-1">
                                             <Clock class="w-3 h-3" />
-                                            {{ formatDate(project.created_at) }}
+                                            {{ formatDate(site.created_at) }}
                                         </span>
                                     </div>
                                 </div>
                             </div>
                             <Button
-                                @click="openProjectInOrchestrator(project)"
+                                @click="openSiteInOrchestrator(site)"
                                 variant="outline"
                                 size="sm"
                             >
@@ -457,7 +457,7 @@ onMounted(() => {
                     <div>
                         <h3 class="text-sm font-medium text-white">Install Orchestrator</h3>
                         <p class="text-sm text-zinc-400 mt-1">
-                            Install a new orchestrator instance in your first project path.
+                            Install a new orchestrator instance in your first site path.
                         </p>
                     </div>
                 </div>
@@ -485,7 +485,7 @@ onMounted(() => {
                 <div v-else class="space-y-4">
                     <div class="bg-zinc-900 rounded-lg p-4">
                         <p class="text-sm text-zinc-400">The orchestrator will be installed at:</p>
-                        <p class="text-sm font-mono text-zinc-300 mt-1">~/projects/orchestrator</p>
+                        <p class="text-sm font-mono text-zinc-300 mt-1">~/sites/orchestrator</p>
                         <p class="text-xs text-zinc-500 mt-2">
                             Available at:
                             <span class="text-zinc-400">https://orchestrator.{{ tld }}</span>
@@ -513,7 +513,7 @@ onMounted(() => {
                 <ul class="text-sm text-zinc-400 space-y-2">
                     <li class="flex items-start gap-2">
                         <span class="text-zinc-600">-</span>
-                        Centralized project and task management across environments
+                        Centralized site and task management across environments
                     </li>
                     <li class="flex items-start gap-2">
                         <span class="text-zinc-600">-</span>

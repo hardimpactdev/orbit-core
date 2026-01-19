@@ -434,7 +434,7 @@ const submit = () => {
 
     // Submit to NativePHP backend using Inertia form submission
     router.post(
-        `/environments/${props.environment.id}/projects`,
+        `/environments/${props.environment.id}/sites`,
         {
             ...form.value,
             org: selectedOrg.value,
@@ -448,7 +448,7 @@ const submit = () => {
                     errors.create ||
                     errors.name ||
                     Object.values(errors)[0] ||
-                    'Failed to create project';
+                    'Failed to create site';
                 submitting.value = false;
             },
             onFinish: () => {
@@ -461,19 +461,19 @@ const submit = () => {
 </script>
 
 <template>
-    <Head title="New Project" />
+    <Head title="New Site" />
 
     <div>
         <div class="mb-8">
-            <h1 class="text-2xl font-bold text-white">New Project</h1>
-            <p class="text-zinc-400 mt-1">Create a new project in {{ environment.name }}</p>
+            <h1 class="text-2xl font-bold text-white">New Site</h1>
+            <p class="text-zinc-400 mt-1">Create a new site in {{ environment.name }}</p>
         </div>
 
         <form @submit.prevent="submit">
-            <!-- Project Name -->
+            <!-- Site Name -->
             <div class="grid grid-cols-2 gap-8 py-6">
                 <div>
-                    <h3 class="text-sm font-medium text-white">Project Name</h3>
+                    <h3 class="text-sm font-medium text-white">Site Name</h3>
                     <p class="text-sm text-zinc-500 mt-1">
                         Display name for the app. Will be slugified for the directory and URL.
                     </p>
@@ -484,7 +484,7 @@ const submit = () => {
                         type="text"
                         id="name"
                         required
-                        placeholder="My Awesome Project"
+                        placeholder="My Awesome Site"
                         class="w-full"
                         :class="{ 'border-red-500': repoExists === true }"
                     />
@@ -889,7 +889,7 @@ const submit = () => {
                     <div>
                         <h3 class="text-sm font-medium text-white">Orchestrator Integration</h3>
                         <p class="text-sm text-zinc-500 mt-1">
-                            Configure project in orchestrator for full integration.
+                            Configure site in orchestrator for full integration.
                         </p>
                         <!-- Services list -->
                         <div v-if="loadingServices" class="flex items-center text-zinc-500 mt-2">
@@ -930,7 +930,7 @@ const submit = () => {
             <!-- Submit Buttons -->
             <div class="flex justify-end gap-3 pt-6 mt-6 border-t border-zinc-800">
                 <Button as-child variant="ghost">
-                    <Link :href="`/environments/${environment.id}/projects`">
+                    <Link :href="`/environments/${environment.id}/sites`">
                         Cancel
                     </Link>
                 </Button>
@@ -941,7 +941,7 @@ const submit = () => {
                 >
                     <Loader2 v-if="submitting" class="w-4 h-4 animate-spin" />
                     <FolderGit2 v-else class="w-4 h-4" />
-                    Create Project
+                    Create Site
                 </Button>
             </div>
         </form>

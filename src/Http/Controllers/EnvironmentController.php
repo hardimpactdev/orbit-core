@@ -254,12 +254,12 @@ class EnvironmentController extends Controller
     /**
      * Projects page (Inertia view).
      */
-    public function projectsPage(Environment $environment): \Inertia\Response
+    public function sitesPage(Environment $environment): \Inertia\Response
     {
         $editor = Setting::getEditor();
         $remoteApiUrl = $this->getRemoteApiUrl($environment);
 
-        return \Inertia\Inertia::render('environments/Projects', [
+        return \Inertia\Inertia::render('environments/Sites', [
             'environment' => $environment,
             'editor' => $editor,
             'remoteApiUrl' => $remoteApiUrl,
@@ -284,9 +284,9 @@ class EnvironmentController extends Controller
     }
 
     /**
-     * Projects API (JSON).
+     * Sites API (JSON).
      */
-    public function projectsApi(Environment $environment)
+    public function sitesApi(Environment $environment)
     {
         return response()->json($this->project->projectList($environment));
     }
@@ -468,15 +468,15 @@ class EnvironmentController extends Controller
     }
 
     /**
-     * Get projects from orchestrator.
+     * Get sites from orchestrator.
      */
-    public function orchestratorProjects(Environment $environment)
+    public function orchestratorSites(Environment $environment)
     {
         if (! $environment->orchestrator_url) {
             return response()->json([
                 'success' => false,
                 'error' => 'No orchestrator configured',
-                'projects' => [],
+                'sites' => [],
             ]);
         }
 
@@ -495,21 +495,21 @@ class EnvironmentController extends Controller
                 if (json_last_error() === JSON_ERROR_NONE) {
                     return response()->json([
                         'success' => true,
-                        'projects' => $data['projects'] ?? $data['data'] ?? [],
+                        'sites' => $data['projects'] ?? $data['data'] ?? [],
                     ]);
                 }
             }
 
             return response()->json([
                 'success' => false,
-                'error' => $result['error'] ?? 'Failed to fetch projects',
-                'projects' => [],
+                'error' => $result['error'] ?? 'Failed to fetch sites',
+                'sites' => [],
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'error' => 'Could not connect to orchestrator: '.$e->getMessage(),
-                'projects' => [],
+                'sites' => [],
             ]);
         }
     }
@@ -859,24 +859,24 @@ class EnvironmentController extends Controller
     }
 
     /**
-     * Show the create project form.
+     * Show the create site form.
      */
-    public function createProject(Environment $environment): \Inertia\Response
+    public function createSite(Environment $environment): \Inertia\Response
     {
         $recentTemplates = TemplateFavorite::orderByDesc('last_used_at')
             ->limit(5)
             ->get();
 
-        return \Inertia\Inertia::render('environments/projects/Create', [
+        return \Inertia\Inertia::render('environments/sites/SiteCreate', [
             'environment' => $environment,
             'recentTemplates' => $recentTemplates,
         ]);
     }
 
     /**
-     * Store a newly created project.
+     * Store a newly created site.
      */
-    public function storeProject(Request $request, Environment $environment)
+    public function storeSite(Request $request, Environment $environment)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -941,7 +941,7 @@ class EnvironmentController extends Controller
         $result = $this->project->createProject($environment, $projectOptions);
 
         if (! $result['success']) {
-            $errorMessage = $result['error'] ?? 'Failed to create project';
+            $errorMessage = $result['error'] ?? 'Failed to create site';
 
             return back()
                 ->withErrors(['create' => $errorMessage])
@@ -952,17 +952,17 @@ class EnvironmentController extends Controller
         // Just pass the slug for WebSocket provisioning status updates
         $projectSlug = $result['data']['project_slug'] ?? $result['data']['slug'] ?? \Illuminate\Support\Str::slug($validated['name']);
 
-        return redirect()->route('environments.projects', $environment)
+        return redirect()->route('environments.sites', $environment)
             ->with([
                 'provisioning' => $projectSlug,
-                'success' => "Project '{$validated['name']}' is being created...",
+                'success' => "Site '{$validated['name']}' is being created...",
             ]);
     }
 
     /**
-     * Delete a project from the environment.
+     * Delete a site from the environment.
      */
-    public function destroyProject(Request $request, Environment $environment, string $projectName)
+    public function destroySite(Request $request, Environment $environment, string $projectName)
     {
         $errors = [];
 
@@ -981,13 +981,13 @@ class EnvironmentController extends Controller
         $cliResult = $this->project->deleteProject($environment, $projectName, force: true);
 
         if (! $cliResult['success']) {
-            $errors['filesystem'] = $cliResult['error'] ?? 'Failed to delete project files';
+            $errors['filesystem'] = $cliResult['error'] ?? 'Failed to delete site files';
 
             // If both failed, return error
             if (! empty($errors['orchestrator'])) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'Failed to delete project',
+                    'error' => 'Failed to delete site',
                     'details' => $errors,
                 ], 500);
             }
@@ -997,21 +997,21 @@ class EnvironmentController extends Controller
         if ($errors !== []) {
             return response()->json([
                 'success' => true,
-                'warning' => 'Project deleted with some errors',
+                'warning' => 'Site deleted with some errors',
                 'details' => $errors,
             ]);
         }
 
         return response()->json([
             'success' => true,
-            'message' => "Project '{$projectName}' deleted successfully",
+            'message' => "Site '{$projectName}' deleted successfully",
         ]);
     }
 
     /**
-     * Rebuild a project (re-run composer install, npm install, build, migrations).
+     * Rebuild a site (re-run composer install, npm install, build, migrations).
      */
-    public function rebuildProject(Request $request, Environment $environment, string $projectName)
+    public function rebuildSite(Request $request, Environment $environment, string $projectName)
     {
         $result = $this->project->rebuild($environment, $projectName);
 

@@ -24,7 +24,7 @@ interface Editor {
     name: string;
 }
 
-interface WorkspaceProject {
+interface WorkspaceSite {
     name: string;
     path: string;
 }
@@ -32,8 +32,8 @@ interface WorkspaceProject {
 interface Workspace {
     name: string;
     path: string;
-    projects: WorkspaceProject[];
-    project_count: number;
+    sites: WorkspaceSite[];
+    site_count: number;
     has_workspace_file: boolean;
     has_claude_md: boolean;
 }
@@ -150,7 +150,7 @@ const deleteWorkspace = async () => {
         <div class="flex items-center justify-between">
             <Heading
                 title="Workspaces"
-                description="Group related projects together for easier management"
+                description="Group related sites together for easier management"
             />
             <Button as-child variant="secondary">
                 <Link :href="`/environments/${environment.id}/workspaces/create`">
@@ -173,7 +173,7 @@ const deleteWorkspace = async () => {
         >
             <Boxes class="w-12 h-12 mx-auto text-zinc-600 mb-4" />
             <h3 class="text-lg font-medium text-white mb-2">No workspaces yet</h3>
-            <p class="text-zinc-400 mb-6">Create a workspace to group related projects together.</p>
+            <p class="text-zinc-400 mb-6">Create a workspace to group related sites together.</p>
             <Button as-child variant="secondary">
                 <Link :href="`/environments/${environment.id}/workspaces/create`">
                     <Plus class="w-4 h-4 mr-2" />
@@ -188,7 +188,7 @@ const deleteWorkspace = async () => {
                 <TableHeader>
                     <TableRow>
                         <TableHead>Workspace</TableHead>
-                        <TableHead>Projects</TableHead>
+                        <TableHead>Sites</TableHead>
                         <TableHead class="text-right">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -211,27 +211,27 @@ const deleteWorkspace = async () => {
                         <TableCell>
                             <div class="flex items-center gap-2">
                                 <span class="text-zinc-400">
-                                    {{ workspace.project_count }} project{{
-                                        workspace.project_count !== 1 ? 's' : ''
+                                    {{ workspace.site_count }} site{{
+                                        workspace.site_count !== 1 ? 's' : ''
                                     }}
                                 </span>
                                 <div
-                                    v-if="workspace.projects.length > 0"
+                                    v-if="workspace.sites.length > 0"
                                     class="flex -space-x-1"
                                 >
                                     <div
-                                        v-for="project in workspace.projects.slice(0, 3)"
-                                        :key="project.name"
+                                        v-for="site in workspace.sites.slice(0, 3)"
+                                        :key="site.name"
                                         class="w-6 h-6 rounded-full bg-zinc-700 border border-zinc-600 flex items-center justify-center"
-                                        :title="project.name"
+                                        :title="site.name"
                                     >
                                         <FolderGit2 class="w-3 h-3 text-zinc-400" />
                                     </div>
                                     <div
-                                        v-if="workspace.projects.length > 3"
+                                        v-if="workspace.sites.length > 3"
                                         class="w-6 h-6 rounded-full bg-zinc-700 border border-zinc-600 flex items-center justify-center text-xs text-zinc-400"
                                     >
-                                        +{{ workspace.projects.length - 3 }}
+                                        +{{ workspace.sites.length - 3 }}
                                     </div>
                                 </div>
                             </div>
@@ -288,7 +288,7 @@ const deleteWorkspace = async () => {
         <div class="p-6">
             <p class="text-zinc-400 mb-6">
                 Are you sure you want to delete the workspace "{{ workspaceToDelete }}"? This will
-                remove the workspace directory and symlinks, but won't delete the actual projects.
+                remove the workspace directory and symlinks, but won't delete the actual sites.
             </p>
             <div class="flex justify-end gap-3">
                 <Button @click="showDeleteModal = false" variant="ghost">Cancel</Button>

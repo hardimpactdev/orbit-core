@@ -14,7 +14,8 @@ Route::get('doctor/quick', [EnvironmentController::class, 'quickCheck'])->name('
 Route::post('doctor/fix/{check}', [EnvironmentController::class, 'fixDoctorIssue'])->name('environments.doctor.fix');
 
 // Environment pages
-Route::get('projects', [EnvironmentController::class, 'projectsPage'])->name('environments.projects');
+Route::get('sites', [EnvironmentController::class, 'sitesPage'])->name('environments.sites');
+Route::get('projects', [EnvironmentController::class, 'sitesPage'])->name('environments.projects'); // Legacy compat
 Route::get('services', [EnvironmentController::class, 'servicesPage'])->name('environments.services');
 Route::get('orchestrator', [EnvironmentController::class, 'orchestrator'])->name('environments.orchestrator');
 Route::post('orchestrator/enable', [EnvironmentController::class, 'enableOrchestrator'])->name('environments.orchestrator.enable');
@@ -23,11 +24,12 @@ Route::post('orchestrator/install', [EnvironmentController::class, 'installOrche
 Route::get('orchestrator/detect', [EnvironmentController::class, 'detectOrchestrator'])->name('environments.orchestrator.detect');
 Route::post('orchestrator/reconcile', [EnvironmentController::class, 'reconcileOrchestrator'])->name('environments.orchestrator.reconcile');
 Route::get('orchestrator/services', [EnvironmentController::class, 'orchestratorServices'])->name('environments.orchestrator.services');
-Route::get('orchestrator/projects', [EnvironmentController::class, 'orchestratorProjects'])->name('environments.orchestrator.projects');
+Route::get('orchestrator/sites', [EnvironmentController::class, 'orchestratorSites'])->name('environments.orchestrator.sites');
+Route::get('orchestrator/projects', [EnvironmentController::class, 'orchestratorSites'])->name('environments.orchestrator.projects'); // Legacy compat
 Route::get('settings', [EnvironmentController::class, 'settings'])->name('environments.settings');
 Route::post('settings', [EnvironmentController::class, 'updateSettings'])->name('environments.settings.update');
 
-// Note: api/projects moved to routes/api.php (stateless)
+// Note: api/sites moved to routes/api.php (stateless)
 Route::post('start', [EnvironmentController::class, 'start'])->name('environments.start');
 Route::post('stop', [EnvironmentController::class, 'stop'])->name('environments.stop');
 Route::post('restart', [EnvironmentController::class, 'restart'])->name('environments.restart');
@@ -56,12 +58,17 @@ Route::get('reverb-config', [EnvironmentController::class, 'getReverbConfig'])->
 Route::post('worktrees/unlink', [EnvironmentController::class, 'unlinkWorktree'])->name('environments.worktrees.unlink');
 Route::post('worktrees/refresh', [EnvironmentController::class, 'refreshWorktrees'])->name('environments.worktrees.refresh');
 
-// Project routes
-Route::get('projects/create', [EnvironmentController::class, 'createProject'])->name('environments.projects.create');
-Route::post('projects', [EnvironmentController::class, 'storeProject'])->name('environments.projects.store');
-Route::delete('projects/{projectName}', [EnvironmentController::class, 'destroyProject'])->name('environments.projects.destroy');
-Route::post('projects/{projectName}/rebuild', [EnvironmentController::class, 'rebuildProject'])->name('environments.projects.rebuild');
-Route::get('projects/{projectSlug}/provision-status', [EnvironmentController::class, 'provisionStatus'])->name('environments.projects.provision-status');
+// Site routes
+Route::get('sites/create', [EnvironmentController::class, 'createSite'])->name('environments.sites.create');
+Route::get('projects/create', [EnvironmentController::class, 'createSite'])->name('environments.projects.create'); // Legacy compat
+Route::post('sites', [EnvironmentController::class, 'storeSite'])->name('environments.sites.store');
+Route::post('projects', [EnvironmentController::class, 'storeSite'])->name('environments.projects.store'); // Legacy compat
+Route::delete('sites/{projectName}', [EnvironmentController::class, 'destroySite'])->name('environments.sites.destroy');
+Route::delete('projects/{projectName}', [EnvironmentController::class, 'destroySite'])->name('environments.projects.destroy'); // Legacy compat
+Route::post('sites/{projectName}/rebuild', [EnvironmentController::class, 'rebuildSite'])->name('environments.sites.rebuild');
+Route::post('projects/{projectName}/rebuild', [EnvironmentController::class, 'rebuildSite'])->name('environments.projects.rebuild'); // Legacy compat
+Route::get('sites/{projectSlug}/provision-status', [EnvironmentController::class, 'provisionStatus'])->name('environments.sites.provision-status');
+Route::get('projects/{projectSlug}/provision-status', [EnvironmentController::class, 'provisionStatus'])->name('environments.projects.provision-status'); // Legacy compat
 Route::post('template-defaults', [EnvironmentController::class, 'templateDefaults'])->name('environments.template-defaults');
 Route::get('github-user', [EnvironmentController::class, 'githubUser'])->name('environments.github-user');
 Route::get('github-orgs', [EnvironmentController::class, 'githubOrgs'])->name('environments.github-orgs');
@@ -78,10 +85,15 @@ Route::get('workspaces/create', [EnvironmentController::class, 'createWorkspace'
 Route::post('workspaces', [EnvironmentController::class, 'storeWorkspace'])->name('environments.workspaces.store');
 Route::get('workspaces/{workspace}', [EnvironmentController::class, 'showWorkspace'])->name('environments.workspaces.show');
 Route::delete('workspaces/{workspace}', [EnvironmentController::class, 'destroyWorkspace'])->name('environments.workspaces.destroy');
-Route::post('workspaces/{workspace}/projects', [EnvironmentController::class, 'addWorkspaceProject'])->name('environments.workspaces.projects.add');
-Route::delete('workspaces/{workspace}/projects/{project}', [EnvironmentController::class, 'removeWorkspaceProject'])->name('environments.workspaces.projects.remove');
+Route::post('workspaces/{workspace}/sites', [EnvironmentController::class, 'addWorkspaceProject'])->name('environments.workspaces.sites.add');
+Route::post('workspaces/{workspace}/projects', [EnvironmentController::class, 'addWorkspaceProject'])->name('environments.workspaces.projects.add'); // Legacy compat
+Route::delete('workspaces/{workspace}/sites/{project}', [EnvironmentController::class, 'removeWorkspaceProject'])->name('environments.workspaces.sites.remove');
+Route::delete('workspaces/{workspace}/projects/{project}', [EnvironmentController::class, 'removeWorkspaceProject'])->name('environments.workspaces.projects.remove'); // Legacy compat
 
 // Package linking routes
-Route::get('projects/{project}/linked-packages', [EnvironmentController::class, 'linkedPackages'])->name('environments.projects.linked-packages');
-Route::post('projects/{project}/link-package', [EnvironmentController::class, 'linkPackage'])->name('environments.projects.link-package');
-Route::delete('projects/{project}/unlink-package/{package}', [EnvironmentController::class, 'unlinkPackage'])->name('environments.projects.unlink-package');
+Route::get('sites/{project}/linked-packages', [EnvironmentController::class, 'linkedPackages'])->name('environments.sites.linked-packages');
+Route::get('projects/{project}/linked-packages', [EnvironmentController::class, 'linkedPackages'])->name('environments.projects.linked-packages'); // Legacy compat
+Route::post('sites/{project}/link-package', [EnvironmentController::class, 'linkPackage'])->name('environments.sites.link-package');
+Route::post('projects/{project}/link-package', [EnvironmentController::class, 'linkPackage'])->name('environments.projects.link-package'); // Legacy compat
+Route::delete('sites/{project}/unlink-package/{package}', [EnvironmentController::class, 'unlinkPackage'])->name('environments.sites.unlink-package');
+Route::delete('projects/{project}/unlink-package/{package}', [EnvironmentController::class, 'unlinkPackage'])->name('environments.projects.unlink-package'); // Legacy compat

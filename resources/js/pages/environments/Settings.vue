@@ -300,7 +300,7 @@ function removePath(index: number) {
 async function saveConfig() {
     const paths = editPaths.value.filter((p) => p.trim() !== '');
     if (paths.length === 0) {
-        alert('Please add at least one project path');
+        alert('Please add at least one site path');
         return;
     }
 
@@ -471,12 +471,12 @@ onMounted(() => {
             </div>
 
             <template v-else>
-                <!-- Project Paths -->
+                <!-- Site Paths -->
                 <div class="grid grid-cols-2 gap-8 py-6">
                     <div>
-                        <h3 class="text-sm font-medium text-white">Project Paths</h3>
+                        <h3 class="text-sm font-medium text-white">Site Paths</h3>
                         <p class="text-sm text-zinc-500 mt-1">
-                            Directories where your projects are located.
+                            Directories where your sites are located.
                         </p>
                     </div>
                     <div>
@@ -489,7 +489,7 @@ onMounted(() => {
                                 <Input
                                     v-model="editPaths[index]"
                                     type="text"
-                                    placeholder="/home/user/projects"
+                                    placeholder="/home/user/sites"
                                     class="flex-1 font-mono"
                                 />
                                 <button
@@ -604,7 +604,7 @@ onMounted(() => {
                     {{
                         isOrchestratorEnabled
                             ? environment.orchestrator_url
-                            : 'AI-assisted project management with MCP integration.'
+                            : 'AI-assisted site management with MCP integration.'
                     }}
                 </p>
                 <!-- Progress/Status -->

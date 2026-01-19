@@ -375,7 +375,7 @@ async function saveConfig() {
     const paths = editPaths.value.filter((p) => p.trim() !== '');
     if (paths.length === 0) {
         toast.error('Validation Error', {
-            description: 'Please add at least one project path',
+            description: 'Please add at least one site path',
         });
         return;
     }
@@ -538,7 +538,7 @@ onUnmounted(() => {
                     </div>
                     <template v-else-if="config">
                         <div class="p-5 bg-zinc-800/30">
-                            <span class="text-sm font-medium text-zinc-400">Project Paths:</span>
+                            <span class="text-sm font-medium text-zinc-400">Site Paths:</span>
                             <div class="mt-1 text-sm text-zinc-300 font-mono">
                                 <div v-for="path in config.paths" :key="path">{{ path }}</div>
                                 <div v-if="!config.paths?.length" class="text-zinc-500">
@@ -567,7 +567,7 @@ onUnmounted(() => {
                 <div v-else class="space-y-4 px-4 pb-4">
                     <div>
                         <label class="block text-sm font-medium text-zinc-400 mb-2"
-                            >Project Paths</label
+                            >Site Paths</label
                         >
                         <div class="space-y-2">
                             <div
@@ -578,7 +578,7 @@ onUnmounted(() => {
                                 <Input
                                     v-model="editPaths[index]"
                                     type="text"
-                                    placeholder="/home/user/projects"
+                                    placeholder="/home/user/sites"
                                     class="flex-1 font-mono"
                                 />
                                 <button
@@ -725,9 +725,9 @@ onUnmounted(() => {
                 <div class="flex justify-between items-center mb-4 px-4">
                     <h3 class="text-sm font-medium text-white">Sites</h3>
                     <Button as-child variant="secondary" size="sm">
-                        <Link :href="`/environments/${environment.id}/projects/create`">
+                        <Link :href="`/environments/${environment.id}/sites/create`">
                             <Plus class="w-3.5 h-3.5" />
-                            New Project
+                            New Site
                         </Link>
                     </Button>
                 </div>
