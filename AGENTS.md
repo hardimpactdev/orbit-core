@@ -140,6 +140,19 @@ $decoded = json_decode($result->output(), true);
 3. **Timeout is 60 seconds** - long operations must complete within this window
 4. **JSON structure expected**: `{"success": bool, "data": {...}}` or `{"success": false, "error": "message"}`
 
+### CLI Flag Naming Convention
+
+**CRITICAL**: CLI option names in Jobs MUST match exactly what orbit-cli expects.
+
+| Job Parameter | CLI Flag | NOT |
+|---------------|----------|-----|
+| `org` | `--organization` | ~~`--org`~~ |
+| `template` | `--template` | |
+| `visibility` | `--visibility` | |
+| `php_version` | `--php` | |
+
+The `CreateSiteJob::buildCommand()` method constructs CLI commands. Tests in `tests/Unit/Jobs/CreateSiteJobTest.php` verify flag names match the CLI.
+
 ### Common Failure Modes
 
 | Symptom | Cause | Fix |

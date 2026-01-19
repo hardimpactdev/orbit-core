@@ -152,9 +152,30 @@ HTTP 202 Accepted
 - `orbit-cli/app/Commands/ProvisionCommand.php` - CLI provisioning
 - `resources/js/composables/useSiteProvisioning.ts` - WebSocket listener
 
+## CLI Flag Reference
+
+The `CreateSiteJob::buildCommand()` constructs CLI commands. Flags must match orbit-cli exactly:
+
+| Job Option | CLI Flag | Notes |
+|------------|----------|-------|
+| `name` | positional arg | Site slug |
+| `org` | `--organization` | NOT `--org` |
+| `template` | `--template` | GitHub repo URL |
+| `is_template` | (determines clone vs template) | |
+| `fork` | `--fork` | Fork vs import |
+| `visibility` | `--visibility` | `private` or `public` |
+| `php_version` | `--php` | e.g., `8.4` |
+| `db_driver` | `--db-driver` | `sqlite` or `pgsql` |
+| `session_driver` | `--session-driver` | |
+| `cache_driver` | `--cache-driver` | |
+| `queue_driver` | `--queue-driver` | |
+
+Tests in `tests/Unit/Jobs/CreateSiteJobTest.php` verify these mappings.
+
 ## Changelog
 
 | Date | Change |
 |------|--------|
 | 2026-01-19 | Initial documentation |
 | 2026-01-19 | Implemented CreateSiteJob, updated controller to dispatch async |
+| 2026-01-19 | Fixed `--org` -> `--organization` flag, added CLI flag reference |
