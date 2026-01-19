@@ -4,7 +4,6 @@ use HardImpact\Orbit\Jobs\CreateSiteJob;
 use HardImpact\Orbit\Models\Environment;
 use HardImpact\Orbit\Models\TrackedJob;
 use HardImpact\Orbit\Services\OrbitCli\Shared\CommandService;
-use Illuminate\Support\Facades\Queue;
 
 beforeEach(function () {
     $this->environment = Environment::factory()->local()->create();

@@ -4,7 +4,6 @@ use HardImpact\Orbit\Models\Environment;
 use HardImpact\Orbit\Services\CliUpdateService;
 use HardImpact\Orbit\Services\OrbitCli\Shared\CommandService;
 use HardImpact\Orbit\Services\SshService;
-use Illuminate\Process\FakeProcessResult;
 use Illuminate\Support\Facades\Process;
 
 beforeEach(function () {
