@@ -109,7 +109,7 @@ class CreateSiteJob implements ShouldQueue
 
         // Optional flags
         if (! empty($this->options['org'])) {
-            $command .= ' --org='.escapeshellarg($this->options['org']);
+            $command .= ' --organization='.escapeshellarg($this->options['org']);
         }
         if (! empty($this->options['visibility'])) {
             $command .= ' --visibility='.escapeshellarg($this->options['visibility']);
