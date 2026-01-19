@@ -22,4 +22,14 @@ return [
     |
     */
     'multi_environment' => env('MULTI_ENVIRONMENT_MANAGEMENT', false),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Database Path
+    |--------------------------------------------------------------------------
+    |
+    | The path to the SQLite database file when running in CLI mode.
+    |
+    */
+    'database' => ['path' => env('ORBIT_DATABASE_PATH')],
 ];
