@@ -59,7 +59,8 @@ class CreateSiteJob implements ShouldQueue
 
         try {
             $command = $this->buildCommand();
-            $result = $commandService->executeCommand($environment, $command);
+            // Use 600s timeout to match job timeout - provisioning can take several minutes
+            $result = $commandService->executeCommand($environment, $command, 600);
 
             if ($result['success']) {
                 $trackedJob->update([

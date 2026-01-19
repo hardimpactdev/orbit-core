@@ -31,12 +31,14 @@ class CommandService
     /**
      * Execute a orbit CLI command on the environment.
      * Routes to local or remote execution based on environment type.
+     *
+     * @param  int  $timeout  Timeout in seconds (default 60, use 600 for provisioning)
      */
-    public function executeCommand(Environment $environment, string $command): array
+    public function executeCommand(Environment $environment, string $command, int $timeout = 60): array
     {
         // For local servers, use the bundled CLI directly
         if ($environment->is_local) {
-            return $this->executeLocalCommand($command);
+            return $this->executeLocalCommand($command, $timeout);
         }
 
         // For remote servers, use SSH
@@ -45,8 +47,10 @@ class CommandService
 
     /**
      * Execute a command locally using the bundled CLI.
+     *
+     * @param  int  $timeout  Timeout in seconds (default 60, use 600 for provisioning)
      */
-    public function executeLocalCommand(string $command): array
+    public function executeLocalCommand(string $command, int $timeout = 60): array
     {
         if (! $this->cliUpdate->isInstalled()) {
             return [
@@ -60,7 +64,7 @@ class CommandService
         $fullCommand = "php {$pharPath} {$command}";
 
         try {
-            $result = Process::timeout(60)->run($fullCommand);
+            $result = Process::timeout($timeout)->run($fullCommand);
 
             if (! $result->successful()) {
                 return [
