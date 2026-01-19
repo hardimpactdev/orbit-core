@@ -33,7 +33,7 @@ class ProjectService
     public function projectList(Environment $environment): array
     {
         if ($environment->is_local) {
-            return $this->command->executeCommand($environment, 'project:list --json');
+            return $this->command->executeCommand($environment, 'site:list --json');
         }
 
         return $this->connector->sendRequest($environment, new GetProjectsRequest);
@@ -132,7 +132,7 @@ class ProjectService
      */
     public function scanProjects(Environment $environment, ?string $path = null, int $depth = 2): array
     {
-        $command = 'project:scan';
+        $command = 'site:scan';
 
         if ($path) {
             $command .= ' '.escapeshellarg($path);

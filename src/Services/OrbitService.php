@@ -181,7 +181,7 @@ BASH;
     public function projectList(Environment $environment): array
     {
         if ($environment->is_local) {
-            return $this->executeCommand($environment, 'project:list --json');
+            return $this->executeCommand($environment, 'site:list --json');
         }
 
         return $this->sendRequest($environment, new GetProjectsRequest);
@@ -1665,7 +1665,7 @@ BASH;
      */
     public function scanProjects(Environment $environment, ?string $path = null, int $depth = 2): array
     {
-        $command = 'project:scan';
+        $command = 'site:scan';
 
         if ($path) {
             $command .= ' '.escapeshellarg($path);
