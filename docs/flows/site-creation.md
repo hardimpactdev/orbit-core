@@ -37,7 +37,7 @@ sequenceDiagram
     Q->>H: CreateSiteJob.handle()
     activate H
     
-    H->>CLI: Execute: provision {slug} --json
+    H->>CLI: Execute: site:create {name} --json
     activate CLI
     
     CLI->>WS: Broadcast: status=provisioning
@@ -137,33 +137,44 @@ HTTP 202 Accepted
 | CLI failure | CreateSiteJob | WebSocket broadcasts error, TrackedJob marked failed |
 | Timeout | Horizon | Job marked failed, user sees error via WebSocket |
 
-## What NOT to Do
+## What NOT to Do (Web/Desktop Consumers)
 
-1. **Never call CLI synchronously** from the controller
+1. **Never call CLI synchronously from controllers** - always dispatch a job
 2. **Never branch** on `$environment->is_local` for the dispatch flow
 3. **Never skip** the job queue for "faster" local execution
 4. **Never return** from controller before dispatching the job
+
+## Why Jobs Call CLI Synchronously
+
+The async rule applies to **web/desktop consumers**, not to how jobs execute internally.
+
+The pattern is:
+- **Controller** → Dispatches job → Returns immediately (async from user's perspective)
+- **Job** → Calls CLI synchronously → That's the whole point of using a job
+
+Jobs exist specifically to move synchronous CLI calls off the request thread. The job worker blocks while the CLI runs - this is correct and expected. The "async" is about the HTTP response, not the job execution.
 
 ## Related Files
 
 - `src/Http/Controllers/EnvironmentController.php:879` - `storeSite()` method
 - `src/Jobs/CreateSiteJob.php` - Async job class
 - `src/Models/TrackedJob.php` - Job status tracking
-- `orbit-cli/app/Commands/ProvisionCommand.php` - CLI provisioning
+- `orbit-cli/app/Commands/SiteCreateCommand.php` - CLI site creation
 - `resources/js/composables/useSiteProvisioning.ts` - WebSocket listener
 
 ## CLI Flag Reference
 
-The `CreateSiteJob::buildCommand()` constructs CLI commands. Flags must match orbit-cli exactly:
+The `CreateSiteJob::buildCommand()` constructs CLI commands. Flags must match `site:create` exactly:
 
 | Job Option | CLI Flag | Notes |
 |------------|----------|-------|
-| `name` | positional arg | Site slug |
+| `name` | positional arg | Site name (slug derived) |
 | `org` | `--organization` | NOT `--org` |
-| `template` | `--template` | GitHub repo URL |
-| `is_template` | (determines clone vs template) | |
+| `template` | `--template` | GitHub repo URL (for templates) |
+| `is_template` | determines `--template` vs `--clone` | |
 | `fork` | `--fork` | Fork vs import |
 | `visibility` | `--visibility` | `private` or `public` |
+| `directory` | `--path` | Override default site path |
 | `php_version` | `--php` | e.g., `8.4` |
 | `db_driver` | `--db-driver` | `sqlite` or `pgsql` |
 | `session_driver` | `--session-driver` | |
@@ -179,3 +190,4 @@ Tests in `tests/Unit/Jobs/CreateSiteJobTest.php` verify these mappings.
 | 2026-01-19 | Initial documentation |
 | 2026-01-19 | Implemented CreateSiteJob, updated controller to dispatch async |
 | 2026-01-19 | Fixed `--org` -> `--organization` flag, added CLI flag reference |
+| 2026-01-19 | Consolidated `provision` into `site:create` - single command for all site creation |

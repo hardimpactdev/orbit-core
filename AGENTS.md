@@ -123,9 +123,11 @@ All long-running operations (site creation, provisioning, etc.) MUST:
 
 **Never call CLI commands synchronously from controllers.**
 
+> **Clarification**: This async rule applies to web/desktop consumers (Controllers). Jobs are *supposed* to call the CLI synchronously - that's the whole point of queuing work. The "async" is about freeing the HTTP response, not the job execution itself.
+
 ## CLI Integration (CommandService)
 
-The CLI is called from **Jobs only**, not directly from controllers:
+The CLI is called from **Jobs only** (not controllers), and the call is synchronous within the job:
 
 ```php
 $pharPath = $this->cliUpdate->getPharPath();
