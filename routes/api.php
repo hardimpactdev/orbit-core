@@ -111,7 +111,7 @@ Route::middleware('implicit.environment')->group(function (): void {
         $channel = $request->input('channel', 'provisioning');
         $event = $request->input('event', 'site.provision.status');
         $data = $request->input('data', ['slug' => 'test', 'status' => 'ready']);
-        
+
         $pusher = new \Pusher\Pusher(
             'orbit-key',
             'orbit-secret',
@@ -123,9 +123,9 @@ Route::middleware('implicit.environment')->group(function (): void {
                 'useTLS' => false,
             ]
         );
-        
+
         $pusher->trigger($channel, $event, $data);
-        
+
         return response()->json(['success' => true, 'channel' => $channel, 'event' => $event, 'data' => $data]);
     });
 });
