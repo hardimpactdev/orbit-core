@@ -13,14 +13,23 @@ class Site extends Model
     ];
 
     public const STATUS_QUEUED = 'queued';
+
     public const STATUS_CREATING_REPO = 'creating_repo';
+
     public const STATUS_CLONING = 'cloning';
+
     public const STATUS_SETTING_UP = 'setting_up';
+
     public const STATUS_INSTALLING_COMPOSER = 'installing_composer';
+
     public const STATUS_INSTALLING_NPM = 'installing_npm';
+
     public const STATUS_BUILDING = 'building';
+
     public const STATUS_FINALIZING = 'finalizing';
+
     public const STATUS_READY = 'ready';
+
     public const STATUS_FAILED = 'failed';
 
     protected $fillable = [
