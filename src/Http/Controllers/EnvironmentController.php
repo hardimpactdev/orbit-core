@@ -341,11 +341,23 @@ class EnvironmentController extends Controller
     {
         $remoteApiUrl = $this->getRemoteApiUrl($environment);
 
+        // Import models for additional settings
+        $sshKeys = \HardImpact\Orbit\Models\SshKey::orderBy('is_default', 'desc')->orderBy('name')->get();
+        $availableSshKeys = \HardImpact\Orbit\Models\Setting::getAvailableSshKeys();
+        $templateFavorites = \HardImpact\Orbit\Models\TemplateFavorite::orderByDesc('usage_count')->get();
+        $notificationsEnabled = app(\HardImpact\Orbit\Services\NotificationService::class)->isEnabled();
+        $menuBarEnabled = \HardImpact\Orbit\Models\UserPreference::getValue('menu_bar_enabled', false);
+
         return \Inertia\Inertia::render('environments/Settings', [
             'environment' => $environment,
             'remoteApiUrl' => $remoteApiUrl,
             'editor' => $environment->getEditor(),
             'editorOptions' => Environment::getEditorOptions(),
+            'sshKeys' => $sshKeys,
+            'availableSshKeys' => $availableSshKeys,
+            'templateFavorites' => $templateFavorites,
+            'notificationsEnabled' => $notificationsEnabled,
+            'menuBarEnabled' => $menuBarEnabled,
         ]);
     }
 
@@ -365,6 +377,24 @@ class EnvironmentController extends Controller
         $environment->update($validated);
 
         return redirect()->back()->with('success', 'Environment settings updated.');
+    }
+
+    /**
+     * Update external access settings.
+     */
+    public function updateExternalAccess(Request $request, Environment $environment)
+    {
+        $validated = $request->validate([
+            'external_access' => 'required|boolean',
+            'external_host' => 'nullable|string|max:255',
+        ]);
+
+        $environment->update([
+            'external_access' => $validated['external_access'],
+            'external_host' => $validated['external_host'] ?: null,
+        ]);
+
+        return redirect()->back()->with('success', 'External access settings updated.');
     }
 
     public function start(Request $request, Environment $environment)
@@ -805,10 +835,11 @@ class EnvironmentController extends Controller
             'status' => Site::STATUS_QUEUED,
         ]);
 
-        // Dispatch async job - processed by Horizon
+        // Dispatch async job AFTER committing the transaction
+        // Use afterCommit() to ensure the site exists in DB before job runs
         // The job calls CLI which broadcasts progress via WebSocket (site.provision.status events)
         // Frontend tracks status via Reverb WebSocket, not polling
-        CreateSiteJob::dispatch($site->id, $projectOptions);
+        CreateSiteJob::dispatch($site->id, $projectOptions)->afterCommit();
 
         // API requests get 200 OK
         if ($request->wantsJson()) {
@@ -821,7 +852,7 @@ class EnvironmentController extends Controller
         }
 
         // Web requests get redirect with provisioning slug for WebSocket tracking
-        return redirect()->route('environments.sites', $environment)
+        return redirect()->route('environments.sites', ['environment' => $environment->id])
             ->with([
                 'provisioning' => $projectSlug,
                 'success' => "Site '{$validated['name']}' is being created...",
