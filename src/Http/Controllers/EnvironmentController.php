@@ -1584,9 +1584,9 @@ class EnvironmentController extends Controller
         return $default;
     }
 
-     /**
-      * Proxy a request to the remote API.
-      */
+    /**
+     * Proxy a request to the remote API.
+     */
     protected function proxyToRemoteApi(Environment $environment, string $method, string $path, array $data = [])
     {
         $remoteApiUrl = $this->getRemoteApiUrl($environment);
@@ -1610,7 +1610,6 @@ class EnvironmentController extends Controller
             return response()->json(['success' => false, 'error' => $e->getMessage()]);
         }
     }
-
 
     /**
      * Get instance info for the local environment.
