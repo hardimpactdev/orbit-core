@@ -47,12 +47,28 @@ class SiteController extends Controller
         );
 
         if (! $result['success']) {
-            return response()->json([
-                'success' => false,
-                'error' => $result['error'] ?? 'Failed to create site',
-            ], 422);
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => $result['error'] ?? 'Failed to create site',
+                ], 422);
+            }
+
+            return redirect()->back()->withErrors(['error' => $result['error'] ?? 'Failed to create site']);
         }
 
-        return response()->json($result);
+        // API requests get JSON response
+        if ($request->wantsJson()) {
+            return response()->json($result);
+        }
+
+        // Web requests get redirect with provisioning slug for WebSocket tracking
+        $slug = $result['slug'] ?? $result['data']['slug'] ?? null;
+
+        return redirect()->route('environments.sites', ['environment' => $environment->id])
+            ->with([
+                'provisioning' => $slug,
+                'success' => "Site '{$validated['name']}' is being created...",
+            ]);
     }
 }
