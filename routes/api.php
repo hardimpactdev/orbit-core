@@ -25,6 +25,7 @@ Route::prefix('environments/{environment}')->group(function (): void {
     // Async data loading endpoints
     Route::get('sites', [EnvironmentController::class, 'sitesApi']);
     Route::post('sites/sync', [EnvironmentController::class, 'sitesSyncApi']);
+    Route::delete('sites/{siteName}', [EnvironmentController::class, 'destroySite']);
     Route::get('workspaces', [EnvironmentController::class, 'workspacesApi']);
     Route::get('workspaces/{workspace}', [EnvironmentController::class, 'workspaceApi']);
 
@@ -103,5 +104,28 @@ Route::middleware('implicit.environment')->group(function (): void {
         return collect(Route::getRoutes())->map(function ($route) {
             return $route->uri();
         });
+    });
+
+    // Test broadcast endpoint for debugging WebSocket
+    Route::post('test-broadcast', function (\Illuminate\Http\Request $request) {
+        $channel = $request->input('channel', 'provisioning');
+        $event = $request->input('event', 'site.provision.status');
+        $data = $request->input('data', ['slug' => 'test', 'status' => 'ready']);
+        
+        $pusher = new \Pusher\Pusher(
+            'orbit-key',
+            'orbit-secret',
+            'orbit',
+            [
+                'host' => '127.0.0.1',
+                'port' => 8080,
+                'scheme' => 'http',
+                'useTLS' => false,
+            ]
+        );
+        
+        $pusher->trigger($channel, $event, $data);
+        
+        return response()->json(['success' => true, 'channel' => $channel, 'event' => $event, 'data' => $data]);
     });
 });
