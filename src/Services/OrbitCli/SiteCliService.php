@@ -7,7 +7,10 @@ use HardImpact\Orbit\Http\Integrations\Orbit\Requests\DeleteSiteRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetProvisionStatusRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetSitesRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\RebuildSiteRequest;
+use Illuminate\Support\Arr;
+
 use HardImpact\Orbit\Models\Environment;
+use HardImpact\Orbit\Models\Site;
 use HardImpact\Orbit\Services\OrbitCli\Shared\CommandService;
 use HardImpact\Orbit\Services\OrbitCli\Shared\ConnectorService;
 use HardImpact\Orbit\Services\SshService;
@@ -27,16 +30,126 @@ class SiteCliService
     ) {}
 
     /**
+     * Sync all sites from CLI to database.
+     * Creates new sites, updates existing ones, removes orphans.
+     */
+    public function syncAllSitesFromCli(Environment $environment): array
+    {
+        if ($environment->is_local) {
+            $result = $this->command->executeCommand($environment, 'site:list --json');
+        } else {
+            $result = $this->connector->sendRequest($environment, new GetSitesRequest);
+        }
+
+        if (! $result['success']) {
+            return $result;
+        }
+
+        $cliSites = collect($result['data']['sites'] ?? []);
+        $cliSlugs = $cliSites->pluck('name')->toArray();
+
+        // Update or create sites from CLI
+        foreach ($cliSites as $cliSite) {
+            $slug = $cliSite['name'];
+            $site = Site::where('environment_id', $environment->id)
+                ->where(fn ($q) => $q->where('slug', $slug)->orWhere('name', $slug))
+                ->first();
+
+            $data = [
+                'environment_id' => $environment->id,
+                'slug' => $slug,
+                'name' => $slug,
+                'display_name' => $cliSite['display_name'] ?? ucwords(str_replace(['-', '_'], ' ', $slug)),
+                'github_repo' => $cliSite['github_repo'] ?? null,
+                'site_type' => $cliSite['site_type'] ?? 'unknown',
+                'has_public_folder' => $cliSite['has_public_folder'] ?? false,
+                'domain' => $cliSite['domain'] ?? null,
+                'site_url' => $cliSite['site_url'] ?? null,
+                'php_version' => $cliSite['php_version'] ?? '8.4',
+                'path' => $cliSite['path'] ?? '',
+                'status' => 'active',
+            ];
+
+            if ($site) {
+                $site->update($data);
+            } else {
+                Site::create($data);
+            }
+        }
+
+        // Remove orphan sites (in DB but not in CLI)
+        Site::where('environment_id', $environment->id)
+            ->whereNotIn('slug', $cliSlugs)
+            ->whereNotIn('name', $cliSlugs)
+            ->delete();
+
+        return [
+            'success' => true,
+            'data' => [
+                'synced' => count($cliSlugs),
+            ],
+        ];
+    }
+
+    public function syncSiteFromCli(Environment $environment, Site $site, string $slug): array
+    {
+        if ($environment->is_local) {
+            $result = $this->command->executeCommand($environment, 'site:list --json');
+        } else {
+            $result = $this->connector->sendRequest($environment, new GetSitesRequest);
+        }
+
+        if (! $result['success']) {
+            return $result;
+        }
+
+        $sites = $result['data']['sites'] ?? [];
+        $matched = collect($sites)->first(function (array $candidate) use ($slug) {
+            return ($candidate['name'] ?? null) === $slug || ($candidate['slug'] ?? null) === $slug;
+        });
+
+        if (! $matched) {
+            return ['success' => false, 'error' => 'Site not found in CLI list'];
+        }
+
+        $site->update([
+            'display_name' => $matched['display_name'] ?? $site->display_name,
+            'github_repo' => $matched['github_repo'] ?? $site->github_repo,
+            'site_type' => $matched['site_type'] ?? $site->site_type,
+            'has_public_folder' => $matched['has_public_folder'] ?? $site->has_public_folder,
+            'domain' => $matched['domain'] ?? $site->domain,
+            'site_url' => $matched['site_url'] ?? $site->site_url,
+            'php_version' => $matched['php_version'] ?? $site->php_version,
+            'path' => $matched['path'] ?? $site->path,
+            'status' => Arr::get($matched, 'status', $site->status),
+        ]);
+
+        return ['success' => true, 'data' => $matched];
+    }
+
+    /**
      * Get all sites from CLI (fresh, no caching).
      * Returns all directories in scan paths, with has_public_folder flag.
      */
     public function siteList(Environment $environment): array
     {
-        if ($environment->is_local) {
-            return $this->command->executeCommand($environment, 'site:list --json');
-        }
+        $sites = Site::query()
+            ->where('environment_id', $environment->id)
+            ->orderBy('name')
+            ->get();
 
-        return $this->connector->sendRequest($environment, new GetSitesRequest);
+        $config = $this->config->getConfig($environment);
+        $configData = $config['success'] ? ($config['data'] ?? []) : [];
+
+        return [
+            'success' => true,
+            'data' => [
+                'sites' => $sites,
+                'tld' => $configData['tld'] ?? 'test',
+                'default_php_version' => $configData['default_php_version'] ?? '8.4',
+                'available_php_versions' => $configData['available_php_versions'] ?? ['8.3', '8.4', '8.5'],
+            ],
+        ];
     }
 
     /**

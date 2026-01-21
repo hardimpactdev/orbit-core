@@ -25,6 +25,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | CLI Path
+    |--------------------------------------------------------------------------
+    |
+    | Path to the Orbit CLI executable. Used for executing CLI commands.
+    | For development: /home/user/projects/orbit-cli/orbit
+    | For production: /home/user/.local/bin/orbit
+    |
+    */
+    'cli_path' => env('ORBIT_CLI_PATH'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Database Path
     |--------------------------------------------------------------------------
     |

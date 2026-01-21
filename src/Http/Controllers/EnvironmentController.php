@@ -5,6 +5,7 @@ namespace HardImpact\Orbit\Http\Controllers;
 use HardImpact\Orbit\Jobs\CreateSiteJob;
 use HardImpact\Orbit\Models\Environment;
 use HardImpact\Orbit\Models\Setting;
+use HardImpact\Orbit\Models\Site;
 use HardImpact\Orbit\Models\TemplateFavorite;
 use HardImpact\Orbit\Services\DnsResolverService;
 use HardImpact\Orbit\Services\DoctorService;
@@ -36,9 +37,10 @@ class EnvironmentController extends Controller
     ) {}
 
     /**
-     * Get the remote API URL for direct frontend calls.
+     * Get the remote API URL for an environment.
      * For remote environments with a known TLD, returns https://orbit.{tld}/api
      * This allows the frontend to bypass the single-threaded NativePHP server.
+     * For local environments, returns null so frontend uses local API routes.
      */
     protected function getRemoteApiUrl(Environment $environment): ?string
     {
@@ -47,11 +49,7 @@ class EnvironmentController extends Controller
             return "https://orbit.{$environment->tld}/api";
         }
 
-        // For local environments in web mode, use ORBIT_API_URL from config
-        if ($environment->is_local && $environment->tld) {
-            return config('orbit.api_url') ?: "https://orbit.{$environment->tld}/api";
-        }
-
+        // For local environments, use local API routes (CLI is called via ORBIT_CLI_PATH)
         return null;
     }
 
@@ -116,14 +114,24 @@ class EnvironmentController extends Controller
 
         // Only check installation synchronously (fast), load status/sites via AJAX
         $installation = $this->status->checkInstallation($environment);
-        $editor = Setting::getEditor();
+        $editor = $environment->getEditor();
         $remoteApiUrl = $this->getRemoteApiUrl($environment);
+        $reverb = $this->config->getReverbConfig($environment);
 
         return \Inertia\Inertia::render('environments/Show', [
             'environment' => $environment,
             'installation' => $installation,
             'editor' => $editor,
             'remoteApiUrl' => $remoteApiUrl,
+            'reverb' => $reverb['success'] ? [
+                'enabled' => $reverb['enabled'] ?? false,
+                'host' => $reverb['host'] ?? null,
+                'port' => $reverb['port'] ?? null,
+                'scheme' => $reverb['scheme'] ?? null,
+                'app_key' => $reverb['app_key'] ?? null,
+            ] : [
+                'enabled' => false,
+            ],
         ]);
     }
 
@@ -255,13 +263,23 @@ class EnvironmentController extends Controller
      */
     public function sitesPage(Environment $environment): \Inertia\Response
     {
-        $editor = Setting::getEditor();
+        $editor = $environment->getEditor();
         $remoteApiUrl = $this->getRemoteApiUrl($environment);
+        $reverb = $this->config->getReverbConfig($environment);
 
         return \Inertia\Inertia::render('environments/Sites', [
             'environment' => $environment,
             'editor' => $editor,
             'remoteApiUrl' => $remoteApiUrl,
+            'reverb' => $reverb['success'] ? [
+                'enabled' => $reverb['enabled'] ?? false,
+                'host' => $reverb['host'] ?? null,
+                'port' => $reverb['port'] ?? null,
+                'scheme' => $reverb['scheme'] ?? null,
+                'app_key' => $reverb['app_key'] ?? null,
+            ] : [
+                'enabled' => false,
+            ],
         ]);
     }
 
@@ -271,7 +289,9 @@ class EnvironmentController extends Controller
     public function servicesPage(Environment $environment): \Inertia\Response
     {
         $remoteApiUrl = $this->getRemoteApiUrl($environment);
-        $editor = Setting::getEditor();
+        $editor = $environment->getEditor();
+
+        $reverb = $this->config->getReverbConfig($environment);
 
         return \Inertia\Inertia::render('environments/Services', [
             'environment' => $environment,
@@ -279,6 +299,15 @@ class EnvironmentController extends Controller
             'editor' => $editor,
             'localPhpIniPath' => $environment->is_local ? $this->macPhpFpm->getGlobalIniPath() : null,
             'homebrewPrefix' => $environment->is_local ? $this->macPhpFpm->getHomebrewPrefix() : null,
+            'reverb' => $reverb['success'] ? [
+                'enabled' => $reverb['enabled'] ?? false,
+                'host' => $reverb['host'] ?? null,
+                'port' => $reverb['port'] ?? null,
+                'scheme' => $reverb['scheme'] ?? null,
+                'app_key' => $reverb['app_key'] ?? null,
+            ] : [
+                'enabled' => false,
+            ],
         ]);
     }
 
@@ -287,6 +316,21 @@ class EnvironmentController extends Controller
      */
     public function sitesApi(Environment $environment)
     {
+        return response()->json($this->site->siteList($environment));
+    }
+
+    /**
+     * Sync sites from CLI to database.
+     */
+    public function sitesSyncApi(Environment $environment)
+    {
+        $result = $this->site->syncAllSitesFromCli($environment);
+
+        if (! $result['success']) {
+            return response()->json($result, 500);
+        }
+
+        // Return fresh site list after sync
         return response()->json($this->site->siteList($environment));
     }
 
@@ -300,6 +344,8 @@ class EnvironmentController extends Controller
         return \Inertia\Inertia::render('environments/Settings', [
             'environment' => $environment,
             'remoteApiUrl' => $remoteApiUrl,
+            'editor' => $environment->getEditor(),
+            'editorOptions' => Environment::getEditorOptions(),
         ]);
     }
 
@@ -313,6 +359,7 @@ class EnvironmentController extends Controller
             'host' => 'required|string|max:255',
             'user' => 'required|string|max:255',
             'port' => 'required|integer|min:1|max:65535',
+            'editor_scheme' => 'nullable|string|in:'.implode(',', array_keys(Environment::getEditorOptions())),
         ]);
 
         $environment->update($validated);
@@ -741,19 +788,36 @@ class EnvironmentController extends Controller
         ];
 
         $projectSlug = \Illuminate\Support\Str::slug($validated['name']);
+        $config = $this->config->getConfig($environment);
+        $paths = $config['success'] ? ($config['data']['paths'] ?? []) : [];
+        $basePath = $paths[0] ?? '~/projects';
+        $projectPath = rtrim((string) $basePath, '/').'/'.$projectSlug;
+
+        $site = Site::create([
+            'environment_id' => $environment->id,
+            'name' => $validated['name'],
+            'display_name' => $validated['name'],
+            'slug' => $projectSlug,
+            'path' => $projectPath,
+            'php_version' => $validated['php_version'] ?? '8.4',
+            'github_repo' => $validated['template'] ?? null,
+            'has_public_folder' => false,
+            'status' => Site::STATUS_QUEUED,
+        ]);
 
         // Dispatch async job - processed by Horizon
         // The job calls CLI which broadcasts progress via WebSocket (site.provision.status events)
         // Frontend tracks status via Reverb WebSocket, not polling
-        CreateSiteJob::dispatch($environment->id, $projectOptions);
+        CreateSiteJob::dispatch($site->id, $projectOptions);
 
-        // API requests get 202 Accepted
+        // API requests get 200 OK
         if ($request->wantsJson()) {
             return response()->json([
                 'success' => true,
                 'message' => 'Site creation queued',
                 'slug' => $projectSlug,
-            ], 202);
+                'site' => $site,
+            ]);
         }
 
         // Web requests get redirect with provisioning slug for WebSocket tracking
@@ -1103,7 +1167,7 @@ class EnvironmentController extends Controller
      */
     public function workspaces(Environment $environment): \Inertia\Response
     {
-        $editor = Setting::getEditor();
+        $editor = $environment->getEditor();
         $remoteApiUrl = $this->getRemoteApiUrl($environment);
 
         // Don't fetch workspaces synchronously - let Vue load them async
@@ -1119,7 +1183,17 @@ class EnvironmentController extends Controller
      */
     public function workspacesApi(Environment $environment)
     {
-        return response()->json($this->workspace->workspacesList($environment));
+        $result = $this->workspace->workspacesList($environment);
+
+        // Normalize workspace data for frontend (projects -> sites)
+        if ($result['success'] && isset($result['data']['workspaces'])) {
+            $result['data']['workspaces'] = array_map(
+                fn ($workspace) => $this->normalizeWorkspaceData($workspace),
+                $result['data']['workspaces']
+            );
+        }
+
+        return response()->json($result);
     }
 
     /**
@@ -1156,7 +1230,7 @@ class EnvironmentController extends Controller
      */
     public function showWorkspace(Environment $environment, string $workspace): \Inertia\Response
     {
-        $editor = Setting::getEditor();
+        $editor = $environment->getEditor();
         $remoteApiUrl = $this->getRemoteApiUrl($environment);
 
         // Don't fetch workspace data synchronously - let Vue load it async
@@ -1187,7 +1261,7 @@ class EnvironmentController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $workspaceData,
+            'data' => $this->normalizeWorkspaceData($workspaceData),
         ]);
     }
 
@@ -1358,8 +1432,8 @@ class EnvironmentController extends Controller
             return $this->getLocalPhpConfig($version);
         }
 
-        // For remote environments, proxy to the orchestrator API
-        return $this->proxyToOrchestrator($environment, 'GET', '/php/config/'.($version ?? ''));
+        // For remote environments, proxy to the remote API
+        return $this->proxyToRemoteApi($environment, 'GET', '/php/config/'.($version ?? ''));
     }
 
     /**
@@ -1371,8 +1445,8 @@ class EnvironmentController extends Controller
             return $this->setLocalPhpConfig($request, $version);
         }
 
-        // For remote environments, proxy to the orchestrator API
-        return $this->proxyToOrchestrator($environment, 'POST', '/php/config/'.($version ?? ''), $request->all());
+        // For remote environments, proxy to the remote API
+        return $this->proxyToRemoteApi($environment, 'POST', '/php/config/'.($version ?? ''), $request->all());
     }
 
     /**
@@ -1510,10 +1584,10 @@ class EnvironmentController extends Controller
         return $default;
     }
 
-    /**
-     * Proxy a request to the orchestrator API.
-     */
-    protected function proxyToOrchestrator(Environment $environment, string $method, string $path, array $data = [])
+     /**
+      * Proxy a request to the remote API.
+      */
+    protected function proxyToRemoteApi(Environment $environment, string $method, string $path, array $data = [])
     {
         $remoteApiUrl = $this->getRemoteApiUrl($environment);
         if (! $remoteApiUrl) {
@@ -1536,6 +1610,7 @@ class EnvironmentController extends Controller
             return response()->json(['success' => false, 'error' => $e->getMessage()]);
         }
     }
+
 
     /**
      * Get instance info for the local environment.
@@ -1591,5 +1666,23 @@ class EnvironmentController extends Controller
                 'cli_version' => $localEnv->cli_version,
             ],
         ]);
+    }
+
+    /**
+     * Normalize workspace data from CLI (projects -> sites) for frontend consistency.
+     */
+    protected function normalizeWorkspaceData(array $workspace): array
+    {
+        // Rename projects to sites for frontend consistency
+        if (isset($workspace['projects'])) {
+            $workspace['sites'] = $workspace['projects'];
+            unset($workspace['projects']);
+        }
+        if (isset($workspace['project_count'])) {
+            $workspace['site_count'] = $workspace['project_count'];
+            unset($workspace['project_count']);
+        }
+
+        return $workspace;
     }
 }

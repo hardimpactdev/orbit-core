@@ -86,7 +86,6 @@ class ConfigurationService
      */
     public function getReverbConfig(Environment $environment): array
     {
-        // Get status (includes services) to check if Reverb is running
         $status = $this->status->status($environment);
 
         if (! $status['success']) {

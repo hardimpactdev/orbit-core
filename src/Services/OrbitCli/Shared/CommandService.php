@@ -3,7 +3,6 @@
 namespace HardImpact\Orbit\Services\OrbitCli\Shared;
 
 use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Services\CliUpdateService;
 use HardImpact\Orbit\Services\SshService;
 use Illuminate\Support\Facades\Process;
 
@@ -24,8 +23,7 @@ class CommandService
     ];
 
     public function __construct(
-        protected SshService $ssh,
-        protected CliUpdateService $cliUpdate
+        protected SshService $ssh
     ) {}
 
     /**
@@ -46,23 +44,23 @@ class CommandService
     }
 
     /**
-     * Execute a command locally using the bundled CLI.
+     * Execute a command locally using the CLI.
      *
      * @param  int  $timeout  Timeout in seconds (default 60, use 600 for provisioning)
      */
     public function executeLocalCommand(string $command, int $timeout = 60): array
     {
-        if (! $this->cliUpdate->isInstalled()) {
+        $cliPath = $this->getCliPath();
+
+        if (! $cliPath || ! file_exists($cliPath)) {
             return [
                 'success' => false,
-                'error' => 'Orbit CLI not installed.',
+                'error' => 'Orbit CLI not found. Set ORBIT_CLI_PATH in .env',
                 'exit_code' => 1,
             ];
         }
 
-        $pharPath = $this->cliUpdate->getPharPath();
-        $phpBinary = PHP_BINARY;
-        $fullCommand = "{$phpBinary} {$pharPath} {$command}";
+        $fullCommand = "{$cliPath} {$command}";
 
         try {
             \Illuminate\Support\Facades\Log::info("CommandService executing: {$fullCommand}");
@@ -153,15 +151,17 @@ BASH;
      */
     public function isLocalCliInstalled(): bool
     {
-        return $this->cliUpdate->isInstalled();
+        $cliPath = $this->getCliPath();
+
+        return $cliPath && file_exists($cliPath);
     }
 
     /**
-     * Get the local CLI phar path.
+     * Get the local CLI path.
      */
-    public function getLocalCliPath(): string
+    public function getLocalCliPath(): ?string
     {
-        return $this->cliUpdate->getPharPath();
+        return $this->getCliPath();
     }
 
     /**
@@ -171,13 +171,13 @@ BASH;
     public function executeRawCommand(Environment $environment, string $command, int $timeout = 120): array
     {
         if ($environment->is_local) {
-            if (! $this->cliUpdate->isInstalled()) {
-                return ['success' => false, 'error' => 'Orbit CLI not installed.'];
+            $cliPath = $this->getCliPath();
+
+            if (! $cliPath || ! file_exists($cliPath)) {
+                return ['success' => false, 'error' => 'Orbit CLI not found. Set ORBIT_CLI_PATH in .env'];
             }
 
-            $pharPath = $this->cliUpdate->getPharPath();
-            $phpBinary = PHP_BINARY;
-            $result = Process::timeout($timeout)->run("{$phpBinary} {$pharPath} {$command}");
+            $result = Process::timeout($timeout)->run("{$cliPath} {$command}");
 
             return [
                 'success' => $result->successful(),
@@ -199,5 +199,13 @@ BASH;
             'output' => $result['output'] ?? '',
             'error' => $result['success'] ? null : ($result['error'] ?? 'Command failed'),
         ];
+    }
+
+    /**
+     * Get the CLI executable path from config.
+     */
+    protected function getCliPath(): ?string
+    {
+        return config('orbit.cli_path');
     }
 }

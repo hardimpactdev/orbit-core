@@ -24,6 +24,7 @@ Route::prefix('environments/{environment}')->group(function (): void {
 
     // Async data loading endpoints
     Route::get('sites', [EnvironmentController::class, 'sitesApi']);
+    Route::post('sites/sync', [EnvironmentController::class, 'sitesSyncApi']);
     Route::get('workspaces', [EnvironmentController::class, 'workspacesApi']);
     Route::get('workspaces/{workspace}', [EnvironmentController::class, 'workspaceApi']);
 
@@ -66,12 +67,14 @@ Route::middleware('implicit.environment')->group(function (): void {
     Route::get('config', [EnvironmentController::class, 'getConfig'])->name('api.config');
     Route::get('worktrees', [EnvironmentController::class, 'worktrees'])->name('api.worktrees');
     Route::get('workspaces', [EnvironmentController::class, 'workspacesApi'])->name('api.workspaces');
+    Route::get('workspaces/{workspace}', [EnvironmentController::class, 'workspaceApi'])->name('api.workspaces.show');
 
     Route::post('start', [EnvironmentController::class, 'start'])->name('api.start');
     Route::post('stop', [EnvironmentController::class, 'stop'])->name('api.stop');
     Route::post('restart', [EnvironmentController::class, 'restart'])->name('api.restart');
 
     Route::post('sites', [EnvironmentController::class, 'storeSite'])->name('api.sites.store');
+    Route::post('sites/sync', [EnvironmentController::class, 'sitesSyncApi'])->name('api.sites.sync');
     Route::delete('sites/{siteName}', [EnvironmentController::class, 'destroySite'])->name('api.sites.destroy');
     Route::post('sites/{siteName}/rebuild', [EnvironmentController::class, 'rebuildSite'])->name('api.sites.rebuild');
     Route::get('sites/{siteSlug}/provision-status', [EnvironmentController::class, 'provisionStatus'])->name('api.sites.provision-status');
