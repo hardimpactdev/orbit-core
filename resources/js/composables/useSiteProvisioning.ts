@@ -1,8 +1,9 @@
-import { ref, onUnmounted, type Ref } from 'vue';
-import { getEcho, disconnectEcho, type ReverbConfig } from '@/echo';
-import type Echo from 'laravel-echo';
+import { useEchoPublic, useConnectionStatus } from '@laravel/echo-vue';
+import { usePage } from '@inertiajs/vue3';
+import { ref, computed, type Ref } from 'vue';
 
 export type ProvisionStatus =
+    | 'queued'
     | 'creating_repo'
     | 'cloning'
     | 'setting_up'
@@ -11,8 +12,7 @@ export type ProvisionStatus =
     | 'building'
     | 'finalizing'
     | 'ready'
-    | 'failed'
-    | 'provisioning';
+    | 'failed';
 
 export type DeletionStatus =
     | 'deleting'
@@ -48,73 +48,39 @@ export interface DeletingSite {
     error?: string | null;
 }
 
-interface ReverbConfigResponse {
-    success: boolean;
+interface ReverbProps {
     enabled?: boolean;
-    host?: string;
-    port?: number;
-    scheme?: string;
-    app_key?: string;
-    error?: string;
 }
 
 /**
  * Composable for listening to site provisioning events via WebSocket.
- * Connects to the standalone Reverb service configured in the environment.
+ * Uses the globally configured Echo connection.
  */
-export function useSiteProvisioning(environmentId: number) {
+export function useSiteProvisioning() {
     const provisioningSites: Ref<Map<string, ProvisioningSite>> = ref(new Map());
     const deletingSites: Ref<Map<string, DeletingSite>> = ref(new Map());
-    const isConnected = ref(false);
-    const connectionError = ref<string | null>(null);
+    const connectionStatus = useConnectionStatus();
+    const page = usePage();
+
+    const reverbEnabled = computed(
+        () => Boolean((page.props.reverb as ReverbProps | undefined)?.enabled),
+    );
+
+    const isConfigured = computed(() => reverbEnabled.value);
+
 
     // Reactive counters that increment on terminal events - easier to watch than Maps
     const siteReadyCount = ref(0);
     const siteDeletedCount = ref(0);
 
-    let echo: Echo<'reverb'> | null = null;
-
-    async function connect() {
-        try {
-            // Fetch Reverb config from the environment
-            const response = await fetch(`/environments/${environmentId}/reverb-config`);
-            const result: ReverbConfigResponse = await response.json();
-
-            if (!result.success) {
-                connectionError.value = result.error || 'Failed to get Reverb config';
-                return;
-            }
-
-            if (!result.enabled) {
-                connectionError.value = 'Reverb service not enabled';
-                return;
-            }
-
-            const config: ReverbConfig = {
-                host: result.host!,
-                port: result.port!,
-                scheme: result.scheme as 'http' | 'https',
-                key: result.app_key!,
-            };
-
-            echo = getEcho(config);
-
-            // Listen to the provisioning channel for all provision events
-            echo.channel('provisioning')
-                .listen('.site.provision.status', (event: ProvisionEvent) => {
-                    handleProvisionEvent(event);
-                })
-                .listen('.site.deletion.status', (event: DeletionEvent) => {
-                    handleDeletionEvent(event);
-                });
-
-            isConnected.value = true;
-            connectionError.value = null;
-        } catch (e) {
-            connectionError.value = e instanceof Error ? e.message : 'Failed to connect';
-            isConnected.value = false;
-        }
-    }
+    const isConnected = computed(() =>
+        reverbEnabled.value && connectionStatus.value === 'connected',
+    );
+    const connectionError = computed(() =>
+        reverbEnabled.value && connectionStatus.value === 'failed'
+            ? 'Reverb connection unavailable'
+            : null,
+    );
 
     // Track which slugs we've already processed to prevent duplicate handling
     const processedEvents = new Map<string, string>();
@@ -149,6 +115,13 @@ export function useSiteProvisioning(environmentId: number) {
             }, 15000);
         }
     }
+
+    if (reverbEnabled.value) {
+        useEchoPublic('provisioning', '.site.provision.status', handleProvisionEvent);
+        useEchoPublic('provisioning', '.site.deletion.status', handleDeletionEvent);
+    }
+
+
 
     // Track deletion events separately
     const processedDeletionEvents = new Map<string, string>();
@@ -187,15 +160,13 @@ export function useSiteProvisioning(environmentId: number) {
             });
         }
 
-        // Subscribe to site-specific channel for deletion events
-        if (echo) {
-            echo.channel(`site.${slug}`).listen(
-                '.site.deletion.status',
-                (event: DeletionEvent) => {
-                    handleDeletionEvent(event);
-                },
-            );
-        }
+        useEchoPublic(`site.${slug}`, '.site.deletion.status', (event: DeletionEvent) => {
+            if (!reverbEnabled.value) {
+                return;
+            }
+
+            handleDeletionEvent(event);
+        });
     }
 
     function getDeletionStatus(slug: string): DeletingSite | undefined {
@@ -229,19 +200,17 @@ export function useSiteProvisioning(environmentId: number) {
         if (!provisioningSites.value.has(slug)) {
             provisioningSites.value.set(slug, {
                 slug,
-                status: 'provisioning',
+                status: 'queued',
             });
         }
 
-        // Also subscribe to site-specific channel
-        if (echo) {
-            echo.channel(`site.${slug}`).listen(
-                '.site.provision.status',
-                (event: ProvisionEvent) => {
-                    handleProvisionEvent(event);
-                },
-            );
-        }
+        useEchoPublic(`site.${slug}`, '.site.provision.status', (event: ProvisionEvent) => {
+            if (!reverbEnabled.value) {
+                return;
+            }
+
+            handleProvisionEvent(event);
+        });
     }
 
     function getSiteStatus(slug: string): ProvisioningSite | undefined {
@@ -249,23 +218,18 @@ export function useSiteProvisioning(environmentId: number) {
     }
 
     function disconnect() {
-        disconnectEcho();
-        echo = null;
-        isConnected.value = false;
+        // no-op: channels are cleaned up by the echo-vue composables
     }
-
-    onUnmounted(() => {
-        disconnect();
-    });
 
     return {
         provisioningSites,
         deletingSites,
         isConnected,
         connectionError,
+        isConfigured,
         siteReadyCount,
         siteDeletedCount,
-        connect,
+        connect: () => undefined,
         disconnect,
         trackSite,
         getSiteStatus,

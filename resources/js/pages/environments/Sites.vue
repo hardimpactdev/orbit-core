@@ -18,6 +18,7 @@ import {
     RefreshCw,
     Package,
     Terminal,
+    Clock3,
 } from 'lucide-vue-next';
 import {
     useSiteProvisioning,
@@ -42,15 +43,18 @@ interface Editor {
 }
 
 interface Site {
+    id: number;
     name: string;
     display_name?: string;
     github_repo?: string | null;
-    site_type?: string;
+    site_type?: string | null;
     path: string;
     has_public_folder: boolean;
     php_version?: string;
-    domain?: string;
-    site_url?: string;
+    domain?: string | null;
+    site_url?: string | null;
+    status?: ProvisionStatus | null;
+    error_message?: string | null;
 }
 
 const props = defineProps<{
@@ -70,6 +74,16 @@ const getApiUrl = (path: string) => {
 const page = usePage();
 
 const sites = ref<Site[]>([]);
+const provisioningStatuses = [
+    'queued',
+    'creating_repo',
+    'cloning',
+    'setting_up',
+    'installing_composer',
+    'installing_npm',
+    'building',
+    'finalizing',
+];
 const loading = ref(true);
 const tld = ref('test');
 const defaultPhpVersion = ref('8.4');
@@ -84,10 +98,12 @@ const allSites = computed(() => {
     for (const [slug, provSite] of provisioningSites.value) {
         if (!siteMap.has(slug)) {
             siteMap.set(slug, {
+                id: 0,
                 name: slug,
                 path: `~/sites/${slug}`,
                 has_public_folder: false,
                 php_version: defaultPhpVersion.value,
+                status: provSite.status,
             });
         }
     }
@@ -100,22 +116,21 @@ const allSites = computed(() => {
 
 // Initialize provisioning composable
 const {
-    provisioningSites: provisioningSites,
-    deletingSites: deletingSites,
+    provisioningSites,
+    deletingSites,
     isConnected,
     connectionError,
-    siteReadyCount: siteReadyCount,
-    siteDeletedCount: siteDeletedCount,
-    connect,
-    disconnect,
-    trackSite: trackSite,
-    getSiteStatus: getSiteStatus,
+    siteReadyCount,
+    siteDeletedCount,
+    isConfigured: isProvisioningConfigured,
+    trackSite,
+    getSiteStatus,
     trackDeletion: trackSiteDeletion,
     getDeletionStatus: getSiteDeletionStatus,
     markDeletionComplete: markSiteDeletionComplete,
     markDeletionFailed: markSiteDeletionFailed,
     clearDeletion: clearSiteDeletion,
-} = useSiteProvisioning(props.environment.id);
+} = useSiteProvisioning();
 
 // Get provisioning slug from flash data or URL query param
 const provisioningSlug = computed(() => {
@@ -131,7 +146,7 @@ const provisioningSlug = computed(() => {
 
 // Status display helpers
 const statusLabels: Record<ProvisionStatus, string> = {
-    provisioning: 'Initializing...',
+    queued: 'Queued...',
     creating_repo: 'Creating repository...',
     cloning: 'Cloning...',
     setting_up: 'Setting up...',
@@ -171,23 +186,32 @@ function getSiteDeletionStatusValue(siteName: string): DeletionStatus | null {
     return status?.status ?? null;
 }
 
-function getSiteProvisioningStatus(siteName: string): ProvisioningSite | undefined {
+function getSiteProvisioningStatus(site: Site): ProvisioningSite | null {
+    if (site.status && provisioningStatuses.includes(site.status)) {
+        return {
+            slug: site.name,
+            status: site.status,
+            error: site.error_message ?? null,
+            siteId: site.id,
+        };
+    }
+
     // Check by slug (kebab-case of name)
-    const slug = siteName
+    const slug = site.name
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '');
-    return getSiteStatus(slug);
+    return getSiteStatus(slug) ?? null;
 }
 
-function isSiteProvisioning(siteName: string): boolean {
-    const status = getSiteProvisioningStatus(siteName);
+function isSiteProvisioning(site: Site): boolean {
+    const status = getSiteProvisioningStatus(site);
     if (!status) return false;
     return status.status !== 'ready' && status.status !== 'failed';
 }
 
-function getSiteProvisionStatus(siteName: string): ProvisionStatus | null {
-    const status = getSiteProvisioningStatus(siteName);
+function getSiteProvisionStatus(site: Site): ProvisionStatus | null {
+    const status = getSiteProvisioningStatus(site);
     // Return null for 'ready' so it's treated as done (no status shown)
     if (status?.status === 'ready') return null;
     return status?.status ?? null;
@@ -216,7 +240,7 @@ async function loadSites(silent = false) {
         const { data: result } = await api.get(getApiUrl('/sites'));
 
         if (result.success && result.data) {
-            sites.value = result.data.sites || result.data.sites || [];
+            sites.value = result.data.sites || [];
             tld.value = result.data.tld || 'test';
             defaultPhpVersion.value = result.data.default_php_version || '8.4';
             if (result.data.available_php_versions?.length) {
@@ -427,15 +451,7 @@ onMounted(() => {
     // Load sites list (non-blocking - page renders immediately with loading state)
     loadSites();
 
-    // Connect to WebSocket for real-time provisioning updates (non-blocking)
-    connect();
-
-    // Re-track after connect to ensure WebSocket subscription is set up
-    if (provisioningSlug.value) {
-        trackSite(provisioningSlug.value);
-        // No polling fallback - rely solely on WebSocket updates
-        // If WebSocket fails, user will see stuck "provisioning" state
-    }
+    // No explicit connect needed; Echo is configured globally.
 });
 </script>
 
@@ -443,36 +459,45 @@ onMounted(() => {
     <Head :title="`Sites - ${environment.name}`" />
 
     <div>
-        <div class="mb-8 flex items-start justify-between">
+        <!-- Header -->
+        <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
             <div>
-                <Heading title="Sites" />
-                <p class="text-zinc-400 mt-1">Sites in {{ environment.name }}</p>
+                <h1 class="text-2xl font-semibold tracking-tight text-zinc-100">Sites</h1>
+                <p class="text-sm text-zinc-500 mt-1">Sites in {{ environment.name }}</p>
             </div>
-            <Button as-child variant="secondary">
-                <Link :href="`/environments/${environment.id}/sites/create`">
-                    <Plus class="w-4 h-4" />
-                    New Site
-                </Link>
-            </Button>
-        </div>
+            <div class="flex items-center gap-2">
+                <Button as-child size="sm" class="bg-lime-500 hover:bg-lime-600 text-zinc-950">
+                    <Link :href="`/environments/${environment.id}/sites/create`">
+                        <Plus class="w-4 h-4 mr-1.5" />
+                        New Site
+                    </Link>
+                </Button>
+            </div>
+        </header>
 
         <!-- WebSocket Connection Warning -->
         <div
-            v-if="connectionError"
-            class="mb-6 p-4 bg-amber-400/10 border border-amber-400/20 rounded-lg flex items-start gap-3"
+            v-if="connectionError || !isProvisioningConfigured"
+            class="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-3"
         >
             <AlertCircle class="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
             <div>
-                <p class="text-amber-400 font-medium">Real-time updates unavailable</p>
+                <p class="text-amber-400 font-medium text-sm">Real-time updates unavailable</p>
                 <p class="text-zinc-400 text-sm mt-1">
-                    Could not connect to WebSocket: {{ connectionError }}. Status updates for
-                    provisioning and deletion will not appear automatically.
+                    <span v-if="!isProvisioningConfigured">
+                        Reverb is not configured for this environment. Status updates for
+                        provisioning and deletion will not appear automatically.
+                    </span>
+                    <span v-else>
+                        Could not connect to WebSocket: {{ connectionError }}. Status updates for
+                        provisioning and deletion will not appear automatically.
+                    </span>
                 </p>
             </div>
         </div>
 
         <!-- Loading State -->
-        <div v-if="loading" class="border border-zinc-800 rounded-lg p-8 text-center">
+        <div v-if="loading" class="rounded-lg border border-zinc-800 bg-zinc-900/50 p-8 text-center">
             <Loader2 class="w-8 h-8 mx-auto text-zinc-600 animate-spin mb-3" />
             <p class="text-zinc-500">Loading sites...</p>
         </div>
@@ -480,228 +505,220 @@ onMounted(() => {
         <!-- Empty State -->
         <div
             v-else-if="allSites.length === 0"
-            class="border border-zinc-800 rounded-lg p-8 text-center"
+            class="rounded-lg border border-zinc-800 bg-zinc-900/50 p-8 text-center"
         >
             <FolderOpen class="w-12 h-12 mx-auto text-zinc-600 mb-3" />
-            <h3 class="text-lg font-medium text-white mb-2">No sites found</h3>
+            <h3 class="text-lg font-medium text-zinc-100 mb-2">No sites found</h3>
             <p class="text-zinc-400">Add site directories in the environment configuration.</p>
         </div>
 
         <!-- Sites Table -->
-        <div v-else class="border border-zinc-800 rounded-lg overflow-hidden">
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Site</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>PHP</TableHead>
-                        <TableHead class="text-right">Actions</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    <TableRow
-                        v-for="site in allSites"
-                        :key="site.name"
-                        :class="{
-                            'opacity-50': isSiteDeleting(site.name),
-                            'bg-zinc-900/50': isSiteProvisioning(site.name),
-                            'bg-lime-900/20': getSiteDeletionStatusValue(site.name) === 'deleted',
-                            'bg-red-900/20':
-                                isSiteDeleting(site.name) &&
-                                getSiteDeletionStatusValue(site.name) !== 'deleted',
-                        }"
-                    >
-                        <TableCell>
-                            <div class="flex items-center gap-2">
-                                <Check
-                                    v-if="getSiteDeletionStatusValue(site.name) === 'deleted'"
-                                    class="w-4 h-4 text-lime-400"
-                                />
-                                <Loader2
-                                    v-else-if="isSiteDeleting(site.name)"
-                                    class="w-4 h-4 text-red-400 animate-spin"
-                                />
-                                <Loader2
-                                    v-else-if="isSiteProvisioning(site.name)"
-                                    class="w-4 h-4 text-amber-400 animate-spin"
-                                />
-                                <AlertCircle
-                                    v-else-if="
-                                        getSiteProvisionStatus(site.name) === 'failed' ||
-                                        getSiteDeletionStatusValue(site.name) === 'delete_failed'
-                                    "
-                                    class="w-4 h-4 text-red-400"
-                                />
-                                <Package
-                                    v-else-if="site.site_type === 'laravel-package'"
-                                    class="w-4 h-4 text-purple-400"
-                                />
-                                <Terminal
-                                    v-else-if="site.site_type === 'cli'"
-                                    class="w-4 h-4 text-amber-400"
-                                />
-                                <Globe
-                                    v-else-if="site.has_public_folder"
-                                    class="w-4 h-4 text-lime-400"
-                                />
-                                <FolderOpen v-else class="w-4 h-4 text-zinc-400" />
-                                <div class="flex flex-col">
-                                    <span class="font-medium text-white">{{
-                                        site.display_name || site.name
-                                    }}</span>
-                                    <span
-                                        v-if="
-                                            site.github_repo &&
-                                            !isSiteProvisioning(site.name) &&
-                                            !isSiteDeleting(site.name)
-                                        "
-                                        class="text-zinc-400 text-xs"
-                                    >
-                                        {{ site.github_repo }}
-                                    </span>
-                                </div>
-                            </div>
-                        </TableCell>
-                        <TableCell>
-                            <!-- Deletion status -->
-                            <div
-                                v-if="getSiteDeletionStatusValue(site.name)"
-                                class="flex items-center gap-2"
-                            >
-                                <Badge
-                                    v-if="getSiteDeletionStatusValue(site.name) === 'deleted'"
-                                    class="bg-lime-400/10 text-lime-400 border-lime-400/20"
-                                >
-                                    Deleted
-                                </Badge>
-                                <Badge
-                                    v-else-if="
-                                        getSiteDeletionStatusValue(site.name) === 'delete_failed'
-                                    "
-                                    class="bg-red-400/10 text-red-400 border-red-400/20"
-                                >
-                                    Delete failed
-                                </Badge>
-                                <Badge
-                                    v-else-if="isSiteDeleting(site.name)"
-                                    class="bg-red-400/10 text-red-400 border-red-400/20"
-                                >
-                                    {{
-                                        deletionStatusLabels[
-                                            getSiteDeletionStatusValue(site.name)!
-                                        ]
-                                    }}
-                                </Badge>
-                            </div>
-                            <!-- Provisioning status -->
-                            <div
-                                v-else-if="getSiteProvisionStatus(site.name)"
-                                class="flex items-center gap-2"
-                            >
-                                <Badge
-                                    v-if="isSiteProvisioning(site.name)"
-                                    class="bg-amber-400/10 text-amber-400 border-amber-400/20"
-                                >
-                                    {{ statusLabels[getSiteProvisionStatus(site.name)!] }}
-                                </Badge>
-                                <Badge
-                                    v-else-if="getSiteProvisionStatus(site.name) === 'failed'"
-                                    class="bg-red-400/10 text-red-400 border-red-400/20"
-                                >
-                                    Failed
-                                </Badge>
-                            </div>
-                            <span v-else class="text-xs text-zinc-500">—</span>
-                        </TableCell>
-                        <TableCell>
-                            <div
+        <div v-else class="rounded-lg border border-zinc-800 bg-zinc-900/50 overflow-hidden">
+            <!-- Table Header -->
+            <div class="grid grid-cols-[1fr_100px_140px_160px] items-center gap-4 px-4 py-3 border-b border-zinc-800 bg-zinc-800/30">
+                <span class="text-xs font-medium text-zinc-500 uppercase tracking-wide">Site</span>
+                <span class="text-xs font-medium text-zinc-500 uppercase tracking-wide">Status</span>
+                <span class="text-xs font-medium text-zinc-500 uppercase tracking-wide">PHP</span>
+                <span class="text-xs font-medium text-zinc-500 uppercase tracking-wide text-right">Actions</span>
+            </div>
+            
+            <!-- Table Body -->
+            <div>
+                <div
+                    v-for="site in allSites"
+                    :key="site.name"
+                    class="grid grid-cols-[1fr_100px_140px_160px] items-center gap-4 px-4 py-3 border-b border-zinc-800/50 last:border-b-0 transition-colors hover:bg-zinc-800/30"
+                    :class="{
+                        'opacity-50': isSiteDeleting(site.name),
+                        'bg-zinc-800/20': isSiteProvisioning(site),
+                        'bg-lime-500/5': getSiteDeletionStatusValue(site.name) === 'deleted',
+                        'bg-red-500/5':
+                            isSiteDeleting(site.name) &&
+                            getSiteDeletionStatusValue(site.name) !== 'deleted',
+                    }"
+                >
+                    <!-- Site info -->
+                    <div class="flex items-center gap-3 min-w-0">
+                        <Check
+                            v-if="getSiteDeletionStatusValue(site.name) === 'deleted'"
+                            class="w-4 h-4 shrink-0 text-lime-400"
+                        />
+                        <Loader2
+                            v-else-if="isSiteDeleting(site.name)"
+                            class="w-4 h-4 shrink-0 text-red-400 animate-spin"
+                        />
+                        <Loader2
+                            v-else-if="isSiteProvisioning(site)"
+                            class="w-4 h-4 shrink-0 text-amber-400 animate-spin"
+                        />
+                        <Clock3
+                            v-else-if="getSiteProvisionStatus(site) === 'queued'"
+                            class="w-4 h-4 shrink-0 text-blue-400"
+                        />
+                        <AlertCircle
+                            v-else-if="
+                                getSiteProvisionStatus(site) === 'failed' ||
+                                getSiteDeletionStatusValue(site.name) === 'delete_failed'
+                            "
+                            class="w-4 h-4 shrink-0 text-red-400"
+                        />
+                        <Package
+                            v-else-if="site.site_type === 'laravel-package'"
+                            class="w-4 h-4 shrink-0 text-purple-400"
+                        />
+                        <Terminal
+                            v-else-if="site.site_type === 'cli'"
+                            class="w-4 h-4 shrink-0 text-amber-400"
+                        />
+                        <Globe
+                            v-else-if="site.has_public_folder"
+                            class="w-4 h-4 shrink-0 text-lime-400"
+                        />
+                        <FolderOpen v-else class="w-4 h-4 shrink-0 text-zinc-500" />
+                        <div class="min-w-0">
+                            <p class="font-medium text-sm text-zinc-100 truncate">{{ site.display_name || site.name }}</p>
+                            <p
                                 v-if="
-                                    isSiteProvisioning(site.name) ||
-                                    isSiteDeleting(site.name)
+                                    site.github_repo &&
+                                    !isSiteProvisioning(site) &&
+                                    !isSiteDeleting(site.name)
                                 "
-                                class="text-sm text-zinc-500 font-mono"
+                                class="text-xs text-zinc-500 truncate"
                             >
-                                {{ site.php_version || defaultPhpVersion }}
-                            </div>
-                            <div
-                                v-else-if="changingPhpFor === site.name"
-                                class="flex items-center gap-2"
+                                {{ site.github_repo }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Status -->
+                    <div class="text-sm">
+                        <!-- Deletion status -->
+                        <span
+                            v-if="getSiteDeletionStatusValue(site.name) === 'deleted'"
+                            class="px-2 py-0.5 text-xs font-medium rounded-full bg-lime-500/15 text-lime-400"
+                        >
+                            Deleted
+                        </span>
+                        <span
+                            v-else-if="getSiteDeletionStatusValue(site.name) === 'delete_failed'"
+                            class="px-2 py-0.5 text-xs font-medium rounded-full bg-red-500/15 text-red-400"
+                        >
+                            Failed
+                        </span>
+                        <span
+                            v-else-if="isSiteDeleting(site.name)"
+                            class="px-2 py-0.5 text-xs font-medium rounded-full bg-red-500/15 text-red-400"
+                        >
+                            {{ deletionStatusLabels[getSiteDeletionStatusValue(site.name)!] }}
+                        </span>
+                        <!-- Provisioning status -->
+                        <span
+                            v-else-if="getSiteProvisionStatus(site) === 'failed'"
+                            class="px-2 py-0.5 text-xs font-medium rounded-full bg-red-500/15 text-red-400"
+                        >
+                            Failed
+                        </span>
+                        <span
+                            v-else-if="getSiteProvisionStatus(site)"
+                            class="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-500/15 text-amber-400"
+                        >
+                            {{ statusLabels[getSiteProvisionStatus(site)!] }}
+                        </span>
+                        <span v-else class="text-zinc-500/50">—</span>
+                    </div>
+
+                    <!-- PHP Version Dropdown -->
+                    <div>
+                        <div
+                            v-if="isSiteProvisioning(site) || isSiteDeleting(site.name)"
+                            class="text-sm text-zinc-500 font-mono"
+                        >
+                            {{ site.php_version || defaultPhpVersion }}
+                        </div>
+                        <div
+                            v-else-if="changingPhpFor === site.name"
+                            class="flex items-center gap-2"
+                        >
+                            <Loader2 class="w-4 h-4 text-zinc-400 animate-spin" />
+                            <span class="text-sm text-zinc-500">...</span>
+                        </div>
+                        <select
+                            v-else
+                            :value="site.php_version || defaultPhpVersion"
+                            @change="
+                                (e) =>
+                                    changePhpVersion(
+                                        site,
+                                        (e.target as HTMLSelectElement).value,
+                                    )
+                            "
+                            class="h-8 w-[110px] text-xs py-1 pl-2 pr-7 font-mono bg-zinc-800/50 border border-zinc-700 rounded-md text-zinc-100 hover:bg-zinc-800"
+                            :disabled="!site.has_public_folder"
+                        >
+                            <option
+                                v-for="version in availablePhpVersions"
+                                :key="version"
+                                :value="version"
                             >
-                                <Loader2 class="w-4 h-4 text-zinc-400 animate-spin" />
-                                <span class="text-sm text-zinc-500">Changing...</span>
-                            </div>
-                            <select
-                                v-else
-                                :value="site.php_version || defaultPhpVersion"
-                                @change="
-                                    (e) =>
-                                        changePhpVersion(
-                                            site,
-                                            (e.target as HTMLSelectElement).value,
-                                        )
-                                "
-                                class="text-xs py-1 pl-2 pr-7 font-mono bg-zinc-800 border-zinc-700 rounded"
-                                :disabled="!site.has_public_folder"
+                                PHP {{ version }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex items-center justify-end gap-1">
+                        <div
+                            v-if="getSiteDeletionStatusValue(site.name) === 'deleted'"
+                            class="text-xs text-lime-400"
+                        >
+                            Deleted
+                        </div>
+                        <div
+                            v-else-if="isSiteDeleting(site.name)"
+                            class="text-xs text-red-400"
+                        >
+                            Deleting...
+                        </div>
+                        <div
+                            v-else-if="isSiteProvisioning(site)"
+                            class="text-xs text-zinc-500"
+                        >
+                            {{ statusLabels[getSiteProvisionStatus(site) ?? 'queued'] }}
+                        </div>
+                        <template v-else>
+                            <Button
+                                v-if="site.has_public_folder && site.domain"
+                                @click="openSite(site.domain)"
+                                variant="outline"
+                                size="sm"
+                                class="h-8 px-3 bg-transparent border-zinc-700 text-zinc-300 hover:bg-zinc-800"
                             >
-                                <option
-                                    v-for="version in availablePhpVersions"
-                                    :key="version"
-                                    :value="version"
-                                >
-                                    PHP {{ version }}
-                                </option>
-                            </select>
-                        </TableCell>
-                        <TableCell class="text-right">
-                            <div
-                                v-if="getSiteDeletionStatusValue(site.name) === 'deleted'"
-                                class="text-xs text-lime-400"
-                            >
-                                Deleted
-                            </div>
-                            <div
-                                v-else-if="isSiteDeleting(site.name)"
-                                class="text-xs text-red-400"
-                            >
-                                Deleting...
-                            </div>
-                            <div
-                                v-else-if="isSiteProvisioning(site.name)"
-                                class="text-xs text-zinc-500"
-                            >
-                                Setting up...
-                            </div>
-                            <div v-else class="flex items-center justify-end gap-2">
-                                <Button
-                                    v-if="site.has_public_folder && site.domain"
-                                    @click="openSite(site.domain)"
-                                    variant="secondary"
-                                    size="sm"
-                                >
-                                    <ExternalLink class="w-3.5 h-3.5" />
-                                    Open
-                                </Button>
+                                <ExternalLink class="w-3.5 h-3.5 mr-1.5" />
+                                Open
+                            </Button>
+                            <div class="flex items-center gap-0.5 opacity-60 hover:opacity-100 transition-opacity">
                                 <Button
                                     v-if="$page.props.multi_environment"
                                     @click="openInEditor(site.path)"
-                                    variant="outline"
-                                    size="sm"
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    class="h-8 w-8 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+                                    :title="`Open in ${editor.name}`"
                                 >
                                     <Code class="w-3.5 h-3.5" />
-                                    {{ editor.name }}
                                 </Button>
                                 <Button
                                     v-if="
                                         site.has_public_folder &&
-                                        !isSiteProvisioning(site.name) &&
+                                        !isSiteProvisioning(site) &&
                                         !isSiteDeleting(site.name)
                                     "
                                     @click="rebuildSite(site)"
                                     variant="ghost"
                                     size="icon-sm"
-                                    class="text-zinc-500 hover:text-amber-400"
+                                    class="h-8 w-8 text-zinc-400 hover:text-amber-400 hover:bg-zinc-800"
                                     :disabled="rebuildingSite === site.name"
-                                    title="Rebuild site (reinstall deps, build assets)"
+                                    title="Rebuild site"
                                 >
                                     <Loader2
                                         v-if="rebuildingSite === site.name"
@@ -713,35 +730,37 @@ onMounted(() => {
                                     @click="confirmDelete(site)"
                                     variant="ghost"
                                     size="icon-sm"
-                                    class="text-zinc-500 hover:text-red-400"
+                                    class="h-8 w-8 text-zinc-400 hover:text-red-400 hover:bg-red-500/10"
                                     title="Delete site"
                                 >
                                     <Trash2 class="w-3.5 h-3.5" />
                                 </Button>
                             </div>
-                        </TableCell>
-                    </TableRow>
-                </TableBody>
-            </Table>
+                        </template>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <!-- Legend -->
-        <div class="mt-4 flex items-center gap-6 text-xs text-zinc-500">
-            <div class="flex items-center gap-1.5">
-                <Globe class="w-3.5 h-3.5 text-lime-400" />
-                <span>Has public folder</span>
+        <!-- Footer -->
+        <div class="flex items-center justify-between mt-4 px-1">
+            <div class="flex items-center gap-4 text-xs text-zinc-500">
+                <div class="flex items-center gap-1.5">
+                    <Globe class="h-3.5 w-3.5 text-lime-400" />
+                    <span>Has public folder</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <FolderOpen class="h-3.5 w-3.5" />
+                    <span>No public folder</span>
+                </div>
             </div>
-            <div class="flex items-center gap-1.5">
-                <FolderOpen class="w-3.5 h-3.5 text-zinc-500" />
-                <span>No public folder</span>
-            </div>
-            <div class="flex items-center gap-1.5 ml-auto">
-                <span v-if="isConnected" class="inline-flex items-center gap-1 text-lime-400">
-                    <span class="w-1.5 h-1.5 rounded-full bg-lime-400"></span>
+            <div class="flex items-center gap-1.5 text-xs">
+                <span v-if="isConnected" class="inline-flex items-center gap-1.5 text-lime-400">
+                    <span class="w-2 h-2 rounded-full bg-lime-400"></span>
                     Live updates
                 </span>
-                <span v-else class="inline-flex items-center gap-1 text-amber-400">
-                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                <span v-else class="inline-flex items-center gap-1.5 text-amber-400">
+                    <span class="w-2 h-2 rounded-full bg-amber-400"></span>
                     No live updates
                 </span>
             </div>
