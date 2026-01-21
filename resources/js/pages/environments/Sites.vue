@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { Head, Link, usePage, router } from '@inertiajs/vue3';
 import { toast } from 'vue-sonner';
 import axios from 'axios';
 import api from '@/lib/axios';
@@ -342,26 +342,23 @@ async function deleteSite() {
     deleting.value = false;
     deleteError.value = null;
 
-    try {
-        // When remoteApiUrl is set, use the flat route /sites/{slug}
-        const deleteUrl = props.remoteApiUrl 
-            ? `/sites/${slug}` 
-            : getApiUrl(`/sites/${slug}`);
-        
-        const { data: result } = await api.delete(deleteUrl);
-
-        if (result.success) {
-            // Mark deletion complete immediately - the API is synchronous
+    // Use Inertia router to delete the site
+    router.delete(`/sites/${slug}`, {
+        preserveScroll: true,
+        preserveState: true,
+        onSuccess: () => {
             markSiteDeletionComplete(slug);
+            toast.success(`Site "${slug}" deleted successfully`);
             // Reload sites to update the list
-            await loadSites(true);
-        } else {
-            markSiteDeletionFailed(slug, result.error || 'Failed to delete site');
-        }
-    } catch (error) {
-        console.error('Failed to delete site:', error);
-        markSiteDeletionFailed(slug, 'An error occurred while deleting the site');
-    }
+            loadSites(true);
+        },
+        onError: (errors) => {
+            console.error('Failed to delete site:', errors);
+            const errorMessage = errors.error || Object.values(errors).flat().join(', ') || 'Failed to delete site';
+            markSiteDeletionFailed(slug, errorMessage);
+            toast.error(errorMessage);
+        },
+    });
 }
 
 // Rebuild site state

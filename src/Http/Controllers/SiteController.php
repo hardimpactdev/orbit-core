@@ -87,7 +87,8 @@ class SiteController extends Controller
         $environment = Environment::getActive();
 
         if (! $environment) {
-            if ($request->wantsJson()) {
+            // Handle pure API requests (not Inertia)
+            if ($request->wantsJson() && ! $request->header('X-Inertia')) {
                 return response()->json([
                     'success' => false,
                     'error' => 'No active environment',
@@ -103,7 +104,8 @@ class SiteController extends Controller
         );
 
         if (! $result['success']) {
-            if ($request->wantsJson()) {
+            // Handle pure API requests (not Inertia)
+            if ($request->wantsJson() && ! $request->header('X-Inertia')) {
                 return response()->json([
                     'success' => false,
                     'error' => $result['error'] ?? 'Failed to delete site',
@@ -113,12 +115,12 @@ class SiteController extends Controller
             return redirect()->back()->withErrors(['error' => $result['error'] ?? 'Failed to delete site']);
         }
 
-        // API requests get JSON response
-        if ($request->wantsJson()) {
+        // Handle pure API requests (not Inertia)
+        if ($request->wantsJson() && ! $request->header('X-Inertia')) {
             return response()->json($result);
         }
 
-        // Web requests get redirect
+        // Inertia and web requests get redirect
         return redirect()->route('environments.sites', ['environment' => $environment->id])
             ->with('success', "Site '{$slug}' deleted successfully");
     }
