@@ -53,10 +53,15 @@ class OrbitConnector extends Connector
 
     /**
      * Create a connector for the given environment.
+     *
+     * In local/development mode, uses orbit-web.{tld} (development instance).
+     * In production mode (bundled in CLI), uses orbit.{tld} (bundled instance).
      */
     public static function forEnvironment(string $tld, int $timeout = 30): self
     {
-        return new self("https://orbit.{$tld}/api", $timeout);
+        $subdomain = app()->environment('local') ? 'orbit-web' : 'orbit';
+
+        return new self("https://{$subdomain}.{$tld}/api", $timeout);
     }
 
     /**

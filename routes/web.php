@@ -58,12 +58,29 @@ if (config('orbit.multi_environment')) {
 
 // SHARED ROUTES (Outside conditional)
 
+// Site routes - forwards to active environment's API
+Route::post('sites', [\HardImpact\Orbit\Http\Controllers\SiteController::class, 'store'])->name('sites.store');
+
 // API routes for environment data
 Route::prefix('api/environments')->group(function (): void {
     Route::get('tlds', [EnvironmentController::class, 'getAllTlds'])->name('api.environments.tlds');
 });
 
-Route::get('settings', [SettingsController::class, 'index'])->name('settings.index');
+// Redirect global settings to environment settings
+Route::get('settings', function () {
+    $environment = \HardImpact\Orbit\Models\Environment::getLocal()
+        ?? \HardImpact\Orbit\Models\Environment::getDefault()
+        ?? \HardImpact\Orbit\Models\Environment::first();
+
+    if ($environment) {
+        return redirect()->route('environments.settings', $environment);
+    }
+
+    // Fallback if no environment exists (shouldn't happen normally)
+    return redirect('/');
+})->name('settings.index');
+
+// Keep POST routes for backwards compatibility (used by desktop app settings)
 Route::post('settings', [SettingsController::class, 'update'])->name('settings.update');
 Route::post('settings/notifications', [SettingsController::class, 'toggleNotifications'])->name('settings.notifications');
 Route::post('settings/menu-bar', [SettingsController::class, 'toggleMenuBar'])->name('settings.menu-bar');

@@ -24,8 +24,12 @@ class Environment extends Model
         'user',
         'port',
         'is_local',
+        'is_active',
+        'external_access',
+        'external_host',
         'is_default',
         'tld',
+        'editor_scheme',
         'cli_version',
         'cli_path',
         'cli_checked_at',
@@ -40,6 +44,8 @@ class Environment extends Model
 
     protected $casts = [
         'is_local' => 'boolean',
+        'is_active' => 'boolean',
+        'external_access' => 'boolean',
         'is_default' => 'boolean',
         'metadata' => 'array',
         'last_connected_at' => 'datetime',
@@ -103,8 +109,58 @@ class Environment extends Model
         return static::where('is_local', true)->first();
     }
 
+    /**
+     * Get the currently active environment.
+     * Falls back to local environment if none is active.
+     */
+    public static function getActive(): ?self
+    {
+        return static::where('is_active', true)->first()
+            ?? static::getLocal();
+    }
+
+    /**
+     * Set this environment as the active one.
+     * Deactivates all other environments.
+     */
+    public function setAsActive(): void
+    {
+        static::where('id', '!=', $this->id)->update(['is_active' => false]);
+        $this->update(['is_active' => true]);
+    }
+
     public function deployments(): HasMany
     {
         return $this->hasMany(Deployment::class);
+    }
+
+    /**
+     * Get the editor configuration for this environment.
+     * Falls back to global setting if not set.
+     */
+    public function getEditor(): array
+    {
+        $scheme = $this->editor_scheme ?? Setting::get('editor_scheme', 'cursor');
+        $options = self::getEditorOptions();
+
+        return [
+            'scheme' => $scheme,
+            'name' => $options[$scheme] ?? 'Cursor',
+        ];
+    }
+
+    /**
+     * Get available editor options.
+     */
+    public static function getEditorOptions(): array
+    {
+        return [
+            'cursor' => 'Cursor',
+            'vscode' => 'VS Code',
+            'vscode-insiders' => 'VS Code Insiders',
+            'windsurf' => 'Windsurf',
+            'antigravity' => 'Antigravity',
+            'zed' => 'Zed',
+        ];
     }
 }

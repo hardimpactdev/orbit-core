@@ -385,37 +385,42 @@ const selectTemplate = (template: TemplateFavorite) => {
     }
 };
 
-const submit = () => {
+const submit = async () => {
     if (!canSubmit.value) return;
 
     submitting.value = true;
     submitError.value = null;
 
-    // Submit to NativePHP backend using Inertia form submission
-    router.post(
-        `/environments/${props.environment.id}/sites`,
-        {
-            ...form.value,
-            org: selectedOrg.value,
-        },
-        {
-            onSuccess: () => {
-                // Redirect is handled by the controller
+    try {
+        const response = await fetch('/sites', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN':
+                    document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
             },
-            onError: (errors) => {
-                submitError.value =
-                    errors.create ||
-                    errors.name ||
-                    Object.values(errors)[0] ||
-                    'Failed to create site';
-                submitting.value = false;
-            },
-            onFinish: () => {
-                // Only reset submitting if we didn't redirect (i.e., on error)
-                // onSuccess will navigate away, so we don't need to reset there
-            },
-        },
-    );
+            body: JSON.stringify({
+                ...form.value,
+                org: selectedOrg.value,
+            }),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Redirect to sites list with provisioning slug for WebSocket tracking
+            router.visit(`/environments/${props.environment.id}/sites`, {
+                data: { provisioning: result.slug },
+            });
+        } else {
+            submitError.value = result.error || 'Failed to create site';
+            submitting.value = false;
+        }
+    } catch (error) {
+        submitError.value = 'Failed to create site: ' + (error instanceof Error ? error.message : 'Unknown error');
+        submitting.value = false;
+    }
 };
 </script>
 
