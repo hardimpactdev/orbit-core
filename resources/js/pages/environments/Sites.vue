@@ -147,6 +147,7 @@ const provisioningSlug = computed(() => {
 // Status display helpers
 const statusLabels: Record<ProvisionStatus, string> = {
     queued: 'Queued...',
+    provisioning: 'Initializing...',
     creating_repo: 'Creating repository...',
     cloning: 'Cloning...',
     setting_up: 'Setting up...',
@@ -187,6 +188,18 @@ function getSiteDeletionStatusValue(siteName: string): DeletionStatus | null {
 }
 
 function getSiteProvisioningStatus(site: Site): ProvisioningSite | null {
+    // Check WebSocket status FIRST - it has the most up-to-date status
+    const slug = site.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+    const wsStatus = getSiteStatus(slug);
+
+    if (wsStatus) {
+        return wsStatus;
+    }
+
+    // Fall back to database status if no WebSocket status available
     if (site.status && provisioningStatuses.includes(site.status)) {
         return {
             slug: site.name,
@@ -196,12 +209,7 @@ function getSiteProvisioningStatus(site: Site): ProvisioningSite | null {
         };
     }
 
-    // Check by slug (kebab-case of name)
-    const slug = site.name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '');
-    return getSiteStatus(slug) ?? null;
+    return null;
 }
 
 function isSiteProvisioning(site: Site): boolean {
@@ -335,7 +343,12 @@ async function deleteSite() {
     deleteError.value = null;
 
     try {
-        const { data: result } = await api.delete(getApiUrl(`/sites/${slug}`));
+        // When remoteApiUrl is set, use the flat route /sites/{slug}
+        const deleteUrl = props.remoteApiUrl 
+            ? `/sites/${slug}` 
+            : getApiUrl(`/sites/${slug}`);
+        
+        const { data: result } = await api.delete(deleteUrl);
 
         if (result.success) {
             // Mark deletion complete immediately - the API is synchronous
@@ -463,7 +476,7 @@ onMounted(() => {
         <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
             <div>
                 <h1 class="text-2xl font-semibold tracking-tight text-zinc-100">Sites</h1>
-                <p class="text-sm text-zinc-500 mt-1">Sites in {{ environment.name }}</p>
+                <p class="text-sm text-zinc-500 mt-1">Sitesss in {{ environment.name }}</p>
             </div>
             <div class="flex items-center gap-2">
                 <Button as-child size="sm" class="bg-lime-500 hover:bg-lime-600 text-zinc-950">
@@ -521,7 +534,7 @@ onMounted(() => {
                 <span class="text-xs font-medium text-zinc-500 uppercase tracking-wide">PHP</span>
                 <span class="text-xs font-medium text-zinc-500 uppercase tracking-wide text-right">Actions</span>
             </div>
-            
+
             <!-- Table Body -->
             <div>
                 <div

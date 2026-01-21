@@ -3,6 +3,7 @@
 namespace HardImpact\Orbit\Http\Controllers;
 
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\CreateSiteRequest;
+use HardImpact\Orbit\Http\Integrations\Orbit\Requests\DeleteSiteRequest;
 use HardImpact\Orbit\Models\Environment;
 use HardImpact\Orbit\Services\OrbitCli\Shared\ConnectorService;
 use Illuminate\Http\Request;
@@ -15,16 +16,21 @@ class SiteController extends Controller
 
     /**
      * Create a new site in the active environment.
+     * Always uses the Saloon API connector for consistency.
      */
     public function store(Request $request)
     {
         $environment = Environment::getActive();
 
         if (! $environment) {
-            return response()->json([
-                'success' => false,
-                'error' => 'No active environment',
-            ], 400);
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No active environment',
+                ], 400);
+            }
+
+            return redirect()->back()->withErrors(['error' => 'No active environment']);
         }
 
         $validated = $request->validate([
@@ -70,5 +76,50 @@ class SiteController extends Controller
                 'provisioning' => $slug,
                 'success' => "Site '{$validated['name']}' is being created...",
             ]);
+    }
+
+    /**
+     * Delete a site from the active environment.
+     * Always uses the Saloon API connector for consistency.
+     */
+    public function destroy(Request $request, string $slug)
+    {
+        $environment = Environment::getActive();
+
+        if (! $environment) {
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No active environment',
+                ], 400);
+            }
+
+            return redirect()->back()->withErrors(['error' => 'No active environment']);
+        }
+
+        $result = $this->connector->sendRequest(
+            $environment,
+            new DeleteSiteRequest($slug)
+        );
+
+        if (! $result['success']) {
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => $result['error'] ?? 'Failed to delete site',
+                ], 422);
+            }
+
+            return redirect()->back()->withErrors(['error' => $result['error'] ?? 'Failed to delete site']);
+        }
+
+        // API requests get JSON response
+        if ($request->wantsJson()) {
+            return response()->json($result);
+        }
+
+        // Web requests get redirect
+        return redirect()->route('environments.sites', ['environment' => $environment->id])
+            ->with('success', "Site '{$slug}' deleted successfully");
     }
 }

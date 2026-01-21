@@ -60,6 +60,7 @@ if (config('orbit.multi_environment')) {
 
 // Site routes - forwards to active environment's API
 Route::post('sites', [\HardImpact\Orbit\Http\Controllers\SiteController::class, 'store'])->name('sites.store');
+Route::delete('sites/{slug}', [\HardImpact\Orbit\Http\Controllers\SiteController::class, 'destroy'])->name('sites.destroy');
 
 // API routes for environment data
 Route::prefix('api/environments')->group(function (): void {
