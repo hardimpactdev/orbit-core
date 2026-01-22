@@ -227,22 +227,22 @@ class DoctorService
 
         if ($environment->is_local) {
             // For local environments, DNS is handled by orbit-dns Docker container
-            
+
             // Check if orbit-dns container is running
             $orbitDnsResult = \Illuminate\Support\Facades\Process::run(
                 "docker ps --filter name=orbit-dns --format '{{.Status}}' 2>/dev/null"
             );
-            
+
             if ($orbitDnsResult->successful() && str_contains($orbitDnsResult->output(), 'Up')) {
                 // Verify DNS actually works
                 $testResult = \Illuminate\Support\Facades\Process::run(
                     "dig +short test.{$tld} @127.0.0.1 2>/dev/null"
                 );
-                
+
                 if ($testResult->successful() && trim($testResult->output()) === '127.0.0.1') {
                     return [
                         'status' => 'ok',
-                        'message' => "DNS resolver running (orbit-dns container)",
+                        'message' => 'DNS resolver running (orbit-dns container)',
                         'details' => [
                             'method' => 'docker',
                             'container' => 'orbit-dns',
@@ -251,14 +251,14 @@ class DoctorService
                         ],
                     ];
                 }
-                
+
                 // Container running but DNS not working
                 return [
                     'status' => 'warning',
-                    'message' => "orbit-dns container running but DNS resolution failing",
+                    'message' => 'orbit-dns container running but DNS resolution failing',
                     'details' => [
                         'container_status' => trim($orbitDnsResult->output()),
-                        'suggestion' => "Check orbit-dns container logs: docker logs orbit-dns",
+                        'suggestion' => 'Check orbit-dns container logs: docker logs orbit-dns',
                     ],
                 ];
             }
@@ -266,9 +266,9 @@ class DoctorService
             // Container not running
             return [
                 'status' => 'warning',
-                'message' => "DNS resolver not running (orbit-dns container)",
+                'message' => 'DNS resolver not running (orbit-dns container)',
                 'details' => [
-                    'suggestion' => "Start orbit services to enable DNS resolution",
+                    'suggestion' => 'Start orbit services to enable DNS resolution',
                     'platform' => PHP_OS_FAMILY,
                 ],
             ];
@@ -372,9 +372,9 @@ class DoctorService
             $containerCheck = \Illuminate\Support\Facades\Process::run(
                 "docker ps --filter name=orbit-dns --format '{{.Status}}' 2>/dev/null"
             );
-            
+
             $containerRunning = $containerCheck->successful() && str_contains($containerCheck->output(), 'Up');
-            
+
             return [
                 'status' => 'error',
                 'message' => "DNS not resolving for .{$tld} domains",
@@ -382,7 +382,7 @@ class DoctorService
                     'domain' => $testDomain,
                     'dns_server' => $dnsServer,
                     'orbit_dns_running' => $containerRunning,
-                    'suggestion' => $containerRunning 
+                    'suggestion' => $containerRunning
                         ? 'orbit-dns is running but DNS queries failing. Check container logs with: docker logs orbit-dns'
                         : 'orbit-dns container is not running. Start orbit services to enable DNS resolution',
                 ],
@@ -516,29 +516,29 @@ class DoctorService
         $containerCheck = \Illuminate\Support\Facades\Process::run(
             "docker ps -a --filter name=orbit-dns --format '{{.Names}}:{{.Status}}' 2>/dev/null"
         );
-        
-        if (!$containerCheck->successful() || empty($containerCheck->output())) {
+
+        if (! $containerCheck->successful() || empty($containerCheck->output())) {
             return [
                 'success' => false,
-                'message' => "orbit-dns container not found. Please ensure orbit services are properly installed.",
+                'message' => 'orbit-dns container not found. Please ensure orbit services are properly installed.',
             ];
         }
-        
+
         $containerStatus = trim($containerCheck->output());
-        
+
         if (str_contains($containerStatus, 'Up')) {
             // Container is running, DNS should work
             return [
                 'success' => false,
-                'message' => "orbit-dns container is already running. If DNS is still not working, check container logs with: docker logs orbit-dns",
+                'message' => 'orbit-dns container is already running. If DNS is still not working, check container logs with: docker logs orbit-dns',
             ];
         }
-        
+
         // Try to start the container
         $startResult = \Illuminate\Support\Facades\Process::run(
-            "docker start orbit-dns 2>&1"
+            'docker start orbit-dns 2>&1'
         );
-        
+
         if ($startResult->successful()) {
             return [
                 'success' => true,
@@ -548,7 +548,7 @@ class DoctorService
 
         return [
             'success' => false,
-            'message' => "Failed to start orbit-dns container: " . $startResult->output(),
+            'message' => 'Failed to start orbit-dns container: '.$startResult->output(),
         ];
     }
 }

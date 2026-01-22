@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace HardImpact\Orbit\Services\Provision\Actions;
 
+use HardImpact\Orbit\Contracts\ProvisionLoggerContract;
 use HardImpact\Orbit\Data\ProvisionContext;
 use HardImpact\Orbit\Data\StepResult;
-use HardImpact\Orbit\Contracts\ProvisionLoggerContract;
 use Illuminate\Support\Facades\Process;
 
 final readonly class BuildAssets

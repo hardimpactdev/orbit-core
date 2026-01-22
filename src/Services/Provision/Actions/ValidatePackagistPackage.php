@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace HardImpact\Orbit\Services\Provision\Actions;
 
-use HardImpact\Orbit\Data\StepResult;
 use HardImpact\Orbit\Contracts\ProvisionLoggerContract;
+use HardImpact\Orbit\Data\StepResult;
 use Illuminate\Support\Facades\Http;
 
 final readonly class ValidatePackagistPackage

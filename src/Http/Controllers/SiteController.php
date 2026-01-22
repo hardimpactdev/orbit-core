@@ -4,9 +4,9 @@ namespace HardImpact\Orbit\Http\Controllers;
 
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\CreateSiteRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\DeleteSiteRequest;
+use HardImpact\Orbit\Services\EnvironmentManager;
 use HardImpact\Orbit\Services\OrbitCli\ConfigurationService;
 use HardImpact\Orbit\Services\OrbitCli\Shared\ConnectorService;
-use HardImpact\Orbit\Services\EnvironmentManager;
 use Illuminate\Http\Request;
 
 class SiteController extends Controller

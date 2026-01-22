@@ -1,14 +1,10 @@
 <?php
 
 use HardImpact\Orbit\Data\ProvisionContext;
-use HardImpact\Orbit\Data\StepResult;
 use HardImpact\Orbit\Jobs\CreateSiteJob;
 use HardImpact\Orbit\Models\Environment;
 use HardImpact\Orbit\Models\Site;
-use HardImpact\Orbit\Services\OrbitCli\ConfigurationService;
 use HardImpact\Orbit\Services\Provision\GitHubService;
-use HardImpact\Orbit\Services\Provision\ProvisionPipeline;
-use Illuminate\Support\Facades\Log;
 
 beforeEach(function () {
     $environment = Environment::factory()->local()->create([
