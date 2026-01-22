@@ -78,6 +78,6 @@ final readonly class DropPostgresDatabase
             return StepResult::success(['database' => $database]);
         }
 
-        return StepResult::failed("Failed to drop database: ".trim($result->output()));
+        return StepResult::failed('Failed to drop database: '.trim($result->output()));
     }
 }

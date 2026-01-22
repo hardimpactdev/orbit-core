@@ -1,15 +1,12 @@
 <?php
 
 use HardImpact\Orbit\Data\DeletionContext;
-use HardImpact\Orbit\Data\StepResult;
 use HardImpact\Orbit\Models\Environment;
 use HardImpact\Orbit\Models\Site;
 use HardImpact\Orbit\Services\Deletion\Actions\DeleteProjectFiles;
 use HardImpact\Orbit\Services\Deletion\Actions\DropPostgresDatabase;
-use HardImpact\Orbit\Services\Deletion\Actions\RegenerateCaddyConfig;
 use HardImpact\Orbit\Services\Deletion\DeletionLogger;
 use HardImpact\Orbit\Services\Deletion\DeletionPipeline;
-use Illuminate\Support\Facades\Process;
 
 beforeEach(function () {
     $environment = Environment::factory()->local()->create([
@@ -148,7 +145,7 @@ describe('DeleteProjectFiles', function () {
         );
 
         $logger = new DeletionLogger('delete-test');
-        $action = new DeleteProjectFiles();
+        $action = new DeleteProjectFiles;
         $result = $action->handle($context, $logger);
 
         expect($result->isSuccess())->toBeTrue();
@@ -162,7 +159,7 @@ describe('DeleteProjectFiles', function () {
         );
 
         $logger = new DeletionLogger('nonexistent');
-        $action = new DeleteProjectFiles();
+        $action = new DeleteProjectFiles;
         $result = $action->handle($context, $logger);
 
         expect($result->isSuccess())->toBeTrue();
@@ -176,7 +173,7 @@ describe('DeleteProjectFiles', function () {
         );
 
         $logger = new DeletionLogger('no-path');
-        $action = new DeleteProjectFiles();
+        $action = new DeleteProjectFiles;
         $result = $action->handle($context, $logger);
 
         expect($result->isSuccess())->toBeTrue();
@@ -194,7 +191,7 @@ describe('DropPostgresDatabase', function () {
         );
 
         $logger = new DeletionLogger('mysql-site');
-        $action = new DropPostgresDatabase();
+        $action = new DropPostgresDatabase;
         $result = $action->handle($context, $logger);
 
         expect($result->isSuccess())->toBeTrue();
@@ -209,7 +206,7 @@ describe('DropPostgresDatabase', function () {
         );
 
         $logger = new DeletionLogger('no-db');
-        $action = new DropPostgresDatabase();
+        $action = new DropPostgresDatabase;
         $result = $action->handle($context, $logger);
 
         expect($result->isSuccess())->toBeTrue();
@@ -225,7 +222,7 @@ describe('DropPostgresDatabase', function () {
         );
 
         $logger = new DeletionLogger('no-dbname');
-        $action = new DropPostgresDatabase();
+        $action = new DropPostgresDatabase;
         $result = $action->handle($context, $logger);
 
         expect($result->isSuccess())->toBeTrue();
@@ -248,7 +245,7 @@ describe('DeletionPipeline', function () {
         $context = $context->withDatabaseFromEnv();
 
         $logger = new DeletionLogger('pipeline-test');
-        $pipeline = new DeletionPipeline();
+        $pipeline = new DeletionPipeline;
         $result = $pipeline->run($context, $logger);
 
         expect($result->isSuccess())->toBeTrue();
@@ -270,7 +267,7 @@ describe('DeletionPipeline', function () {
         );
 
         $logger = new DeletionLogger('keep-db-pipeline');
-        $pipeline = new DeletionPipeline();
+        $pipeline = new DeletionPipeline;
         $result = $pipeline->run($context, $logger);
 
         expect($result->isSuccess())->toBeTrue();
