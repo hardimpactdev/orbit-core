@@ -514,15 +514,30 @@ async function fetchLogs() {
     logsLoading.value = true;
     try {
         const type = getServiceType(logsService.value);
-        const path =
+        const basePath =
             type === 'host'
                 ? `/host-services/${logsService.value}/logs`
                 : `/services/${logsService.value}/logs`;
+        
+        // If logs were cleared, only fetch logs since that time
+        let path = basePath;
+        if (logsClearedAt.value) {
+            const since = logsClearedAt.value.toISOString();
+            path = `${basePath}?since=${encodeURIComponent(since)}`;
+        }
+        
         const response = await fetch(getApiUrl(path));
         const result = await response.json();
 
         if (result.success) {
-            logs.value = result.logs || 'No logs available';
+            const logContent = result.logs || 'No logs available';
+            if (logsClearedAt.value) {
+                // Show cleared marker + new logs
+                const clearedTime = logsClearedAt.value.toLocaleTimeString();
+                logs.value = `--- Logs cleared at ${clearedTime} (showing only new entries) ---\n\n${logContent}`;
+            } else {
+                logs.value = logContent;
+            }
         } else {
             logs.value = 'Failed to fetch logs: ' + (result.error || 'Unknown error');
         }
@@ -547,7 +562,7 @@ function closeLogs() {
 
 function clearLogs() {
     logsClearedAt.value = new Date();
-    logs.value = `--- Logs cleared at ${logsClearedAt.value.toLocaleTimeString()} ---\n\nRefresh to see new logs.`;
+    logs.value = `--- Logs cleared at ${logsClearedAt.value.toLocaleTimeString()} ---\n\nWaiting for new log entries...`;
 }
 
 function toggleAutoRefresh() {

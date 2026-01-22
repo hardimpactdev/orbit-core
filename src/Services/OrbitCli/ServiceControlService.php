@@ -16,6 +16,7 @@ use HardImpact\Orbit\Http\Integrations\Orbit\Requests\StartServicesRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\StopServiceRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\StopServicesRequest;
 use HardImpact\Orbit\Models\Environment;
+use HardImpact\Orbit\Services\HorizonService;
 use HardImpact\Orbit\Services\OrbitCli\Shared\CommandService;
 use HardImpact\Orbit\Services\OrbitCli\Shared\ConnectorService;
 use HardImpact\Orbit\Services\SshService;
@@ -29,7 +30,8 @@ class ServiceControlService
     public function __construct(
         protected ConnectorService $connector,
         protected CommandService $command,
-        protected SshService $ssh
+        protected SshService $ssh,
+        protected HorizonService $horizon
     ) {}
 
     /**
@@ -233,18 +235,31 @@ class ServiceControlService
 
     /**
      * Get logs for a single service.
+     *
+     * @param  string|null  $since  ISO 8601 timestamp to fetch logs since (for "clear" functionality)
      */
-    public function serviceLogs(Environment $environment, string $service, int $lines = 200): array
+    public function serviceLogs(Environment $environment, string $service, int $lines = 200, ?string $since = null): array
     {
         $container = $this->getContainerName($service);
 
         if ($environment->is_local) {
-            $result = Process::timeout(30)
-                ->run("docker logs --tail {$lines} {$container} 2>&1");
+            $cmd = "docker logs --timestamps";
+            
+            if ($since) {
+                // Use --since for filtering (clears old logs from view)
+                $cmd .= " --since ".escapeshellarg($since);
+            } else {
+                // Default: show last N lines
+                $cmd .= " --tail {$lines}";
+            }
+            
+            $cmd .= " {$container} 2>&1";
+            
+            $result = Process::timeout(30)->run($cmd);
 
             return [
                 'success' => true,
-                'logs' => $result->output(),
+                'logs' => $result->output() ?: 'No logs available',
             ];
         }
 
@@ -253,11 +268,13 @@ class ServiceControlService
 
     /**
      * Get logs for a host service (Caddy, PHP-FPM, Horizon).
+     *
+     * @param  string|null  $since  ISO 8601 timestamp to fetch logs since (for "clear" functionality)
      */
-    public function hostServiceLogs(Environment $environment, string $service, int $lines = 200): array
+    public function hostServiceLogs(Environment $environment, string $service, int $lines = 200, ?string $since = null): array
     {
         if ($environment->is_local) {
-            return $this->getLocalHostServiceLogs($service, $lines);
+            return $this->getLocalHostServiceLogs($service, $lines, $since);
         }
 
         // For remote environments, delegate to CLI
@@ -266,9 +283,19 @@ class ServiceControlService
 
     /**
      * Get logs for a local host service.
+     *
+     * @param  string|null  $since  ISO 8601 timestamp to fetch logs since
      */
-    protected function getLocalHostServiceLogs(string $service, int $lines): array
+    protected function getLocalHostServiceLogs(string $service, int $lines, ?string $since = null): array
     {
+        // Use HorizonService for horizon logs
+        if ($service === 'horizon' || $service === 'horizon-dev') {
+            return [
+                'success' => true,
+                'logs' => $this->horizon->getLogs($lines) ?: 'No logs available',
+            ];
+        }
+
         $os = PHP_OS_FAMILY;
 
         if ($os === 'Darwin') {
@@ -285,9 +312,6 @@ class ServiceControlService
                 if (! file_exists($logPath)) {
                     $logPath = '/usr/local/var/log/php-fpm.log';
                 }
-            } elseif ($service === 'horizon') {
-                // Horizon logs from Laravel app
-                $logPath = storage_path('logs/laravel.log');
             } else {
                 return [
                     'success' => false,
@@ -309,14 +333,26 @@ class ServiceControlService
                 'logs' => "Log file not found: {$logPath}",
             ];
         } else {
-            // Linux: use journalctl
+            // Linux: use journalctl with timestamps
             $unit = $service;
             if (str_starts_with($service, 'php')) {
                 $version = str_replace('php-', '', $service);
                 $unit = "php{$version}-fpm";
             }
 
-            $result = Process::timeout(10)->run("journalctl -u {$unit} -n {$lines} --no-pager 2>&1");
+            $cmd = "journalctl -u {$unit} --no-pager -o short-iso";
+            
+            if ($since) {
+                // Use --since for filtering (clears old logs from view)
+                $cmd .= " --since ".escapeshellarg($since);
+            } else {
+                // Default: show last N lines
+                $cmd .= " -n {$lines}";
+            }
+            
+            $cmd .= " 2>&1";
+
+            $result = Process::timeout(10)->run($cmd);
 
             return [
                 'success' => true,
@@ -389,20 +425,35 @@ class ServiceControlService
      */
     protected function hostServiceAction(Environment $environment, string $service, string $action): array
     {
+        // Use HorizonService for horizon actions
+        if ($service === 'horizon' || $service === 'horizon-dev') {
+            $success = match ($action) {
+                'start' => $this->horizon->start(),
+                'stop' => $this->horizon->stop(),
+                'restart' => $this->horizon->restart(),
+                default => false,
+            };
+
+            if (! $success) {
+                return [
+                    'success' => false,
+                    'error' => "Failed to {$action} horizon",
+                ];
+            }
+
+            return ['success' => true];
+        }
+
         $os = PHP_OS_FAMILY;
 
         if ($os === 'Darwin') {
-            if ($service === 'horizon') {
-                $result = Process::run("launchctl {$action} com.laravel.horizon");
-            } else {
-                // For PHP-FPM and Caddy on Mac (Homebrew)
-                $brewService = $service;
-                if (str_starts_with($service, 'php')) {
-                    // php-8.3 -> php@8.3
-                    $brewService = str_replace('php-', 'php@', $service);
-                }
-                $result = Process::run("brew services {$action} {$brewService}");
+            // For PHP-FPM and Caddy on Mac (Homebrew)
+            $brewService = $service;
+            if (str_starts_with($service, 'php')) {
+                // php-8.3 -> php@8.3
+                $brewService = str_replace('php-', 'php@', $service);
             }
+            $result = Process::run("brew services {$action} {$brewService}");
         } else {
             // Linux: systemctl
             $unit = $service;

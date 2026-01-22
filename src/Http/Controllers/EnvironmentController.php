@@ -9,6 +9,8 @@ use HardImpact\Orbit\Models\Site;
 use HardImpact\Orbit\Models\TemplateFavorite;
 use HardImpact\Orbit\Services\DnsResolverService;
 use HardImpact\Orbit\Services\DoctorService;
+use HardImpact\Orbit\Services\EnvironmentManager;
+use HardImpact\Orbit\Services\HorizonService;
 use HardImpact\Orbit\Services\MacPhpFpmConfigService;
 use HardImpact\Orbit\Services\OrbitCli\ConfigurationService;
 use HardImpact\Orbit\Services\OrbitCli\PackageService;
@@ -34,6 +36,8 @@ class EnvironmentController extends Controller
         protected DnsResolverService $dnsResolver,
         protected DoctorService $doctor,
         protected MacPhpFpmConfigService $macPhpFpm,
+        protected EnvironmentManager $environments,
+        protected HorizonService $horizon,
     ) {}
 
     /**
@@ -210,6 +214,21 @@ class EnvironmentController extends Controller
         return redirect()->route('environments.show', $environment);
     }
 
+    public function switchEnvironment(Environment $environment, Request $request)
+    {
+        $activeEnvironment = $this->environments->setActive($environment->id);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'environment' => $activeEnvironment,
+            ]);
+        }
+
+        return redirect()->route('environments.show', $activeEnvironment)
+            ->with('success', "Environment '{$activeEnvironment->name}' is now active.");
+    }
+
     public function testConnection(Environment $environment)
     {
         // For local environments, always succeed
@@ -247,6 +266,16 @@ class EnvironmentController extends Controller
         }
 
         $result = $this->status->status($environment);
+
+        // Transform horizon service based on whether this is the dev or production instance
+        if ($result['success'] && isset($result['data']['services']['horizon'])) {
+            // Remove the generic horizon entry from CLI
+            unset($result['data']['services']['horizon']);
+
+            // Add the correct horizon service for this instance
+            $serviceKey = $this->horizon->getServiceKey();
+            $result['data']['services'][$serviceKey] = $this->horizon->getStatusInfo();
+        }
 
         return response()->json($result);
     }
@@ -484,9 +513,10 @@ class EnvironmentController extends Controller
     /**
      * Get logs for a single service.
      */
-    public function serviceLogs(Environment $environment, string $service)
+    public function serviceLogs(Request $request, Environment $environment, string $service)
     {
-        $result = $this->serviceControl->serviceLogs($environment, $service);
+        $since = $request->query('since');
+        $result = $this->serviceControl->serviceLogs($environment, $service, 200, $since);
 
         return response()->json($result);
     }
@@ -494,9 +524,10 @@ class EnvironmentController extends Controller
     /**
      * Get logs for a host service (Caddy, PHP-FPM, Horizon).
      */
-    public function hostServiceLogs(Environment $environment, string $service)
+    public function hostServiceLogs(Request $request, Environment $environment, string $service)
     {
-        $result = $this->serviceControl->hostServiceLogs($environment, $service);
+        $since = $request->query('since');
+        $result = $this->serviceControl->hostServiceLogs($environment, $service, 200, $since);
 
         return response()->json($result);
     }
@@ -553,25 +584,43 @@ class EnvironmentController extends Controller
         return response()->json($result);
     }
 
-    public function changePhp(Request $request, Environment $environment)
+    public function changePhp(Request $request, Environment $environment, ?string $site = null)
     {
         $validated = $request->validate([
-            'site' => 'required|string',
             'version' => 'required|string',
+            'site' => $site ? 'nullable|string' : 'required|string',
         ]);
 
-        $result = $this->config->php($environment, $validated['site'], $validated['version']);
+        $siteName = $site ?? ($validated['site'] ?? null);
+
+        if (! $siteName) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Site name is required',
+            ], 422);
+        }
+
+        $result = $this->config->php($environment, $siteName, $validated['version']);
 
         return response()->json($result);
     }
 
-    public function resetPhp(Request $request, Environment $environment)
+    public function resetPhp(Request $request, Environment $environment, ?string $site = null)
     {
         $validated = $request->validate([
-            'site' => 'required|string',
+            'site' => $site ? 'nullable|string' : 'required|string',
         ]);
 
-        $result = $this->config->phpReset($environment, $validated['site']);
+        $siteName = $site ?? ($validated['site'] ?? null);
+
+        if (! $siteName) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Site name is required',
+            ], 422);
+        }
+
+        $result = $this->config->phpReset($environment, $siteName);
 
         return response()->json($result);
     }
