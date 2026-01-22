@@ -14,8 +14,13 @@ use Laravel\Mcp\Facades\Mcp;
 | provides access to Docker infrastructure, site management, and
 | environment configuration.
 |
-| Usage: orbit mcp:start orbit
+| CLI usage: orbit mcp:start orbit
+| HTTP endpoint: POST /mcp/orbit
 |
 */
 
+// CLI transport (stdio) - used by orbit-cli
 Mcp::local('orbit', OrbitServer::class);
+
+// HTTP transport - used by orbit-web
+Mcp::web('orbit', OrbitServer::class);

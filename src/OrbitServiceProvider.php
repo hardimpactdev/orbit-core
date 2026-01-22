@@ -98,14 +98,11 @@ class OrbitServiceProvider extends ServiceProvider
 
     /**
      * Register MCP routes for AI tool integration.
-     * Only loads when running in console and laravel/mcp is installed.
+     * Loads when laravel/mcp is installed (supports both CLI and HTTP transports).
      */
     protected function registerMcp(): void
     {
-        // Only register MCP routes when:
-        // 1. Running in console (MCP server runs via CLI)
-        // 2. The laravel/mcp package is installed
-        if ($this->app->runningInConsole() && class_exists(\Laravel\Mcp\Facades\Mcp::class)) {
+        if (class_exists(\Laravel\Mcp\Facades\Mcp::class)) {
             $this->loadRoutesFrom(__DIR__.'/../routes/mcp.php');
         }
     }
