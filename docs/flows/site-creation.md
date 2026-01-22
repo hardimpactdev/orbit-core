@@ -259,3 +259,4 @@ Test coverage:
 | 2026-01-20 | Switched to @laravel/echo-vue composables with global Echo config |
 | 2026-01-22 | Moved provisioning from CLI to orbit-core ProvisionPipeline with native Laravel broadcasting |
 | 2026-01-22 | Added automatic Caddy regeneration via `orbit caddy:reload` after site provisioning |
+| 2026-01-22 | CLI `site:create` now calls HTTP API instead of local provisioning - single code path |
