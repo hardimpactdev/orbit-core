@@ -30,8 +30,14 @@ class OrbitServiceProvider extends ServiceProvider
 
     protected function registerMiddleware(): void
     {
-        // Skip middleware registration in CLI context (e.g., orbit-cli)
-        if ($this->app->runningInConsole() && ! $this->app->bound(Kernel::class)) {
+        // Skip middleware registration when router isn't available (e.g., Laravel Zero CLI)
+        // Laravel Zero doesn't have the router service bound
+        if (! $this->app->bound('router')) {
+            return;
+        }
+
+        // Skip if HTTP Kernel isn't available (pure CLI context)
+        if (! $this->app->bound(Kernel::class)) {
             return;
         }
 
