@@ -3,7 +3,11 @@
 namespace HardImpact\Orbit;
 
 use HardImpact\Orbit\Console\Commands\OrbitInit;
+use HardImpact\Orbit\Http\Middleware\HandleInertiaRequests;
+use HardImpact\Orbit\Http\Middleware\ImplicitEnvironment;
+use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
 class OrbitServiceProvider extends ServiceProvider
@@ -15,9 +19,40 @@ class OrbitServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->configureVite();
+        $this->registerViews();
+        $this->registerMiddleware();
         $this->registerCommands();
         $this->registerMigrations();
         $this->registerPublishing();
+        $this->registerMcp();
+    }
+
+    protected function registerMiddleware(): void
+    {
+        // Skip middleware registration in CLI context (e.g., orbit-cli)
+        if ($this->app->runningInConsole() && ! $this->app->bound(Kernel::class)) {
+            return;
+        }
+
+        $kernel = $this->app->make(Kernel::class);
+
+        $kernel->appendMiddlewareToGroup('web', HandleInertiaRequests::class);
+
+        // Register alias for route usage
+        $this->app['router']->aliasMiddleware('implicit.environment', ImplicitEnvironment::class);
+    }
+
+    protected function configureVite(): void
+    {
+        Vite::useHotFile(__DIR__.'/../public/hot');
+        Vite::useBuildDirectory('vendor/orbit/build');
+    }
+
+    protected function registerViews(): void
+    {
+        $this->loadViewsFrom(__DIR__.'/../resources/views', 'orbit');
+        config(['inertia.root_view' => 'orbit::app']);
     }
 
     /**
@@ -54,6 +89,24 @@ class OrbitServiceProvider extends ServiceProvider
             $this->publishes([
                 __DIR__.'/../config/orbit.php' => config_path('orbit.php'),
             ], 'orbit-config');
+
+            $this->publishes([
+                __DIR__.'/../public/build' => public_path('vendor/orbit/build'),
+            ], 'orbit-assets');
+        }
+    }
+
+    /**
+     * Register MCP routes for AI tool integration.
+     * Only loads when running in console and laravel/mcp is installed.
+     */
+    protected function registerMcp(): void
+    {
+        // Only register MCP routes when:
+        // 1. Running in console (MCP server runs via CLI)
+        // 2. The laravel/mcp package is installed
+        if ($this->app->runningInConsole() && class_exists(\Laravel\Mcp\Facades\Mcp::class)) {
+            $this->loadRoutesFrom(__DIR__.'/../routes/mcp.php');
         }
     }
 

@@ -20,6 +20,7 @@
         "illuminate/contracts": "^11.0||^12.0",
         "illuminate/support": "^11.0||^12.0",
         "inertiajs/inertia-laravel": "^2.0",
+        "laravel/mcp": "^0.5.2",
         "saloonphp/saloon": "^3.14"
     },
     "require-dev": {
