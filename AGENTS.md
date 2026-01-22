@@ -27,6 +27,8 @@ src/
     SshKey.php
     TemplateFavorite.php
     UserPreference.php
+  Contracts/
+    ProvisionLoggerContract.php  # Interface for provision loggers
   Services/
     OrbitService.php         # Main orchestration service
     ProvisioningService.php  # Site provisioning logic
@@ -40,8 +42,8 @@ src/
     CaddyService.php         # Caddy configuration
     TemplateAnalyzer/        # Template analysis utilities
     Provision/               # Site provisioning pipeline
-      ProvisionPipeline.php  # Main orchestrator
-      ProvisionLogger.php    # Native Laravel event broadcasting
+      ProvisionPipeline.php  # Main orchestrator (accepts ProvisionLoggerContract)
+      ProvisionLogger.php    # orbit-core's logger (native Laravel events)
       Actions/               # Provisioning steps (CloneRepository, etc.)
     OrbitCli/                # CLI interaction
       SiteCliService.php     # Site CLI operations
@@ -57,6 +59,7 @@ src/
   Data/
     ProvisionContext.php     # Context for provisioning actions
     StepResult.php           # Action result wrapper
+    # Note: ProvisionLoggerContract in Contracts/ allows CLI/web to use same pipeline
   Enums/
     RepoIntent.php           # Repository operation type enum
   Events/
@@ -205,18 +208,24 @@ All long-running operations (site creation, provisioning, etc.) MUST:
 
 ## Site Provisioning Pipeline
 
-Site provisioning is handled entirely within orbit-core using native Laravel broadcasting.
+Site provisioning logic lives in orbit-core and can be invoked from:
+1. **Jobs** (via Horizon) - for web UI initiated creation
+2. **CLI** (synchronously) - for `site:create` command with real-time output
 
 ### Architecture
 
+The `ProvisionPipeline` accepts a `ProvisionLoggerContract` interface, allowing different consumers to provide their own logging implementation:
+
 ```
-CreateSiteJob dispatched to Horizon
-    ↓
-ProvisionPipeline orchestrates actions
-    ↓
-ProvisionLogger broadcasts status via native events
-    ↓
-SiteProvisioningStatus → Reverb → Frontend
+Web UI → CreateSiteJob (Horizon)        CLI → SiteCreateCommand
+              ↓                                    ↓
+       ProvisionPipeline (shared)          ProvisionPipeline (shared)
+              ↓                                    ↓
+  ProvisionLogger (native events)     ProvisionLogger (console + Pusher)
+              ↓                                    ↓
+    SiteProvisioningStatus → Reverb        Pusher SDK → Reverb
+              ↓                                    ↓
+          Frontend                            Frontend
 ```
 
 ### Key Classes
@@ -224,10 +233,18 @@ SiteProvisioningStatus → Reverb → Frontend
 | Class | Purpose |
 |-------|---------|
 | `ProvisionPipeline` | Main orchestrator - determines flow based on RepoIntent |
-| `ProvisionLogger` | Broadcasts status via native `event()` calls |
+| `ProvisionLoggerContract` | Interface for logging implementations |
+| `ProvisionLogger` | orbit-core's implementation using native `event()` calls |
 | `ProvisionContext` | Data transfer object for action context |
 | `StepResult` | Result wrapper with success/failure + data |
 | `RepoIntent` | Enum: Clone, Fork, Template, Composer |
+
+### CLI Integration
+
+The orbit-cli has its own `ProvisionLogger` that implements `ProvisionLoggerContract`:
+- Outputs to console for real-time feedback
+- Broadcasts to Reverb via Pusher SDK for web UI updates
+- Both consumers use the same `ProvisionPipeline` logic
 
 ### Provision Actions
 

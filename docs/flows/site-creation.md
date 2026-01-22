@@ -17,14 +17,17 @@ php artisan horizon:status
 
 ## Core Principle
 
-**The flow is IDENTICAL for local and remote environments.**
+**`ProvisionPipeline` is the single source of truth** for provisioning logic.
 
-There is no branching based on environment type. Every site creation:
-1. Goes through the job queue
-2. Is processed asynchronously
-3. Uses `ProvisionPipeline` for provisioning (native Laravel, no CLI subprocess)
+Both entry points use the same pipeline:
+1. **Web UI** → Dispatches `CreateSiteJob` to Horizon → Async
+2. **CLI** → Runs `ProvisionPipeline` synchronously → Real-time output
 
-## Sequence Diagram
+The pipeline accepts a `ProvisionLoggerContract` interface, allowing each consumer to provide its own logger:
+- **orbit-core's `ProvisionLogger`**: Uses native Laravel `event()` broadcasting
+- **orbit-cli's `ProvisionLogger`**: Outputs to console + broadcasts via Pusher SDK
+
+## Sequence Diagram (Web UI Flow)
 
 ```mermaid
 sequenceDiagram
@@ -75,6 +78,41 @@ sequenceDiagram
     Note over U: UI updates to show site ready
 ```
 
+## Sequence Diagram (CLI Flow)
+
+```mermaid
+sequenceDiagram
+    participant U as User (Terminal)
+    participant CLI as SiteCreateCommand
+    participant PP as ProvisionPipeline
+    participant PL as ProvisionLogger (CLI)
+    participant WS as WebSocket (Reverb via Pusher)
+    participant DB as Database
+
+    U->>CLI: orbit site:create my-site
+    CLI->>DB: Create Site (status=queued)
+
+    CLI->>PP: ProvisionPipeline->run(context, logger)
+    activate PP
+
+    PP->>PL: logger->broadcast('creating_repo')
+    PL->>U: Console: → creating_repo
+    PL->>WS: Pusher SDK → Reverb
+
+    PP->>PP: Phase 1-5: Run provisioning steps
+    Note over PL: Each step outputs to console AND broadcasts to Reverb
+
+    PP->>PL: logger->broadcast('ready')
+    PL->>U: Console: → ready
+    PL->>WS: Pusher SDK → Reverb
+
+    PP-->>CLI: Return StepResult
+    deactivate PP
+
+    CLI->>DB: Update Site status
+    CLI-->>U: Success message with site URL
+```
+
 ## State Machine
 
 ```mermaid
@@ -108,7 +146,7 @@ stateDiagram-v2
 | **WebSocket** | Real-time status updates to browser (Echo configured once per app) |
 | **Site** | Persist status for recovery/polling |
 
-**Note:** The CLI's `site:create` command now dispatches `CreateSiteJob` to Horizon. Provisioning logic lives entirely in orbit-core's `ProvisionPipeline`.
+**Note:** The CLI's `site:create` command runs `ProvisionPipeline` synchronously with real-time console output, while web UI uses `CreateSiteJob` via Horizon. Both paths share the same provisioning logic.
 
 ## API Contract
 
@@ -194,16 +232,23 @@ Jobs exist specifically to move long-running operations off the request thread. 
 
 ## Related Files
 
+### orbit-core
 - `src/Http/Controllers/EnvironmentController.php:685` - `storeSite()` method
 - `src/Jobs/CreateSiteJob.php` - Async job, runs ProvisionPipeline
+- `src/Contracts/ProvisionLoggerContract.php` - Interface for logger implementations
 - `src/Services/Provision/ProvisionPipeline.php` - Main provisioning orchestrator
-- `src/Services/Provision/ProvisionLogger.php` - Broadcasting via native events
+- `src/Services/Provision/ProvisionLogger.php` - orbit-core's logger (native events)
 - `src/Services/Provision/Actions/*` - Individual provisioning steps
 - `src/Events/SiteProvisioningStatus.php` - Broadcasting event
 - `src/Data/ProvisionContext.php` - Context DTO for actions
 - `src/Data/StepResult.php` - Action result wrapper
 - `src/Models/Site.php` - Site status tracking
 - `resources/js/composables/useSiteProvisioning.ts` - WebSocket listener
+
+### orbit-cli
+- `app/Commands/SiteCreateCommand.php` - CLI entry point, runs ProvisionPipeline sync
+- `app/Services/ProvisionLogger.php` - CLI's logger (console + Pusher SDK)
+- `app/Services/ReverbBroadcaster.php` - Broadcasts to Reverb via Pusher SDK
 
 ## Job Options Reference
 
@@ -259,4 +304,6 @@ Test coverage:
 | 2026-01-20 | Switched to @laravel/echo-vue composables with global Echo config |
 | 2026-01-22 | Moved provisioning from CLI to orbit-core ProvisionPipeline with native Laravel broadcasting |
 | 2026-01-22 | Added automatic Caddy regeneration via `orbit caddy:reload` after site provisioning |
-| 2026-01-22 | CLI `site:create` now calls HTTP API instead of local provisioning - single code path |
+| 2026-01-22 | CLI `site:create` runs ProvisionPipeline synchronously with real-time output |
+| 2026-01-22 | Added `ProvisionLoggerContract` interface for CLI/web logger implementations |
+| 2026-01-22 | CLI broadcasts to Reverb via Pusher SDK for web UI updates during sync execution |
