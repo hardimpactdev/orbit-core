@@ -15,7 +15,12 @@ class HandleInertiaRequests extends Middleware
      *
      * @var string
      */
-    protected $rootView = 'orbit::app';
+    protected $rootView;
+
+    public function __construct()
+    {
+        $this->rootView = config('inertia.root_view', 'orbit::app');
+    }
 
     /**
      * Determines the current asset version.
