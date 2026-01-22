@@ -22,7 +22,7 @@ php artisan horizon:status
 There is no branching based on environment type. Every site creation:
 1. Goes through the job queue
 2. Is processed asynchronously
-3. Uses the CLI for provisioning
+3. Uses `ProvisionPipeline` for provisioning (native Laravel, no CLI subprocess)
 
 ## Sequence Diagram
 
@@ -32,42 +32,45 @@ sequenceDiagram
     participant C as Controller
     participant Q as Job Queue
     participant H as Horizon Worker
-    participant CLI as Orbit CLI
+    participant PP as ProvisionPipeline
     participant WS as WebSocket (Reverb)
     participant DB as Database
 
     U->>C: POST /environments/{id}/sites
     Note over C: Validate input
-    
+
     C->>DB: Save TemplateFavorite (if template provided)
-    C->>Q: Dispatch CreateSiteJob
+    C->>DB: Create Site (status=queued)
+    C->>Q: Dispatch CreateSiteJob(site_id)
     C-->>U: Redirect with {provisioning: slug}
-    
+
     Note over U: User sees "Creating..." UI
-    U->>WS: Subscribe to project.{slug} channel
-    
+    U->>WS: Subscribe to provisioning channel
+
     Q->>H: CreateSiteJob.handle()
     activate H
-    
-    H->>CLI: Execute: site:create {name} --json
-    activate CLI
-    
-    CLI->>WS: Broadcast: status=provisioning
-    CLI->>CLI: Phase 1: Repository operations
-    CLI->>WS: Broadcast: status=cloning
-    CLI->>CLI: Phase 2: Clone repository
-    CLI->>WS: Broadcast: status=setting_up
-    CLI->>CLI: Phase 3: Install deps, build, migrate
-    CLI->>WS: Broadcast: status=finalizing
-    CLI->>CLI: Phase 4: Restart PHP, register MCP
-    CLI->>WS: Broadcast: status=ready
-    
-    CLI-->>H: Return {success: true, slug: ...}
-    deactivate CLI
-    
-    H->>DB: Update TrackedJob status
+
+    H->>PP: ProvisionPipeline->run()
+    activate PP
+
+    PP->>WS: Broadcast: status=creating_repo
+    PP->>PP: Phase 1: Repository operations
+    PP->>WS: Broadcast: status=cloning
+    PP->>PP: Phase 2: Clone repository
+    PP->>WS: Broadcast: status=setting_up
+    PP->>PP: Phase 3: Install deps, build, migrate
+    PP->>WS: Broadcast: status=building
+    PP->>PP: Phase 4: Finalization
+    PP->>WS: Broadcast: status=finalizing
+    PP->>PP: Phase 5: Regenerate Caddy (caddy:reload)
+    PP->>WS: Broadcast: status=ready
+
+    PP-->>H: Return StepResult
+    deactivate PP
+
+    H->>DB: Update Site status
     deactivate H
-    
+
     WS-->>U: Receive status=ready
     Note over U: UI updates to show site ready
 ```
@@ -76,18 +79,20 @@ sequenceDiagram
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Pending: Job dispatched
-    Pending --> Provisioning: Horizon picks up job
-    Provisioning --> Cloning: Repository ready
+    [*] --> Queued: Site created
+    Queued --> CreatingRepo: Job starts
+    CreatingRepo --> Cloning: Repository ready
     Cloning --> SettingUp: Clone complete
-    SettingUp --> Finalizing: Deps installed, built
+    SettingUp --> Building: Deps installed
+    Building --> Finalizing: Assets built
     Finalizing --> Ready: PHP restarted
-    
-    Provisioning --> Failed: Error
+
+    CreatingRepo --> Failed: Error
     Cloning --> Failed: Error
     SettingUp --> Failed: Error
+    Building --> Failed: Error
     Finalizing --> Failed: Error
-    
+
     Failed --> [*]: User acknowledges
     Ready --> [*]: Complete
 ```
@@ -96,11 +101,14 @@ stateDiagram-v2
 
 | Component | Responsibility |
 |-----------|----------------|
-| **Controller** | Validate input, dispatch job, return immediately |
-| **CreateSiteJob** | Call CLI, handle errors, update TrackedJob |
-| **Orbit CLI** | Execute provisioning, broadcast progress |
-| **WebSocket** | Real-time status updates to browser |
-| **TrackedJob** | Persist job status for recovery/polling |
+| **Controller** | Validate input, create Site (queued), dispatch job, return immediately |
+| **CreateSiteJob** | Run ProvisionPipeline, handle errors, update Site status |
+| **ProvisionPipeline** | Orchestrate provisioning actions, broadcast progress via native events |
+| **ProvisionLogger** | Dispatch native Laravel broadcasting events to Reverb |
+| **WebSocket** | Real-time status updates to browser (Echo configured once per app) |
+| **Site** | Persist status for recovery/polling |
+
+**Note:** The CLI's `site:create` command now dispatches `CreateSiteJob` to Horizon. Provisioning logic lives entirely in orbit-core's `ProvisionPipeline`.
 
 ## API Contract
 
@@ -130,13 +138,17 @@ Session: {provisioning: "my-project", success: "Site is being created..."}
 
 ### Response (API Request)
 ```json
-HTTP 202 Accepted
+HTTP 200 OK
 
 {
   "success": true,
   "message": "Site creation queued",
   "slug": "my-project",
-  "job_id": "01234567-89ab-cdef-0123-456789abcdef"
+  "site": {
+    "id": 123,
+    "slug": "my-project",
+    "status": "queued"
+  }
 }
 ```
 
@@ -146,8 +158,20 @@ HTTP 202 Accepted
 |------------|---------|-----------------|
 | Validation error | Controller | Immediate redirect back with errors |
 | Job dispatch failure | Controller | Error flash message |
-| CLI failure | CreateSiteJob | WebSocket broadcasts error, TrackedJob marked failed |
-| Timeout | Horizon | Job marked failed, user sees error via WebSocket |
+| CLI failure | CreateSiteJob | WebSocket broadcasts error, Site marked failed |
+| Timeout | Horizon | Site marked failed, user sees error via WebSocket |
+
+## WebSocket Setup (Vue)
+
+Orbit's frontend uses Laravel's official `@laravel/echo-vue` composables with a
+single global Echo connection. The Reverb configuration comes from the active
+environment and is injected as an Inertia prop. Component-level subscriptions are
+managed by the composables and automatically cleaned up when components unmount.
+
+Key files:
+- `resources/js/app.ts` configures Echo from the `reverb` page prop
+- `resources/js/composables/useSiteProvisioning.ts` subscribes via `useEchoPublic`
+- `resources/js/pages/environments/Services.vue` listens for service status updates
 
 ## What NOT to Do (Web/Desktop Consumers)
 
@@ -156,44 +180,51 @@ HTTP 202 Accepted
 3. **Never skip** the job queue for "faster" local execution
 4. **Never return** from controller before dispatching the job
 
-## Why Jobs Call CLI Synchronously
+## Why Jobs Run Synchronously
 
 The async rule applies to **web/desktop consumers**, not to how jobs execute internally.
 
 The pattern is:
 - **Controller** → Dispatches job → Returns immediately (async from user's perspective)
-- **Job** → Calls CLI synchronously → That's the whole point of using a job
+- **Job** → Runs ProvisionPipeline synchronously → That's the whole point of using a job
 
-Jobs exist specifically to move synchronous CLI calls off the request thread. The job worker blocks while the CLI runs - this is correct and expected. The "async" is about the HTTP response, not the job execution.
+Jobs exist specifically to move long-running operations off the request thread. The job worker blocks while provisioning runs - this is correct and expected. The "async" is about the HTTP response, not the job execution.
+
+**Architecture note:** Provisioning now uses native Laravel broadcasting (`SiteProvisioningStatus` event with `ShouldBroadcastNow`) instead of CLI → Pusher SDK. This simplifies debugging (single process) and uses standard Laravel patterns.
 
 ## Related Files
 
 - `src/Http/Controllers/EnvironmentController.php:685` - `storeSite()` method
-- `src/Jobs/CreateSiteJob.php` - Async job class
-- `src/Models/TrackedJob.php` - Job status tracking
-- `orbit-cli/app/Commands/SiteCreateCommand.php` - CLI site creation
+- `src/Jobs/CreateSiteJob.php` - Async job, runs ProvisionPipeline
+- `src/Services/Provision/ProvisionPipeline.php` - Main provisioning orchestrator
+- `src/Services/Provision/ProvisionLogger.php` - Broadcasting via native events
+- `src/Services/Provision/Actions/*` - Individual provisioning steps
+- `src/Events/SiteProvisioningStatus.php` - Broadcasting event
+- `src/Data/ProvisionContext.php` - Context DTO for actions
+- `src/Data/StepResult.php` - Action result wrapper
+- `src/Models/Site.php` - Site status tracking
 - `resources/js/composables/useSiteProvisioning.ts` - WebSocket listener
 
-## CLI Flag Reference
+## Job Options Reference
 
-The `CreateSiteJob::buildCommand()` constructs CLI commands. Flags must match `site:create` exactly:
+The `CreateSiteJob` receives these options and passes them to `ProvisionPipeline`:
 
-| Job Option | CLI Flag | Notes |
-|------------|----------|-------|
-| `name` | positional arg | Site name (slug derived) |
-| `org` | `--organization` | NOT `--org` |
-| `template` | `--template` | GitHub repo URL (for templates) |
-| `is_template` | determines `--template` vs `--clone` | |
-| `fork` | `--fork` | Fork vs import |
-| `visibility` | `--visibility` | `private` or `public` |
-| `directory` | `--path` | Override default site path |
-| `php_version` | `--php` | e.g., `8.4` |
-| `db_driver` | `--db-driver` | `sqlite` or `pgsql` |
-| `session_driver` | `--session-driver` | |
-| `cache_driver` | `--cache-driver` | |
-| `queue_driver` | `--queue-driver` | |
+| Option | Purpose | Notes |
+|--------|---------|-------|
+| `name` | Site name | Slug derived from this |
+| `org` | GitHub organization | For template/fork operations |
+| `template` | Template repo | GitHub repo URL |
+| `is_template` | Template vs clone | Determines RepoIntent |
+| `fork` | Fork mode | Fork vs import |
+| `visibility` | Repo visibility | `private` or `public` |
+| `directory` | Site path | Override default site path |
+| `php_version` | PHP version | e.g., `8.4` |
+| `db_driver` | Database driver | `sqlite` or `pgsql` |
+| `session_driver` | Session driver | |
+| `cache_driver` | Cache driver | |
+| `queue_driver` | Queue driver | |
 
-Tests in `tests/Unit/Jobs/CreateSiteJobTest.php` verify these mappings.
+Tests in `tests/Unit/Jobs/CreateSiteJobTest.php` verify job behavior.
 
 ## Browser Tests
 
@@ -225,3 +256,6 @@ Test coverage:
 | 2026-01-19 | Fixed `--org` -> `--organization` flag, added CLI flag reference |
 | 2026-01-19 | Consolidated `provision` into `site:create` - single command for all site creation |
 | 2026-01-19 | Added Playwright e2e browser tests for site creation flow |
+| 2026-01-20 | Switched to @laravel/echo-vue composables with global Echo config |
+| 2026-01-22 | Moved provisioning from CLI to orbit-core ProvisionPipeline with native Laravel broadcasting |
+| 2026-01-22 | Added automatic Caddy regeneration via `orbit caddy:reload` after site provisioning |
