@@ -897,11 +897,12 @@ onUnmounted(() => {
             :show="showLogs"
             :title="`${serviceMeta[logsService!]?.name || logsService} Logs`"
             maxWidth="max-w-4xl"
+            noPadding
             @close="closeLogs"
         >
-            <div class="flex flex-col max-h-[70vh]">
+            <div class="flex flex-col h-[70vh] overflow-hidden">
                 <div
-                    class="flex items-center gap-3 px-6 py-3 border-b border-zinc-800 bg-zinc-900/50"
+                    class="flex items-center gap-3 px-4 py-3 border-b border-zinc-800 bg-zinc-900/50 shrink-0"
                 >
                     <Button
                         @click="fetchLogs"
@@ -934,10 +935,8 @@ onUnmounted(() => {
                         {{ logsAutoRefresh ? 'Auto-refresh ON' : 'Auto-refresh' }}
                     </button>
                 </div>
-                <div class="flex-1 overflow-auto p-4 bg-black">
-                    <pre class="text-xs text-zinc-300 font-mono whitespace-pre-wrap">{{
-                        logs
-                    }}</pre>
+                <div class="flex-1 overflow-auto bg-black">
+                    <pre class="text-xs text-zinc-300 font-mono whitespace-pre-wrap break-all p-4 m-0">{{ logs }}</pre>
                 </div>
             </div>
         </Modal>
