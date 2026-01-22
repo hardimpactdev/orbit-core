@@ -1,9 +1,13 @@
-import { useEchoPublic, useConnectionStatus } from '@laravel/echo-vue';
+import { useConnectionStatus } from '@laravel/echo-vue';
 import { usePage } from '@inertiajs/vue3';
 import { ref, computed, type Ref } from 'vue';
 
 export type ProvisionStatus =
     | 'queued'
+    | 'provisioning'
+    | 'validating_package'
+    | 'creating_project'
+    | 'forking'
     | 'creating_repo'
     | 'cloning'
     | 'setting_up'
@@ -25,14 +29,14 @@ export interface ProvisionEvent {
     status: ProvisionStatus;
     error?: string | null;
     site_id?: number | null;
-    timestamp: string;
+    timestamp?: string;
 }
 
 export interface DeletionEvent {
     slug: string;
     status: DeletionStatus;
     error?: string | null;
-    timestamp: string;
+    timestamp?: string;
 }
 
 export interface ProvisioningSite {
@@ -52,13 +56,88 @@ interface ReverbProps {
     enabled?: boolean;
 }
 
+// Singleton state - persists across component re-mounts during Inertia navigation
+// This ensures WebSocket events received during navigation aren't lost
+const provisioningSites: Ref<Map<string, ProvisioningSite>> = ref(new Map());
+const deletingSites: Ref<Map<string, DeletingSite>> = ref(new Map());
+const siteReadyCount = ref(0);
+const siteDeletedCount = ref(0);
+const processedEvents = new Map<string, string>();
+const processedDeletionEvents = new Map<string, string>();
+
+/**
+ * Global event handler for provisioning events - called from app.ts
+ * This bypasses useEchoPublic's lifecycle hooks to ensure events are never missed
+ */
+export function globalProvisioningHandler(event: ProvisionEvent | DeletionEvent) {
+    if ('status' in event) {
+        // Check if it's a deletion event
+        if (['deleting', 'removing_files', 'deleted', 'delete_failed'].includes(event.status)) {
+            handleGlobalDeletionEvent(event as DeletionEvent);
+        } else {
+            handleGlobalProvisionEvent(event as ProvisionEvent);
+        }
+    }
+}
+
+function handleGlobalProvisionEvent(event: ProvisionEvent) {
+    // Deduplicate events
+    if (processedEvents.get(event.slug) === event.status) {
+        return;
+    }
+    processedEvents.set(event.slug, event.status);
+
+    const existing = provisioningSites.value.get(event.slug);
+    provisioningSites.value.set(event.slug, {
+        slug: event.slug,
+        status: event.status,
+        error: event.error,
+        siteId: event.site_id ?? existing?.siteId,
+    });
+
+    // Remove from tracking if terminal state
+    if (event.status === 'ready' || event.status === 'failed') {
+        if (event.status === 'ready') {
+            siteReadyCount.value++;
+        }
+        setTimeout(() => {
+            provisioningSites.value.delete(event.slug);
+            processedEvents.delete(event.slug);
+        }, 15000);
+    }
+}
+
+function handleGlobalDeletionEvent(event: DeletionEvent) {
+    // Deduplicate events
+    if (processedDeletionEvents.get(event.slug) === event.status) {
+        return;
+    }
+    processedDeletionEvents.set(event.slug, event.status);
+
+    deletingSites.value.set(event.slug, {
+        slug: event.slug,
+        status: event.status,
+        error: event.error,
+    });
+
+    // Remove from tracking if terminal state
+    if (event.status === 'deleted' || event.status === 'delete_failed') {
+        if (event.status === 'deleted') {
+            siteDeletedCount.value++;
+        }
+        setTimeout(() => {
+            deletingSites.value.delete(event.slug);
+            processedDeletionEvents.delete(event.slug);
+        }, 2000);
+    }
+}
+
 /**
  * Composable for listening to site provisioning events via WebSocket.
  * Uses the globally configured Echo connection.
+ * State is singleton - persists across navigations.
  */
 export function useSiteProvisioning() {
-    const provisioningSites: Ref<Map<string, ProvisioningSite>> = ref(new Map());
-    const deletingSites: Ref<Map<string, DeletingSite>> = ref(new Map());
     const connectionStatus = useConnectionStatus();
     const page = usePage();
 
@@ -67,11 +146,6 @@ export function useSiteProvisioning() {
     );
 
     const isConfigured = computed(() => reverbEnabled.value);
-
-
-    // Reactive counters that increment on terminal events - easier to watch than Maps
-    const siteReadyCount = ref(0);
-    const siteDeletedCount = ref(0);
 
     const isConnected = computed(() =>
         reverbEnabled.value && connectionStatus.value === 'connected',
@@ -82,75 +156,8 @@ export function useSiteProvisioning() {
             : null,
     );
 
-    // Track which slugs we've already processed to prevent duplicate handling
-    const processedEvents = new Map<string, string>();
-
-    function handleProvisionEvent(event: ProvisionEvent) {
-        // Deduplicate events (we listen on multiple channels)
-        if (processedEvents.get(event.slug) === event.status) {
-            return;
-        }
-        processedEvents.set(event.slug, event.status);
-
-        const existing = provisioningSites.value.get(event.slug);
-
-        // Always use .set() to ensure Vue reactivity triggers properly
-        provisioningSites.value.set(event.slug, {
-            slug: event.slug,
-            status: event.status,
-            error: event.error,
-            siteId: event.site_id ?? existing?.siteId,
-        });
-
-        // Remove from tracking if terminal state
-        if (event.status === 'ready' || event.status === 'failed') {
-            // Increment counter for watchers
-            if (event.status === 'ready') {
-                siteReadyCount.value++;
-            }
-            // Keep in list longer so UI can show final state
-            setTimeout(() => {
-                provisioningSites.value.delete(event.slug);
-                processedEvents.delete(event.slug);
-            }, 15000);
-        }
-    }
-
-    if (reverbEnabled.value) {
-        useEchoPublic('provisioning', '.site.provision.status', handleProvisionEvent);
-        useEchoPublic('provisioning', '.site.deletion.status', handleDeletionEvent);
-    }
-
-
-
-    // Track deletion events separately
-    const processedDeletionEvents = new Map<string, string>();
-
-    function handleDeletionEvent(event: DeletionEvent) {
-        // Deduplicate events
-        if (processedDeletionEvents.get(event.slug) === event.status) {
-            return;
-        }
-        processedDeletionEvents.set(event.slug, event.status);
-
-        deletingSites.value.set(event.slug, {
-            slug: event.slug,
-            status: event.status,
-            error: event.error,
-        });
-
-        // Remove from tracking if terminal state
-        if (event.status === 'deleted' || event.status === 'delete_failed') {
-            // Increment counter for watchers
-            if (event.status === 'deleted') {
-                siteDeletedCount.value++;
-            }
-            setTimeout(() => {
-                deletingSites.value.delete(event.slug);
-                processedDeletionEvents.delete(event.slug);
-            }, 2000);
-        }
-    }
+    // WebSocket listeners are now set up globally in app.ts to avoid
+    // lifecycle issues with useEchoPublic during Inertia navigation
 
     function trackDeletion(slug: string) {
         if (!deletingSites.value.has(slug)) {
@@ -159,14 +166,6 @@ export function useSiteProvisioning() {
                 status: 'deleting',
             });
         }
-
-        useEchoPublic(`site.${slug}`, '.site.deletion.status', (event: DeletionEvent) => {
-            if (!reverbEnabled.value) {
-                return;
-            }
-
-            handleDeletionEvent(event);
-        });
     }
 
     function getDeletionStatus(slug: string): DeletingSite | undefined {
@@ -178,6 +177,7 @@ export function useSiteProvisioning() {
             slug,
             status: 'deleted',
         });
+        siteDeletedCount.value++;
         setTimeout(() => {
             deletingSites.value.delete(slug);
         }, 2000);
@@ -203,14 +203,7 @@ export function useSiteProvisioning() {
                 status: 'queued',
             });
         }
-
-        useEchoPublic(`site.${slug}`, '.site.provision.status', (event: ProvisionEvent) => {
-            if (!reverbEnabled.value) {
-                return;
-            }
-
-            handleProvisionEvent(event);
-        });
+        // Events are now handled globally in app.ts
     }
 
     function getSiteStatus(slug: string): ProvisioningSite | undefined {

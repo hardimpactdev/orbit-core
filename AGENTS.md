@@ -45,6 +45,10 @@ src/
       ProvisionPipeline.php  # Main orchestrator (accepts ProvisionLoggerContract)
       ProvisionLogger.php    # orbit-core's logger (native Laravel events)
       Actions/               # Provisioning steps (CloneRepository, etc.)
+    Deletion/                # Site deletion pipeline
+      DeletionPipeline.php   # Main orchestrator
+      DeletionLogger.php     # orbit-core's deletion logger
+      Actions/               # Deletion steps (DropPostgresDatabase, etc.)
     OrbitCli/                # CLI interaction
       SiteCliService.php     # Site CLI operations
       ConfigurationService.php  # Includes DNS mapping methods
@@ -58,6 +62,7 @@ src/
         ConnectorService.php
   Data/
     ProvisionContext.php     # Context for provisioning actions
+    DeletionContext.php      # Context for deletion actions
     StepResult.php           # Action result wrapper
     # Note: ProvisionLoggerContract in Contracts/ allows CLI/web to use same pipeline
   Enums/
@@ -67,6 +72,7 @@ src/
     SiteDeletionStatus.php      # Broadcasting deletion progress
   Jobs/
     CreateSiteJob.php        # Async site creation
+    DeleteSiteJob.php        # Async site deletion
   Console/Commands/
     OrbitInit.php            # CLI initialization
   Http/
@@ -284,6 +290,79 @@ event(new SiteProvisioningStatus(
 Events broadcast on the `provisioning` channel with event names:
 - `site.provision.status` - Site creation progress
 - `site.deletion.status` - Site deletion progress
+
+## Site Deletion Pipeline
+
+Site deletion mirrors the provisioning architecture with discrete, testable actions:
+
+### Architecture
+
+```
+Web UI → DeleteSiteJob (Horizon)        CLI → SiteDeleteCommand
+              ↓                                    ↓
+       DeletionPipeline (shared)          DeletionPipeline (shared)
+              ↓                                    ↓
+  DeletionLogger (native events)     DeletionLogger (console + Pusher)
+              ↓                                    ↓
+    SiteDeletionStatus → Reverb          Pusher SDK → Reverb
+              ↓                                    ↓
+          Frontend                            Frontend
+```
+
+### Key Classes
+
+| Class | Purpose |
+|-------|---------|
+| `DeletionPipeline` | Main orchestrator - runs actions in sequence |
+| `DeletionContext` | Data transfer object with site info + options |
+| `DeletionLogger` | orbit-core's logger (native Laravel events) |
+| `DeleteSiteJob` | Queueable job for web-initiated deletion |
+
+### Deletion Actions
+
+Located in `src/Services/Deletion/Actions/`:
+
+| Action | Purpose | Failure Behavior |
+|--------|---------|------------------|
+| `DropPostgresDatabase` | Terminate connections + DROP DATABASE | Non-fatal (warn only) |
+| `DeleteProjectFiles` | rm -rf project directory (sudo fallback) | Fatal (fails pipeline) |
+| `RegenerateCaddyConfig` | Regenerate Caddyfile, reload Caddy | Non-fatal (warn only) |
+
+### DeletionContext Factory Methods
+
+```php
+// From Site model
+$context = DeletionContext::fromSite($site, keepDatabase: false);
+
+// Load database config from .env file
+$context = $context->withDatabaseFromEnv();
+```
+
+### Pipeline Flow
+
+1. **DropPostgresDatabase** - Skipped if `keepDatabase=true` or not PostgreSQL
+2. **DeleteProjectFiles** - Required step (pipeline fails if this fails)
+3. **RegenerateCaddyConfig** - Removes site from Caddyfile
+
+**Note:** Site model deletion is handled by the caller (CLI/Job), not the pipeline.
+
+### Broadcast Statuses
+
+| Status | Description |
+|--------|-------------|
+| `deleting` | Starting deletion |
+| `dropping_database` | Dropping PostgreSQL database |
+| `removing_files` | Deleting project directory |
+| `regenerating_caddy` | Updating Caddy config |
+| `deleted` | Successfully deleted |
+| `delete_failed` | Deletion failed |
+
+### Future Extensions
+
+When GitHub repository deletion is implemented:
+1. Add `DeleteGitHubRepository` action
+2. Set `DeletionContext.keepRepository = false`
+3. Add `--delete-repo` flag to CLI/web UI
 
 ## WebSocket (Echo/Reverb)
 

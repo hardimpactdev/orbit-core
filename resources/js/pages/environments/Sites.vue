@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
-import { Head, Link, usePage, router } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import { toast } from 'vue-sonner';
 import axios from 'axios';
 import api from '@/lib/axios';
@@ -148,6 +148,9 @@ const provisioningSlug = computed(() => {
 const statusLabels: Record<ProvisionStatus, string> = {
     queued: 'Queued...',
     provisioning: 'Initializing...',
+    validating_package: 'Validating package...',
+    creating_project: 'Creating project...',
+    forking: 'Forking repository...',
     creating_repo: 'Creating repository...',
     cloning: 'Cloning...',
     setting_up: 'Setting up...',
@@ -342,23 +345,26 @@ async function deleteSite() {
     deleting.value = false;
     deleteError.value = null;
 
-    // Use Inertia router to delete the site
-    router.delete(`/sites/${slug}`, {
-        preserveScroll: true,
-        preserveState: true,
-        onSuccess: () => {
+    try {
+        // When remoteApiUrl is set, use the flat route /sites/{slug}
+        const deleteUrl = props.remoteApiUrl
+            ? `/sites/${slug}`
+            : getApiUrl(`/sites/${slug}`);
+
+        const { data: result } = await api.delete(deleteUrl);
+
+        if (result.success) {
+            // Mark deletion complete immediately - the API is synchronous
             markSiteDeletionComplete(slug);
-            toast.success(`Site "${slug}" deleted successfully`);
             // Reload sites to update the list
-            loadSites(true);
-        },
-        onError: (errors) => {
-            console.error('Failed to delete site:', errors);
-            const errorMessage = errors.error || Object.values(errors).flat().join(', ') || 'Failed to delete site';
-            markSiteDeletionFailed(slug, errorMessage);
-            toast.error(errorMessage);
-        },
-    });
+            await loadSites(true);
+        } else {
+            markSiteDeletionFailed(slug, result.error || 'Failed to delete site');
+        }
+    } catch (error) {
+        console.error('Failed to delete site:', error);
+        markSiteDeletionFailed(slug, 'An error occurred while deleting the site');
+    }
 }
 
 // Rebuild site state
@@ -473,7 +479,7 @@ onMounted(() => {
         <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
             <div>
                 <h1 class="text-2xl font-semibold tracking-tight text-zinc-100">Sites</h1>
-                <p class="text-sm text-zinc-500 mt-1">Sitesss in {{ environment.name }}</p>
+                <p class="text-sm text-zinc-500 mt-1">Sites in {{ environment.name }}</p>
             </div>
             <div class="flex items-center gap-2">
                 <Button as-child size="sm" class="bg-lime-500 hover:bg-lime-600 text-zinc-950">
