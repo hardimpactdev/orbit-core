@@ -354,53 +354,25 @@ class SiteCliService
     }
 
     /**
-     * Delete a site's files from the filesystem.
+     * Delete a site via the CLI (uses DeletionPipeline for proper cleanup).
      */
-    public function deleteSite(Environment $environment, string $slug, bool $force = false): array
+    public function deleteSite(Environment $environment, string $slug, bool $force = false, bool $keepDb = false): array
     {
         if (! $environment->is_local) {
-            return $this->connector->sendRequest($environment, new DeleteSiteRequest($slug));
+            return $this->connector->sendRequest($environment, new DeleteSiteRequest($slug, $keepDb));
         }
 
-        // For local environments, use SSH-based deletion
+        // For local environments, use the CLI command which runs the DeletionPipeline
+        $escapedSlug = escapeshellarg($slug);
+        $command = "site:delete {$escapedSlug} --force";
 
-        // Get the site path from config
-        $config = $this->config->getConfig($environment);
-        if (! $config['success']) {
-            return ['success' => false, 'error' => 'Could not read orbit config'];
+        if ($keepDb) {
+            $command .= ' --keep-db';
         }
 
-        $paths = $config['data']['paths'] ?? ['~/projects'];
-        $sitePath = null;
+        $command .= ' --json';
 
-        // Find the site directory
-        foreach ($paths as $basePath) {
-            $checkPath = rtrim((string) $basePath, '/').'/'.$slug;
-            $expandedPath = str_starts_with($checkPath, '~/') ? '$HOME'.substr($checkPath, 1) : $checkPath;
-
-            // Check if directory exists
-            $checkResult = $this->ssh->execute($environment, "test -d {$expandedPath} && echo 'exists'");
-            if ($checkResult['success'] && str_contains($checkResult['output'] ?? '', 'exists')) {
-                $sitePath = $expandedPath;
-                break;
-            }
-        }
-
-        if (! $sitePath) {
-            // Site directory doesn't exist - that's fine, maybe already deleted
-            return ['success' => true, 'data' => ['message' => 'Site directory not found (already deleted?)']];
-        }
-
-        // Delete the site directory (sudo needed because FrankenPHP runs as root and creates root-owned cache files)
-        $deleteResult = $this->ssh->execute($environment, "sudo rm -rf {$sitePath}");
-        if (! $deleteResult['success']) {
-            return ['success' => false, 'error' => 'Failed to delete site directory: '.($deleteResult['error'] ?? 'Unknown error')];
-        }
-
-        // Regenerate Caddy config to remove the site
-        $this->command->executeCommand($environment, 'sites --json'); // This triggers Caddy regeneration
-
-        return ['success' => true, 'data' => ['message' => "Site '{$slug}' deleted from filesystem", 'path' => $sitePath]];
+        return $this->command->executeCommand($environment, $command);
     }
 
     /**

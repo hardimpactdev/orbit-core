@@ -87,41 +87,26 @@ class SiteController extends Controller
         $environment = Environment::getActive();
 
         if (! $environment) {
-            // Handle pure API requests (not Inertia)
-            if ($request->wantsJson() && ! $request->header('X-Inertia')) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No active environment',
-                ], 400);
-            }
-
-            return redirect()->back()->withErrors(['error' => 'No active environment']);
+            return response()->json([
+                'success' => false,
+                'error' => 'No active environment',
+            ], 400);
         }
+
+        $keepDb = $request->boolean('keep_db', false);
 
         $result = $this->connector->sendRequest(
             $environment,
-            new DeleteSiteRequest($slug)
+            new DeleteSiteRequest($slug, $keepDb)
         );
 
         if (! $result['success']) {
-            // Handle pure API requests (not Inertia)
-            if ($request->wantsJson() && ! $request->header('X-Inertia')) {
-                return response()->json([
-                    'success' => false,
-                    'error' => $result['error'] ?? 'Failed to delete site',
-                ], 422);
-            }
-
-            return redirect()->back()->withErrors(['error' => $result['error'] ?? 'Failed to delete site']);
+            return response()->json([
+                'success' => false,
+                'error' => $result['error'] ?? 'Failed to delete site',
+            ], 422);
         }
 
-        // Handle pure API requests (not Inertia)
-        if ($request->wantsJson() && ! $request->header('X-Inertia')) {
-            return response()->json($result);
-        }
-
-        // Inertia and web requests get redirect
-        return redirect()->route('environments.sites', ['environment' => $environment->id])
-            ->with('success', "Site '{$slug}' deleted successfully");
+        return response()->json($result);
     }
 }

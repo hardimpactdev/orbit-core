@@ -11,10 +11,18 @@ class DeleteSiteRequest extends Request
 
     public function __construct(
         protected string $slug,
+        protected bool $keepDb = false,
     ) {}
 
     public function resolveEndpoint(): string
     {
         return "/sites/{$this->slug}";
+    }
+
+    protected function defaultQuery(): array
+    {
+        return [
+            'keep_db' => $this->keepDb ? '1' : '0',
+        ];
     }
 }

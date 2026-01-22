@@ -823,6 +823,7 @@ class EnvironmentController extends Controller
         $basePath = $paths[0] ?? '~/projects';
         $projectPath = rtrim((string) $basePath, '/').'/'.$projectSlug;
 
+        // Create site in database
         $site = Site::create([
             'environment_id' => $environment->id,
             'name' => $validated['name'],
@@ -835,11 +836,8 @@ class EnvironmentController extends Controller
             'status' => Site::STATUS_QUEUED,
         ]);
 
-        // Dispatch async job AFTER committing the transaction
-        // Use afterCommit() to ensure the site exists in DB before job runs
-        // The job calls CLI which broadcasts progress via WebSocket (site.provision.status events)
-        // Frontend tracks status via Reverb WebSocket, not polling
-        CreateSiteJob::dispatch($site->id, $projectOptions)->afterCommit();
+        // 2. Dispatch job
+        CreateSiteJob::dispatch($site->id, $projectOptions);
 
         // API requests get 200 OK
         if ($request->wantsJson()) {
@@ -864,7 +862,9 @@ class EnvironmentController extends Controller
      */
     public function destroySite(Request $request, Environment $environment, string $projectName)
     {
-        $result = $this->site->deleteSite($environment, $projectName, force: true);
+        $keepDb = $request->boolean('keep_db', false);
+
+        $result = $this->site->deleteSite($environment, $projectName, force: true, keepDb: $keepDb);
 
         if (! $result['success']) {
             return response()->json([

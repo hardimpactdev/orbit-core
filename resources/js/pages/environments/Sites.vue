@@ -27,7 +27,7 @@ import {
     type DeletionStatus,
 } from '@/composables/useSiteProvisioning';
 import Modal from '@/components/Modal.vue';
-import { Button, Badge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@hardimpactdev/craft-ui';
+import { Button, Badge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Checkbox, Label } from '@hardimpactdev/craft-ui';
 
 interface Environment {
     id: number;
@@ -317,10 +317,12 @@ const showDeleteModal = ref(false);
 const siteToDelete = ref<Site | null>(null);
 const deleting = ref(false);
 const deleteError = ref<string | null>(null);
+const deleteDatabase = ref(true);
 
 function confirmDelete(site: Site) {
     siteToDelete.value = site;
     deleteError.value = null;
+    deleteDatabase.value = true; // Reset to default (checked)
     showDeleteModal.value = true;
 }
 
@@ -345,13 +347,18 @@ async function deleteSite() {
     deleting.value = false;
     deleteError.value = null;
 
+    // Capture the deleteDatabase value before resetting state
+    const keepDb = !deleteDatabase.value;
+
     try {
         // When remoteApiUrl is set, use the flat route /sites/{slug}
         const deleteUrl = props.remoteApiUrl
             ? `/sites/${slug}`
             : getApiUrl(`/sites/${slug}`);
 
-        const { data: result } = await api.delete(deleteUrl);
+        const { data: result } = await api.delete(deleteUrl, {
+            params: { keep_db: keepDb ? '1' : '0' },
+        });
 
         if (result.success) {
             // Mark deletion complete immediately - the API is synchronous
@@ -791,9 +798,22 @@ onMounted(() => {
                     >?
                 </p>
                 <p class="text-zinc-400 text-sm mb-4">This will:</p>
-                <ul class="text-zinc-400 text-sm mb-6 list-disc list-inside space-y-1">
+                <ul class="text-zinc-400 text-sm mb-4 list-disc list-inside space-y-1">
                     <li>Remove the site directory from the server</li>
                 </ul>
+
+                <!-- Delete database checkbox -->
+                <div class="flex items-center gap-3 mb-6">
+                    <Checkbox
+                        id="delete-database"
+                        v-model="deleteDatabase"
+                        class="border-zinc-600 data-[state=checked]:bg-primary data-[state=checked]:border-primary data-[state=checked]:text-primary-foreground"
+                    />
+                    <Label for="delete-database" class="text-zinc-300 text-sm cursor-pointer">
+                        Also delete the database
+                    </Label>
+                </div>
+
                 <p class="text-red-400 text-sm mb-6">This action cannot be undone.</p>
 
                 <div
