@@ -26,8 +26,8 @@ class DashboardController extends Controller
                 return redirect()->route('environments.show', $environment);
             }
 
-            // No environment exists
-            return redirect()->route('environments.projects');
+            // No environment exists - redirect to sites page (will show empty state)
+            return redirect()->route('environments.sites');
         }
 
         // Desktop mode: redirect to default environment

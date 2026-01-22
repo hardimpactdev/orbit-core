@@ -32,6 +32,8 @@ interface Environment {
     host: string;
     user: string;
     is_local: boolean;
+    external_access: boolean;
+    external_host: string | null;
 }
 
 interface Editor {
@@ -159,21 +161,32 @@ const openAddSiteModal = async () => {
 
 const openInEditor = () => {
     if (!workspace.value) return;
-    const user = props.environment.user;
-    const host = props.environment.host;
     const workspacePath = workspace.value.path;
     const workspaceFile = `${workspacePath}/${workspace.value.name}.code-workspace`;
 
-    const url = `${props.editor.scheme}://vscode-remote/ssh-remote+${user}@${host}${workspaceFile}?windowId=_blank`;
+    let url: string;
+    if (props.environment.external_access || !props.environment.is_local) {
+        // Use SSH remote URL for external access or remote environments
+        const user = props.environment.user;
+        const host = props.environment.external_access && props.environment.external_host
+            ? props.environment.external_host
+            : props.environment.host;
+        url = `${props.editor.scheme}://vscode-remote/ssh-remote+${user}@${host}${workspaceFile}?windowId=_blank`;
+    } else {
+        // Use local file URL
+        url = `${props.editor.scheme}://file${workspaceFile}`;
+    }
     window.open(url, '_blank');
 };
 
 const openInTerminal = () => {
     if (!workspace.value) return;
     const user = props.environment.user;
-    const host = props.environment.host;
-    // Use ssh:// protocol - OS handles opening the terminal
-    const url = `ssh://${user}@${host}`;
+    const host = props.environment.external_access && props.environment.external_host
+        ? props.environment.external_host
+        : props.environment.host;
+    // Use ssh:// protocol with path - OS handles opening the terminal
+    const url = `ssh://${user}@${host}${workspace.value.path}`;
     window.open(url, '_self');
 };
 
@@ -350,43 +363,43 @@ onMounted(() => {
     <Head :title="`${workspace?.name || workspaceName} - Workspaces`" />
 
     <!-- Loading State -->
-    <div v-if="loadingWorkspace" class="space-y-6">
-        <div class="flex items-center gap-4">
+    <div v-if="loadingWorkspace">
+        <header class="flex items-center gap-4 mb-8">
             <Link
                 :href="`/environments/${environment.id}/workspaces`"
-                class="p-2 rounded-lg hover:bg-white/5 text-zinc-400 hover:text-white"
+                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-zinc-800/50 border border-zinc-700/50 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
             >
-                <ArrowLeft class="w-5 h-5" />
+                <ArrowLeft class="w-4 h-4" />
             </Link>
             <div>
                 <div class="flex items-center gap-2">
                     <Boxes class="w-5 h-5 text-lime-400" />
-                    <h1 class="text-xl font-semibold text-white">{{ workspaceName }}</h1>
+                    <h1 class="text-2xl font-semibold tracking-tight text-zinc-100">{{ workspaceName }}</h1>
                 </div>
             </div>
-        </div>
-        <div class="border border-zinc-800 rounded-xl p-12 text-center">
-            <Loader2 class="w-8 h-8 mx-auto text-zinc-600 animate-spin mb-4" />
-            <p class="text-zinc-400">Loading workspace...</p>
+        </header>
+        <div class="rounded-lg border border-zinc-800 bg-zinc-900/50 p-8 text-center">
+            <Loader2 class="w-8 h-8 mx-auto text-zinc-600 animate-spin mb-3" />
+            <p class="text-zinc-500">Loading workspace...</p>
         </div>
     </div>
 
     <!-- Error State -->
-    <div v-else-if="workspaceError" class="space-y-6">
-        <div class="flex items-center gap-4">
+    <div v-else-if="workspaceError">
+        <header class="flex items-center gap-4 mb-8">
             <Link
                 :href="`/environments/${environment.id}/workspaces`"
-                class="p-2 rounded-lg hover:bg-white/5 text-zinc-400 hover:text-white"
+                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-zinc-800/50 border border-zinc-700/50 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
             >
-                <ArrowLeft class="w-5 h-5" />
+                <ArrowLeft class="w-4 h-4" />
             </Link>
             <div>
-                <h1 class="text-xl font-semibold text-white">Workspace Not Found</h1>
+                <h1 class="text-2xl font-semibold tracking-tight text-zinc-100">Workspace Not Found</h1>
             </div>
-        </div>
-        <div class="border border-zinc-800 rounded-xl p-12 text-center">
-            <p class="text-red-400">{{ workspaceError }}</p>
-            <Button as-child variant="outline" class="mt-4">
+        </header>
+        <div class="rounded-lg border border-zinc-800 bg-zinc-900/50 p-8 text-center">
+            <p class="text-red-400 mb-4">{{ workspaceError }}</p>
+            <Button as-child variant="secondary" size="sm">
                 <Link :href="`/environments/${environment.id}/workspaces`">
                     Back to Workspaces
                 </Link>
@@ -395,103 +408,116 @@ onMounted(() => {
     </div>
 
     <!-- Loaded Content -->
-    <div v-else-if="workspace" class="space-y-6">
-        <div class="flex items-center justify-between">
+    <div v-else-if="workspace">
+        <!-- Header -->
+        <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
             <div class="flex items-center gap-4">
                 <Link
                     :href="`/environments/${environment.id}/workspaces`"
-                    class="p-2 rounded-lg hover:bg-white/5 text-zinc-400 hover:text-white"
+                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-zinc-800/50 border border-zinc-700/50 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
                 >
-                    <ArrowLeft class="w-5 h-5" />
+                    <ArrowLeft class="w-4 h-4" />
                 </Link>
                 <div>
                     <div class="flex items-center gap-2">
                         <Boxes class="w-5 h-5 text-lime-400" />
-                        <h1 class="text-xl font-semibold text-white">{{ workspace.name }}</h1>
+                        <h1 class="text-2xl font-semibold tracking-tight text-zinc-100">{{ workspace.name }}</h1>
                     </div>
-                    <p class="text-sm text-zinc-400 mt-1">
-                        {{ workspace.site_count }} site{{
-                            workspace.site_count !== 1 ? 's' : ''
-                        }}
+                    <p class="text-sm text-zinc-500 mt-1">
+                        {{ workspace.site_count }} site{{ workspace.site_count !== 1 ? 's' : '' }}
                     </p>
                 </div>
             </div>
-            <div v-if="$page.props.multi_environment" class="flex items-center gap-2">
-                <Button @click="openInTerminal" variant="outline" title="Open in Terminal">
-                    <Terminal class="w-4 h-4 mr-2" />
+            <div class="flex items-center gap-2">
+                <Button
+                    v-if="environment.external_access"
+                    @click="openInTerminal"
+                    variant="secondary"
+                    size="sm"
+                    title="Open in Terminal"
+                >
+                    <Terminal class="w-4 h-4 mr-1.5" />
                     SSH
                 </Button>
                 <Button
                     v-if="workspace.has_workspace_file"
                     @click="openInEditor"
-                    variant="outline"
+                    variant="secondary"
+                    size="sm"
                 >
-                    <EditorIcon :editor="editor.scheme" class="w-4 h-4 mr-2" />
+                    <EditorIcon :editor="editor.scheme" class="w-4 h-4 mr-1.5" />
                     Open in {{ editor.name }}
                 </Button>
-                <Button @click="openAddSiteModal" variant="secondary">
-                    <Plus class="w-4 h-4 mr-2" />
+                <Button
+                    @click="openAddSiteModal"
+                    size="sm"
+                    class="bg-lime-500 hover:bg-lime-600 text-zinc-950"
+                >
+                    <Plus class="w-4 h-4 mr-1.5" />
                     Add Site
                 </Button>
             </div>
-            <div v-else class="flex items-center gap-2">
-                <Button @click="openAddSiteModal" variant="secondary">
-                    <Plus class="w-4 h-4 mr-2" />
-                    Add Site
-                </Button>
-            </div>
-        </div>
+        </header>
 
         <!-- Sites List -->
-        <div class="border border-zinc-800 rounded-xl px-0.5 pt-4 pb-0.5">
-            <div class="px-4 mb-4">
-                <h2 class="text-sm font-medium text-zinc-400 uppercase tracking-wider">Sites</h2>
-            </div>
-            <div class="border border-zinc-700/50 rounded-lg overflow-hidden">
+        <div class="space-y-6">
+            <div class="rounded-lg border border-zinc-800 bg-zinc-900/50 overflow-hidden">
+                <!-- Section Header -->
+                <div class="px-4 py-3 border-b border-zinc-800 bg-zinc-800/30">
+                    <h2 class="text-sm font-medium text-zinc-100">Sites</h2>
+                </div>
+
+                <!-- Empty State -->
                 <div v-if="workspace.sites.length === 0" class="p-8 text-center">
-                    <FolderGit2 class="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-                    <p class="text-muted-foreground mb-4">No sites in this workspace yet.</p>
-                    <Button @click="openAddSiteModal" variant="secondary">
-                        <Plus class="w-4 h-4 mr-2" />
+                    <div class="flex h-12 w-12 mx-auto items-center justify-center rounded-md bg-zinc-800/50 border border-zinc-700/50 mb-4">
+                        <FolderGit2 class="w-6 h-6 text-zinc-400" />
+                    </div>
+                    <p class="text-zinc-500 mb-4">No sites in this workspace yet.</p>
+                    <Button
+                        @click="openAddSiteModal"
+                        size="sm"
+                        class="bg-lime-500 hover:bg-lime-600 text-zinc-950"
+                    >
+                        <Plus class="w-4 h-4 mr-1.5" />
                         Add Your First Site
                     </Button>
                 </div>
-                <div v-else class="divide-y divide-zinc-700/50">
+
+                <!-- Site Rows -->
+                <div v-else class="divide-y divide-zinc-800/50">
                     <div
                         v-for="site in workspace.sites"
                         :key="site.name"
-                        class="bg-zinc-800/30"
                     >
-                        <div
-                            class="flex items-center justify-between px-4 py-3 hover:bg-zinc-700/30"
-                        >
-                            <div class="flex items-center gap-3">
-                                <button
-                                    @click="toggleSiteExpanded(site.name)"
-                                    class="p-0.5 rounded hover:bg-white/10 text-zinc-400"
-                                >
-                                    <ChevronDown
-                                        v-if="expandedSites.has(site.name)"
-                                        class="w-4 h-4"
-                                    />
-                                    <ChevronRight v-else class="w-4 h-4" />
-                                </button>
-                                <FolderGit2 class="w-4 h-4 text-lime-400" />
-                                <div>
-                                    <span class="font-medium text-white">{{
-                                        getSiteDisplayName(site.name)
-                                    }}</span>
-                                    <span class="ml-2 text-xs text-zinc-500 font-mono">{{
-                                        site.name
-                                    }}</span>
+                        <div class="flex items-center gap-4 px-4 py-3 transition-colors hover:bg-zinc-800/30">
+                            <!-- Expand Button -->
+                            <button
+                                @click="toggleSiteExpanded(site.name)"
+                                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-zinc-800/50 border border-zinc-700/50 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                            >
+                                <ChevronDown
+                                    v-if="expandedSites.has(site.name)"
+                                    class="w-4 h-4"
+                                />
+                                <ChevronRight v-else class="w-4 h-4" />
+                            </button>
+
+                            <!-- Site Info -->
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <FolderGit2 class="w-4 h-4 text-lime-400" />
+                                    <span class="font-medium text-sm text-zinc-100">{{ getSiteDisplayName(site.name) }}</span>
+                                    <span class="text-xs text-zinc-500 font-mono">{{ site.name }}</span>
                                 </div>
                             </div>
-                            <div class="flex items-center gap-2">
+
+                            <!-- Actions -->
+                            <div class="flex items-center gap-0.5 opacity-40 hover:opacity-100 transition-opacity">
                                 <Button
                                     @click="openLinkPackageModal(site.name)"
                                     variant="ghost"
-                                    size="sm"
-                                    class="text-muted-foreground hover:text-lime-400"
+                                    size="icon-sm"
+                                    class="h-8 w-8 text-zinc-400 hover:text-lime-400 hover:bg-zinc-800"
                                     title="Link a package"
                                 >
                                     <Link2 class="w-3.5 h-3.5" />
@@ -499,9 +525,10 @@ onMounted(() => {
                                 <Button
                                     @click="removeSite(site.name)"
                                     variant="ghost"
-                                    size="sm"
-                                    class="text-muted-foreground hover:text-red-400"
+                                    size="icon-sm"
+                                    class="h-8 w-8 text-zinc-400 hover:text-red-400 hover:bg-zinc-800"
                                     :disabled="removingSite === site.name"
+                                    title="Remove site"
                                 >
                                     <Loader2
                                         v-if="removingSite === site.name"
@@ -515,19 +542,17 @@ onMounted(() => {
                         <!-- Expanded: Linked Packages -->
                         <div
                             v-if="expandedSites.has(site.name)"
-                            class="px-4 pb-3 pl-12 border-t border-zinc-700/30"
+                            class="px-4 pb-4 pl-16 border-t border-zinc-800/50 bg-zinc-900/30"
                         >
-                            <div class="pt-3">
-                                <div class="flex items-center gap-2 mb-2">
+                            <div class="pt-4">
+                                <div class="flex items-center gap-2 mb-3">
                                     <Package class="w-3.5 h-3.5 text-zinc-500" />
-                                    <span class="text-xs text-zinc-500 uppercase tracking-wider"
-                                        >Linked Packages</span
-                                    >
+                                    <span class="text-xs text-zinc-500 uppercase tracking-wider font-medium">Linked Packages</span>
                                 </div>
 
                                 <div
                                     v-if="loadingPackages.has(site.name)"
-                                    class="py-2 text-center"
+                                    class="py-3 text-center"
                                 >
                                     <Loader2 class="w-4 h-4 animate-spin text-zinc-500 mx-auto" />
                                 </div>
@@ -546,31 +571,26 @@ onMounted(() => {
                                     <div
                                         v-for="pkg in linkedPackages[site.name]"
                                         :key="pkg.name"
-                                        class="flex items-center justify-between py-1.5 px-2 rounded bg-zinc-700/30"
+                                        class="flex items-center justify-between py-2 px-3 rounded-md bg-zinc-800/50 border border-zinc-700/50"
                                     >
                                         <div class="flex items-center gap-2">
                                             <Package class="w-3.5 h-3.5 text-amber-400" />
-                                            <span class="text-sm text-zinc-300 font-mono">{{
-                                                pkg.name
-                                            }}</span>
+                                            <span class="text-sm text-zinc-300 font-mono">{{ pkg.name }}</span>
                                         </div>
-                                        <button
+                                        <Button
                                             @click="unlinkPackage(site.name, pkg.name)"
-                                            class="p-1 rounded hover:bg-zinc-600 text-zinc-400 hover:text-red-400"
-                                            :disabled="
-                                                unlinkingPackage === `${site.name}:${pkg.name}`
-                                            "
+                                            variant="ghost"
+                                            size="icon-sm"
+                                            class="h-7 w-7 text-zinc-400 hover:text-red-400 hover:bg-zinc-700"
+                                            :disabled="unlinkingPackage === `${site.name}:${pkg.name}`"
                                             title="Unlink package"
                                         >
                                             <Loader2
-                                                v-if="
-                                                    unlinkingPackage ===
-                                                    `${site.name}:${pkg.name}`
-                                                "
+                                                v-if="unlinkingPackage === `${site.name}:${pkg.name}`"
                                                 class="w-3 h-3 animate-spin"
                                             />
                                             <Unlink v-else class="w-3 h-3" />
-                                        </button>
+                                        </Button>
                                     </div>
                                 </div>
                             </div>
@@ -578,37 +598,42 @@ onMounted(() => {
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Workspace Info -->
-        <div class="border border-zinc-800 rounded-xl p-4">
-            <h2 class="text-sm font-medium text-zinc-400 uppercase tracking-wider mb-3">
-                Workspace Info
-            </h2>
-            <div class="space-y-2 text-sm">
-                <div class="flex items-center gap-2">
-                    <span class="text-zinc-500">Path:</span>
-                    <span class="font-mono text-zinc-300">{{ workspace.path }}</span>
+            <!-- Workspace Info -->
+            <div class="rounded-lg border border-zinc-800 bg-zinc-900/50 overflow-hidden">
+                <!-- Section Header -->
+                <div class="px-4 py-3 border-b border-zinc-800 bg-zinc-800/30">
+                    <h2 class="text-sm font-medium text-zinc-100">Workspace Info</h2>
                 </div>
-                <div class="flex items-center gap-2">
-                    <span class="text-zinc-500">Workspace file:</span>
-                    <span class="font-mono text-zinc-300">{{ workspace.name }}.code-workspace</span>
-                    <span
-                        v-if="workspace.has_workspace_file"
-                        class="text-xs px-1.5 py-0.5 rounded bg-lime-400/10 text-lime-400"
-                    >
-                        Ready
-                    </span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="text-zinc-500">CLAUDE.md:</span>
-                    <span
-                        v-if="workspace.has_claude_md"
-                        class="text-xs px-1.5 py-0.5 rounded bg-lime-400/10 text-lime-400"
-                    >
-                        Present
-                    </span>
-                    <span v-else class="text-zinc-400">Not found</span>
+
+                <!-- Info Rows -->
+                <div class="divide-y divide-zinc-800/50">
+                    <div class="flex items-center gap-4 px-4 py-3">
+                        <span class="text-sm text-zinc-500 w-28 shrink-0">Path</span>
+                        <span class="font-mono text-sm text-zinc-300">{{ workspace.path }}</span>
+                    </div>
+                    <div class="flex items-center gap-4 px-4 py-3">
+                        <span class="text-sm text-zinc-500 w-28 shrink-0">Workspace file</span>
+                        <div class="flex items-center gap-2">
+                            <span class="font-mono text-sm text-zinc-300">{{ workspace.name }}.code-workspace</span>
+                            <span
+                                v-if="workspace.has_workspace_file"
+                                class="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide rounded-full bg-lime-500/10 text-lime-400 ring-1 ring-inset ring-lime-500/20"
+                            >
+                                Ready
+                            </span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4 px-4 py-3">
+                        <span class="text-sm text-zinc-500 w-28 shrink-0">CLAUDE.md</span>
+                        <span
+                            v-if="workspace.has_claude_md"
+                            class="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide rounded-full bg-lime-500/10 text-lime-400 ring-1 ring-inset ring-lime-500/20"
+                        >
+                            Present
+                        </span>
+                        <span v-else class="text-sm text-zinc-500">Not found</span>
+                    </div>
                 </div>
             </div>
         </div>

@@ -226,26 +226,50 @@ class DoctorService
         $tld = $environment->tld ?? 'test';
 
         if ($environment->is_local) {
-            // For local, check if resolver file exists
-            $resolverPath = "/etc/resolver/{$tld}";
-            if (file_exists($resolverPath)) {
-                $content = file_get_contents($resolverPath);
-
+            // For local environments, DNS is handled by orbit-dns Docker container
+            
+            // Check if orbit-dns container is running
+            $orbitDnsResult = \Illuminate\Support\Facades\Process::run(
+                "docker ps --filter name=orbit-dns --format '{{.Status}}' 2>/dev/null"
+            );
+            
+            if ($orbitDnsResult->successful() && str_contains($orbitDnsResult->output(), 'Up')) {
+                // Verify DNS actually works
+                $testResult = \Illuminate\Support\Facades\Process::run(
+                    "dig +short test.{$tld} @127.0.0.1 2>/dev/null"
+                );
+                
+                if ($testResult->successful() && trim($testResult->output()) === '127.0.0.1') {
+                    return [
+                        'status' => 'ok',
+                        'message' => "DNS resolver running (orbit-dns container)",
+                        'details' => [
+                            'method' => 'docker',
+                            'container' => 'orbit-dns',
+                            'test_domain' => "test.{$tld}",
+                            'resolved_to' => '127.0.0.1',
+                        ],
+                    ];
+                }
+                
+                // Container running but DNS not working
                 return [
-                    'status' => 'ok',
-                    'message' => "DNS resolver configured for .{$tld}",
+                    'status' => 'warning',
+                    'message' => "orbit-dns container running but DNS resolution failing",
                     'details' => [
-                        'resolver_path' => $resolverPath,
-                        'content' => trim($content),
+                        'container_status' => trim($orbitDnsResult->output()),
+                        'suggestion' => "Check orbit-dns container logs: docker logs orbit-dns",
                     ],
                 ];
             }
 
+            // Container not running
             return [
                 'status' => 'warning',
-                'message' => "No DNS resolver found for .{$tld}",
+                'message' => "DNS resolver not running (orbit-dns container)",
                 'details' => [
-                    'suggestion' => "Create {$resolverPath} with 'nameserver 127.0.0.1'",
+                    'suggestion' => "Start orbit services to enable DNS resolution",
+                    'platform' => PHP_OS_FAMILY,
                 ],
             ];
         }
@@ -302,10 +326,6 @@ class DoctorService
         $tld = $environment->tld ?? 'test';
         $testDomain = "orbit.{$tld}";
 
-        // First check if resolver file exists
-        $resolverPath = "/etc/resolver/{$tld}";
-        $resolverExists = file_exists($resolverPath);
-
         // DNS server location: localhost for local env, remote host IP for remote env
         $dnsServer = $environment->is_local ? '127.0.0.1' : $environment->host;
 
@@ -328,7 +348,7 @@ class DoctorService
                     'domain' => $testDomain,
                     'dns_server' => $dnsServer,
                     'resolved_ip' => $resolvedIp,
-                    'resolver_file' => $resolverExists ? $resolverPath : 'not configured',
+                    'method' => 'orbit-dns',
                 ],
             ];
         }
@@ -342,33 +362,40 @@ class DoctorService
                     'dns_server' => $dnsServer,
                     'resolved_ip' => $resolvedIp,
                     'expected_ip' => $expectedIp,
-                    'resolver_file' => $resolverExists ? $resolverPath : 'not configured',
                 ],
             ];
         }
 
-        // Not resolving - check why
-        if (! $resolverExists) {
+        // Not resolving - provide appropriate guidance
+        if ($environment->is_local) {
+            // For local env, check if orbit-dns container is running
+            $containerCheck = \Illuminate\Support\Facades\Process::run(
+                "docker ps --filter name=orbit-dns --format '{{.Status}}' 2>/dev/null"
+            );
+            
+            $containerRunning = $containerCheck->successful() && str_contains($containerCheck->output(), 'Up');
+            
             return [
                 'status' => 'error',
-                'message' => "No DNS resolver configured for .{$tld} domains",
+                'message' => "DNS not resolving for .{$tld} domains",
                 'details' => [
                     'domain' => $testDomain,
                     'dns_server' => $dnsServer,
-                    'suggestion' => "Create {$resolverPath} with 'nameserver {$dnsServer}'",
-                    'can_fix' => true,
+                    'orbit_dns_running' => $containerRunning,
+                    'suggestion' => $containerRunning 
+                        ? 'orbit-dns is running but DNS queries failing. Check container logs with: docker logs orbit-dns'
+                        : 'orbit-dns container is not running. Start orbit services to enable DNS resolution',
                 ],
             ];
         }
 
         return [
             'status' => 'error',
-            'message' => "DNS resolver exists but {$testDomain} is not resolving from {$dnsServer}",
+            'message' => "DNS not resolving for {$testDomain} from {$dnsServer}",
             'details' => [
                 'domain' => $testDomain,
                 'dns_server' => $dnsServer,
-                'resolver_file' => $resolverPath,
-                'suggestion' => 'Check that dnsmasq is running on the DNS server',
+                'suggestion' => 'Check that orbit-dns container is running on the remote server',
             ],
         ];
     }
@@ -479,24 +506,49 @@ class DoctorService
     }
 
     /**
-     * Fix local DNS resolver by creating/updating the resolver file.
+     * Fix local DNS resolver - now guides to use orbit-dns container.
      */
     protected function fixLocalDns(Environment $environment): array
     {
         $tld = $environment->tld ?? 'test';
 
-        $result = $this->dnsResolver->updateResolver($environment, $tld);
-
-        if ($result['success']) {
+        // Check if orbit-dns container exists and is running
+        $containerCheck = \Illuminate\Support\Facades\Process::run(
+            "docker ps -a --filter name=orbit-dns --format '{{.Names}}:{{.Status}}' 2>/dev/null"
+        );
+        
+        if (!$containerCheck->successful() || empty($containerCheck->output())) {
+            return [
+                'success' => false,
+                'message' => "orbit-dns container not found. Please ensure orbit services are properly installed.",
+            ];
+        }
+        
+        $containerStatus = trim($containerCheck->output());
+        
+        if (str_contains($containerStatus, 'Up')) {
+            // Container is running, DNS should work
+            return [
+                'success' => false,
+                'message' => "orbit-dns container is already running. If DNS is still not working, check container logs with: docker logs orbit-dns",
+            ];
+        }
+        
+        // Try to start the container
+        $startResult = \Illuminate\Support\Facades\Process::run(
+            "docker start orbit-dns 2>&1"
+        );
+        
+        if ($startResult->successful()) {
             return [
                 'success' => true,
-                'message' => "Created DNS resolver for .{$tld} domains",
+                'message' => "Started orbit-dns container for .{$tld} domain resolution",
             ];
         }
 
         return [
             'success' => false,
-            'message' => $result['error'] ?? 'Failed to create DNS resolver',
+            'message' => "Failed to start orbit-dns container: " . $startResult->output(),
         ];
     }
 }

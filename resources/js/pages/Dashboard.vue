@@ -24,23 +24,33 @@ defineProps<{
     <Head title="Dashboard" />
 
     <div>
-        <div class="flex justify-between items-center mb-8">
-            <Heading title="Dashboard" />
-            <Button v-if="$page.props.multi_environment" as-child variant="secondary">
-                <Link href="/environments/create">Add</Link>
+        <!-- Header -->
+        aaa
+        <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
+            <div>
+                <h1 class="text-2xl font-semibold tracking-tight text-zinc-100">Dashboard</h1>
+            </div>
+            <Button v-if="$page.props.multi_environment" as-child size="sm" class="bg-lime-500 hover:bg-lime-600 text-zinc-950">
+                <Link href="/environments/create">
+                    <ServerIcon class="w-4 h-4 mr-1.5" />
+                    Add Environment
+                </Link>
             </Button>
-        </div>
+        </header>
 
         <!-- Empty State -->
         <div
             v-if="environments.length === 0"
-            class="border border-zinc-800 rounded-lg p-8 text-center"
+            class="rounded-lg border border-zinc-800 bg-zinc-900/50 p-8 text-center"
         >
             <ServerIcon class="w-16 h-16 mx-auto text-zinc-600 mb-4" />
-            <h3 class="text-lg font-medium text-white mb-2">No environments configured</h3>
+            <h3 class="text-lg font-medium text-zinc-100 mb-2">No environments configured</h3>
             <p class="text-zinc-400 mb-4">Get started by adding your first environment.</p>
-            <Button v-if="$page.props.multi_environment" as-child variant="secondary">
-                <Link href="/environments/create">Add</Link>
+            <Button v-if="$page.props.multi_environment" as-child size="sm" class="bg-lime-500 hover:bg-lime-600 text-zinc-950">
+                <Link href="/environments/create">
+                    <ServerIcon class="w-4 h-4 mr-1.5" />
+                    Add Environment
+                </Link>
             </Button>
         </div>
 

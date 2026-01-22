@@ -115,8 +115,7 @@ class Environment extends Model
      */
     public static function getActive(): ?self
     {
-        return static::where('is_active', true)->first()
-            ?? static::getLocal();
+        return app(\HardImpact\Orbit\Services\EnvironmentManager::class)->current();
     }
 
     /**
@@ -125,8 +124,7 @@ class Environment extends Model
      */
     public function setAsActive(): void
     {
-        static::where('id', '!=', $this->id)->update(['is_active' => false]);
-        $this->update(['is_active' => true]);
+        app(\HardImpact\Orbit\Services\EnvironmentManager::class)->setActive($this->id);
     }
 
     public function deployments(): HasMany

@@ -39,7 +39,7 @@ sequenceDiagram
     participant WS as WebSocket (Reverb)
     participant DB as Database
 
-    U->>C: POST /environments/{id}/sites
+    U->>C: POST /sites
     Note over C: Validate input
 
     C->>DB: Save TemplateFavorite (if template provided)
@@ -148,11 +148,20 @@ stateDiagram-v2
 
 **Note:** The CLI's `site:create` command runs `ProvisionPipeline` synchronously with real-time console output, while web UI uses `CreateSiteJob` via Horizon. Both paths share the same provisioning logic.
 
+## Active Environment Rules
+
+Orbit web/desktop rely on a single active environment in the database.
+
+- `EnvironmentManager::current()` resolves the active environment for requests.
+- `POST /environments/{environment}/switch` updates the active environment.
+- `/` renders the active environment dashboard in web mode via `EnvironmentController@show`.
+- `/sites` uses the active environment and does not require an ID in the URL.
+
 ## API Contract
 
 ### Request
 ```
-POST /environments/{id}/sites
+POST /sites
 Content-Type: application/json
 
 {
@@ -170,7 +179,7 @@ Content-Type: application/json
 
 ### Response (Web Request)
 ```
-302 Redirect to /environments/{id}/sites
+302 Redirect to /environments/{active_id}/sites
 Session: {provisioning: "my-project", success: "Site is being created..."}
 ```
 
@@ -234,6 +243,8 @@ Jobs exist specifically to move long-running operations off the request thread. 
 
 ### orbit-core
 - `src/Http/Controllers/EnvironmentController.php:685` - `storeSite()` method
+- `src/Http/Controllers/SiteController.php` - Web entry point (`POST /sites`)
+- `src/Services/EnvironmentManager.php` - Active environment resolution
 - `src/Jobs/CreateSiteJob.php` - Async job, runs ProvisionPipeline
 - `src/Contracts/ProvisionLoggerContract.php` - Interface for logger implementations
 - `src/Services/Provision/ProvisionPipeline.php` - Main provisioning orchestrator
@@ -307,3 +318,4 @@ Test coverage:
 | 2026-01-22 | CLI `site:create` runs ProvisionPipeline synchronously with real-time output |
 | 2026-01-22 | Added `ProvisionLoggerContract` interface for CLI/web logger implementations |
 | 2026-01-22 | CLI broadcasts to Reverb via Pusher SDK for web UI updates during sync execution |
+| 2026-01-22 | Active environment manager + switch route for web/desktop site creation |

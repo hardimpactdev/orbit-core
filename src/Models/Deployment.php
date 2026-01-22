@@ -16,16 +16,16 @@ class Deployment extends Model
     const STATUS_ERROR = 'error';
 
     protected $fillable = [
-        'project_id',
+        'site_id',
         'environment_id',
         'status',
         'local_path',
         'site_url',
     ];
 
-    public function project(): BelongsTo
+    public function site(): BelongsTo
     {
-        return $this->belongsTo(Project::class);
+        return $this->belongsTo(Site::class);
     }
 
     public function environment(): BelongsTo

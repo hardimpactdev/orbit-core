@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
-import { Key, Copy, Star, Pencil, Trash2, FileCode2, ExternalLink } from 'lucide-vue-next';
+import { Key, Copy, Star, Pencil, Trash2, FileCode2, ExternalLink, Globe } from 'lucide-vue-next';
 import Modal from '@/components/Modal.vue';
 import { Button, Input, Label, Badge, Switch, Textarea } from '@hardimpactdev/craft-ui';
 
@@ -31,6 +31,13 @@ interface TemplateFavorite {
     last_used_at: string | null;
 }
 
+interface Environment {
+    id: number;
+    name: string;
+    external_access: boolean;
+    external_host: string | null;
+}
+
 const props = defineProps<{
     editor: Editor;
     editorOptions: Record<string, string>;
@@ -41,6 +48,7 @@ const props = defineProps<{
     templateFavorites: TemplateFavorite[];
     notificationsEnabled: boolean;
     menuBarEnabled: boolean;
+    environment: Environment | null;
 }>();
 
 // Editor/Terminal form
@@ -170,7 +178,7 @@ const deleteTemplate = (template: TemplateFavorite) => {
 };
 
 const extractRepoName = (url: string): string => {
-    const match = url.match(/(?:github\.com\/)?([^\/]+)\/([^\/]+)/);
+    const match = url.match(/(?:github\.com\/)?([^/]+)\/([^/]+)/);
     return match ? match[2] : url;
 };
 
@@ -204,6 +212,24 @@ const toggleMenuBar = () => {
     menuBarForm.enabled = !menuBarForm.enabled;
     menuBarForm.post('/settings/menu-bar');
 };
+
+// External access form
+const externalAccessForm = useForm({
+    external_access: props.environment?.external_access ?? false,
+    external_host: props.environment?.external_host ?? '',
+});
+
+const saveExternalAccess = () => {
+    externalAccessForm.post('/settings/external-access');
+};
+
+// Watch for external_access toggle to auto-save when disabled
+watch(() => externalAccessForm.external_access, (newValue, oldValue) => {
+    if (oldValue === true && newValue === false) {
+        // Auto-save when toggling off
+        saveExternalAccess();
+    }
+});
 </script>
 
 <template>
@@ -367,6 +393,57 @@ const toggleMenuBar = () => {
         </section>
 
         <hr class="my-10 border-t border-white/5" />
+
+        <!-- External Access -->
+        <section v-if="environment" class="grid gap-x-8 gap-y-6 sm:grid-cols-2">
+            <div class="space-y-1">
+                <h2 class="text-sm font-semibold text-foreground">External Access</h2>
+                <p class="text-sm text-muted-foreground">
+                    Enable SSH links for accessing this environment from external machines.
+                </p>
+            </div>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <Label for="external_access" class="text-muted-foreground">
+                        Enable external access
+                    </Label>
+                    <Switch
+                        id="external_access"
+                        :checked="externalAccessForm.external_access"
+                        @update:checked="externalAccessForm.external_access = $event"
+                    />
+                </div>
+
+                <div v-if="externalAccessForm.external_access" class="space-y-3">
+                    <div>
+                        <Label for="external_host" class="text-muted-foreground mb-1.5">
+                            External Host / IP
+                        </Label>
+                        <Input
+                            v-model="externalAccessForm.external_host"
+                            type="text"
+                            id="external_host"
+                            placeholder="e.g. 192.168.1.100 or myserver.example.com"
+                            class="w-full"
+                        />
+                        <p class="mt-1 text-xs text-muted-foreground">
+                            The hostname or IP address external users will use to connect via SSH.
+                        </p>
+                    </div>
+                    <Button
+                        type="button"
+                        @click="saveExternalAccess"
+                        :disabled="externalAccessForm.processing"
+                        variant="outline"
+                        size="sm"
+                    >
+                        Save External Access
+                    </Button>
+                </div>
+            </div>
+        </section>
+
+        <hr v-if="environment" class="my-10 border-t border-border" />
 
         <!-- Template Favorites -->
         <section class="grid gap-x-8 gap-y-6 sm:grid-cols-2">

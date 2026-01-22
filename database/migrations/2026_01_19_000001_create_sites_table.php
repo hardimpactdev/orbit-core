@@ -16,7 +16,6 @@ return new class extends Migration
             $table->string('slug')->unique();
             $table->string('path');
             $table->string('php_version');
-            $table->foreignId('project_id')->nullable()->constrained()->nullOnDelete();
             $table->timestamps();
         });
     }

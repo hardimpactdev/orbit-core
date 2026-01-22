@@ -5,6 +5,7 @@ namespace HardImpact\Orbit;
 use HardImpact\Orbit\Console\Commands\OrbitInit;
 use HardImpact\Orbit\Http\Middleware\HandleInertiaRequests;
 use HardImpact\Orbit\Http\Middleware\ImplicitEnvironment;
+use HardImpact\Orbit\Services\EnvironmentManager;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Vite;
@@ -15,6 +16,8 @@ class OrbitServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/orbit.php', 'orbit');
+
+        $this->app->singleton(EnvironmentManager::class);
     }
 
     public function boot(): void
@@ -41,6 +44,7 @@ class OrbitServiceProvider extends ServiceProvider
             return;
         }
 
+        /** @var \Illuminate\Foundation\Http\Kernel $kernel */
         $kernel = $this->app->make(Kernel::class);
 
         $kernel->appendMiddlewareToGroup('web', HandleInertiaRequests::class);
@@ -104,11 +108,13 @@ class OrbitServiceProvider extends ServiceProvider
 
     /**
      * Register MCP routes for AI tool integration.
-     * Loads when laravel/mcp is installed (supports both CLI and HTTP transports).
+     * Loads when laravel/mcp is installed and router is available.
+     * Skipped in Laravel Zero (CLI-only) contexts where router doesn't exist.
      */
     protected function registerMcp(): void
     {
-        if (class_exists(\Laravel\Mcp\Facades\Mcp::class)) {
+        // Only load routes if router exists (not in Laravel Zero)
+        if (class_exists(\Laravel\Mcp\Facades\Mcp::class) && $this->app->bound('router')) {
             $this->loadRoutesFrom(__DIR__.'/../routes/mcp.php');
         }
     }

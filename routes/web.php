@@ -16,6 +16,8 @@ if (config('orbit.multi_environment')) {
     Route::redirect('/servers', '/environments')->name('servers.index');
     Route::redirect('/servers/{id}', '/environments/{id}');
 
+    Route::post('environments/{environment}/switch', [EnvironmentController::class, 'switchEnvironment'])->name('environments.switch');
+
     // SSH Key Management (Desktop-only for now)
     Route::prefix('ssh-keys')->name('ssh-keys.')->group(function (): void {
         Route::post('/', [SshKeyController::class, 'store'])->name('store');
@@ -38,7 +40,7 @@ if (config('orbit.multi_environment')) {
     // Web: Flat routes, middleware injects implicit environment
     // Web: Routes
     Route::middleware('implicit.environment')->group(function () {
-        Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/', [EnvironmentController::class, 'show'])->name('dashboard');
 
         // Flat routes (e.g. /projects)
         Route::group([], __DIR__.'/environment.php');
@@ -49,8 +51,8 @@ if (config('orbit.multi_environment')) {
     Route::prefix('environments/{environment}')
         ->group(__DIR__.'/environment.php');
 
-    // Add show route for compatibility
-    Route::get('environments/{environment}', [EnvironmentController::class, 'show'])->name('environments.show');
+    // Redirect environment show to root in web mode
+    Route::get('environments/{environment}', fn () => redirect('/'))->name('environments.show');
 
     // Gate environment edit route specifically
     Route::any('/environments/{environment}/edit', fn () => abort(403));
@@ -61,6 +63,8 @@ if (config('orbit.multi_environment')) {
 // Site routes - forwards to active environment's API
 Route::post('sites', [\HardImpact\Orbit\Http\Controllers\SiteController::class, 'store'])->name('sites.store');
 Route::delete('sites/{slug}', [\HardImpact\Orbit\Http\Controllers\SiteController::class, 'destroy'])->name('sites.destroy');
+Route::post('sites/{site}/php', [\HardImpact\Orbit\Http\Controllers\SiteController::class, 'setPhpVersion'])->name('sites.php.set');
+Route::post('sites/{site}/php/reset', [\HardImpact\Orbit\Http\Controllers\SiteController::class, 'resetPhpVersion'])->name('sites.php.reset');
 
 // API routes for environment data
 Route::prefix('api/environments')->group(function (): void {

@@ -292,7 +292,8 @@ async function changePhpVersion(site: Site, version: string) {
 
     changingPhpFor.value = site.name;
     try {
-        const { data: result } = await api.post(getApiUrl(`/php/${site.name}`), {
+        const siteName = encodeURIComponent(site.name);
+        const { data: result } = await api.post(`/sites/${siteName}/php`, {
             version: version,
         });
 

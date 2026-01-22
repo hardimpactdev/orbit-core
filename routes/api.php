@@ -52,6 +52,8 @@ Route::prefix('environments/{environment}')->group(function (): void {
     // PHP Configuration
     Route::get('php/config/{version?}', [EnvironmentController::class, 'getPhpConfig']);
     Route::post('php/config/{version?}', [EnvironmentController::class, 'setPhpConfig']);
+    Route::post('php/{site}', [EnvironmentController::class, 'changePhp']);
+    Route::post('php/{site}/reset', [EnvironmentController::class, 'resetPhp']);
 });
 
 // Site routes (without environment prefix - used when remoteApiUrl is set)
@@ -95,6 +97,8 @@ Route::middleware('implicit.environment')->group(function (): void {
             'versions' => ['8.3', '8.4', '8.5'],
         ]);
     });
+    Route::post('php/{site}', [EnvironmentController::class, 'changePhp'])->name('api.php.set');
+    Route::post('php/{site}/reset', [EnvironmentController::class, 'resetPhp'])->name('api.php.reset');
 
     // Jobs
     Route::get('jobs/{trackedJob}', [JobController::class, 'show']);

@@ -12,6 +12,8 @@ interface Environment {
     user: string;
     port: number;
     is_local: boolean;
+    external_access: boolean;
+    external_host: string | null;
 }
 
 interface Config {
@@ -30,6 +32,8 @@ const form = useForm({
     user: props.server.user,
     port: props.server.port,
     is_local: props.server.is_local,
+    external_access: props.server.external_access,
+    external_host: props.server.external_host ?? '',
 });
 
 // TLD Configuration
@@ -171,6 +175,35 @@ onMounted(() => {
                     <Label for="is_local" class="ml-2 text-muted-foreground">
                         This is a local environment
                     </Label>
+                </div>
+
+                <div class="flex items-center">
+                    <input
+                        v-model="form.external_access"
+                        type="checkbox"
+                        id="external_access"
+                        class="w-4 h-4 rounded border-zinc-600 bg-zinc-800 text-lime-400 focus:ring-lime-400/20 focus:ring-offset-0"
+                    />
+                    <Label for="external_access" class="ml-2 text-muted-foreground">
+                        External access (use SSH URLs for editor links)
+                    </Label>
+                </div>
+
+                <!-- External host field (shown when external_access is enabled) -->
+                <div v-show="form.external_access" class="pl-6">
+                    <Label for="external_host" class="text-muted-foreground mb-2">
+                        External Host / IP
+                    </Label>
+                    <Input
+                        v-model="form.external_host"
+                        type="text"
+                        id="external_host"
+                        placeholder="e.g. 192.168.1.100 or myserver.example.com"
+                        class="w-full"
+                    />
+                    <p class="mt-1 text-xs text-muted-foreground">
+                        The hostname or IP address external users will use to connect via SSH
+                    </p>
                 </div>
 
                 <!-- Remote fields -->

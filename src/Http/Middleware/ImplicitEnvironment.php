@@ -5,13 +5,15 @@ declare(strict_types=1);
 namespace HardImpact\Orbit\Http\Middleware;
 
 use Closure;
-use HardImpact\Orbit\Models\Environment;
+use HardImpact\Orbit\Services\EnvironmentManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
 class ImplicitEnvironment
 {
+    public function __construct(protected EnvironmentManager $environments) {}
+
     public function handle(Request $request, Closure $next): Response
     {
         // Only active in web mode (multi_environment=false)
@@ -34,15 +36,14 @@ class ImplicitEnvironment
             return $next($request);
         }
 
-        $environment = Environment::where('is_local', true)->first()
-            ?? Environment::first();
+        $environment = $this->environments->current();
 
         if (! $environment) {
             abort(500, 'No environment found. Run: php artisan orbit:init');
         }
 
         // Warn if multiple is_local environments exist
-        $count = Environment::where('is_local', true)->count();
+        $count = \HardImpact\Orbit\Models\Environment::where('is_local', true)->count();
         if ($count > 1) {
             Log::warning("Multiple is_local=true environments found ({$count}). Using first.");
         }

@@ -17,6 +17,8 @@ interface Environment {
     host: string;
     user: string;
     is_local: boolean;
+    external_access: boolean;
+    external_host: string | null;
 }
 
 interface Editor {
@@ -85,21 +87,31 @@ const showDeleteModal = ref(false);
 const workspaceToDelete = ref<string | null>(null);
 
 const openInEditor = (workspace: Workspace) => {
-    const user = props.environment.user;
-    const host = props.environment.host;
     const workspacePath = workspace.path;
     const workspaceFile = `${workspacePath}/${workspace.name}.code-workspace`;
 
-    // Open the .code-workspace file in the editor via SSH remote
-    const url = `${props.editor.scheme}://vscode-remote/ssh-remote+${user}@${host}${workspaceFile}?windowId=_blank`;
+    let url: string;
+    if (props.environment.external_access || !props.environment.is_local) {
+        // Use SSH remote URL for external access or remote environments
+        const user = props.environment.user;
+        const host = props.environment.external_access && props.environment.external_host
+            ? props.environment.external_host
+            : props.environment.host;
+        url = `${props.editor.scheme}://vscode-remote/ssh-remote+${user}@${host}${workspaceFile}?windowId=_blank`;
+    } else {
+        // Use local file URL
+        url = `${props.editor.scheme}://file${workspaceFile}`;
+    }
     window.open(url, '_blank');
 };
 
 const openInTerminal = (workspace: Workspace) => {
     const user = props.environment.user;
-    const host = props.environment.host;
-    // Use ssh:// protocol - OS handles opening the terminal
-    const url = `ssh://${user}@${host}`;
+    const host = props.environment.external_access && props.environment.external_host
+        ? props.environment.external_host
+        : props.environment.host;
+    // Use ssh:// protocol with path - OS handles opening the terminal
+    const url = `ssh://${user}@${host}${workspace.path}`;
     window.open(url, '_self');
 };
 
@@ -137,140 +149,146 @@ const deleteWorkspace = async () => {
 <template>
     <Head :title="`Workspaces - ${environment.name}`" />
 
-    <div class="space-y-6">
-        <div class="flex items-center justify-between">
-            <Heading
-                title="Workspaces"
-                description="Group related sites together for easier management"
-            />
-            <Button as-child variant="secondary">
-                <Link :href="`/environments/${environment.id}/workspaces/create`">
-                    <Plus class="w-4 h-4 mr-2" />
-                    New Workspace
-                </Link>
-            </Button>
-        </div>
+    <div>
+        <!-- Header -->
+        <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
+            <div>
+                <h1 class="text-2xl font-semibold tracking-tight text-zinc-100">Workspaces</h1>
+                <p class="text-sm text-zinc-500 mt-1">Group related sites together for easier management</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <Button as-child size="sm" class="bg-lime-500 hover:bg-lime-600 text-zinc-950">
+                    <Link :href="`/environments/${environment.id}/workspaces/create`">
+                        <Plus class="w-4 h-4 mr-1.5" />
+                        New Workspace
+                    </Link>
+                </Button>
+            </div>
+        </header>
 
         <!-- Loading State -->
-        <div v-if="loading" class="border border-zinc-800 rounded-xl p-12 text-center">
+        <div v-if="loading" class="rounded-lg border border-zinc-800 bg-zinc-900/50 p-12 text-center">
             <Loader2 class="w-8 h-8 mx-auto text-zinc-600 animate-spin mb-4" />
-            <p class="text-zinc-400">Loading workspaces...</p>
+            <p class="text-zinc-500">Loading workspaces...</p>
         </div>
 
         <!-- Empty State -->
         <div
             v-else-if="workspaces.length === 0"
-            class="border border-zinc-800 rounded-xl p-12 text-center"
+            class="rounded-lg border border-zinc-800 bg-zinc-900/50 p-12 text-center"
         >
             <Boxes class="w-12 h-12 mx-auto text-zinc-600 mb-4" />
-            <h3 class="text-lg font-medium text-white mb-2">No workspaces yet</h3>
+            <h3 class="text-lg font-medium text-zinc-100 mb-2">No workspaces yet</h3>
             <p class="text-zinc-400 mb-6">Create a workspace to group related sites together.</p>
-            <Button as-child variant="secondary">
+            <Button as-child size="sm" class="bg-lime-500 hover:bg-lime-600 text-zinc-950">
                 <Link :href="`/environments/${environment.id}/workspaces/create`">
-                    <Plus class="w-4 h-4 mr-2" />
+                    <Plus class="w-4 h-4 mr-1.5" />
                     Create Your First Workspace
                 </Link>
             </Button>
         </div>
 
-        <!-- Workspaces List -->
-        <div v-else>
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Workspace</TableHead>
-                        <TableHead>Sites</TableHead>
-                        <TableHead class="text-right">Actions</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    <TableRow
-                        v-for="workspace in workspaces"
-                        :key="workspace.name"
-                    >
-                        <TableCell>
-                            <Link
-                                :href="`/environments/${environment.id}/workspaces/${workspace.name}`"
-                                class="flex items-center gap-3 hover:text-lime-400"
+        <!-- Workspaces Table -->
+        <div v-else class="rounded-lg border border-zinc-800 bg-zinc-900/50 overflow-hidden">
+            <!-- Table Header -->
+            <div class="grid grid-cols-[1fr_1fr_140px] items-center gap-4 px-4 py-3 border-b border-zinc-800 bg-zinc-800/30">
+                <span class="text-xs font-medium text-zinc-500 uppercase tracking-wide">Workspace</span>
+                <span class="text-xs font-medium text-zinc-500 uppercase tracking-wide">Sites</span>
+                <span class="text-xs font-medium text-zinc-500 uppercase tracking-wide text-right">Actions</span>
+            </div>
+
+            <!-- Table Body -->
+            <div>
+                <div
+                    v-for="workspace in workspaces"
+                    :key="workspace.name"
+                    class="grid grid-cols-[1fr_1fr_140px] items-center gap-4 px-4 py-4 border-b border-zinc-800/50 last:border-b-0 transition-colors hover:bg-zinc-800/30"
+                >
+                    <!-- Workspace name -->
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-md bg-lime-500/15">
+                            <Boxes class="h-4 w-4 text-lime-400" />
+                        </div>
+                        <Link
+                            :href="`/environments/${environment.id}/workspaces/${workspace.name}`"
+                            class="font-medium text-sm text-zinc-100 hover:text-lime-400 transition-colors"
+                        >
+                            {{ workspace.name }}
+                        </Link>
+                    </div>
+
+                    <!-- Sites -->
+                    <div class="flex items-center gap-3">
+                        <span class="text-sm text-zinc-500">{{ workspace.site_count }} site{{ workspace.site_count !== 1 ? 's' : '' }}</span>
+                        <div v-if="workspace.sites.length > 0" class="flex -space-x-2">
+                            <div
+                                v-for="site in workspace.sites.slice(0, 3)"
+                                :key="site.name"
+                                class="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-800 border-2 border-zinc-900 text-xs"
+                                :title="site.name"
                             >
-                                <Boxes class="w-4 h-4 text-lime-400" />
-                                <span class="font-medium text-white">
-                                    {{ workspace.name }}
-                                </span>
+                                <FolderGit2 class="h-3 w-3 text-zinc-400" />
+                            </div>
+                            <div
+                                v-if="workspace.sites.length > 3"
+                                class="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-800 border-2 border-zinc-900 text-xs font-medium text-zinc-400"
+                            >
+                                +{{ workspace.sites.length - 3 }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex items-center justify-end gap-2">
+                        <Button
+                            as-child
+                            variant="outline"
+                            size="sm"
+                            class="h-8 px-3 bg-transparent border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                        >
+                            <Link :href="`/environments/${environment.id}/workspaces/${workspace.name}`">
+                                Manage
                             </Link>
-                        </TableCell>
-                        <TableCell>
-                            <div class="flex items-center gap-2">
-                                <span class="text-zinc-400">
-                                    {{ workspace.site_count }} site{{
-                                        workspace.site_count !== 1 ? 's' : ''
-                                    }}
-                                </span>
-                                <div
-                                    v-if="workspace.sites.length > 0"
-                                    class="flex -space-x-1"
-                                >
-                                    <div
-                                        v-for="site in workspace.sites.slice(0, 3)"
-                                        :key="site.name"
-                                        class="w-6 h-6 rounded-full bg-zinc-700 border border-zinc-600 flex items-center justify-center"
-                                        :title="site.name"
-                                    >
-                                        <FolderGit2 class="w-3 h-3 text-zinc-400" />
-                                    </div>
-                                    <div
-                                        v-if="workspace.sites.length > 3"
-                                        class="w-6 h-6 rounded-full bg-zinc-700 border border-zinc-600 flex items-center justify-center text-xs text-zinc-400"
-                                    >
-                                        +{{ workspace.sites.length - 3 }}
-                                    </div>
-                                </div>
-                            </div>
-                        </TableCell>
-                        <TableCell class="text-right">
-                            <div class="flex items-center justify-end gap-2">
-                                <template v-if="$page.props.multi_environment">
-                                    <Button
-                                        @click="openInTerminal(workspace)"
-                                        variant="ghost"
-                                        size="sm"
-                                        title="Open in Terminal"
-                                    >
-                                        <Terminal class="w-3.5 h-3.5" />
-                                    </Button>
-                                    <Button
-                                        v-if="workspace.has_workspace_file"
-                                        @click="openInEditor(workspace)"
-                                        variant="ghost"
-                                        size="sm"
-                                        :title="`Open in ${editor.name}`"
-                                    >
-                                        <EditorIcon :editor="editor.scheme" class="w-3.5 h-3.5" />
-                                    </Button>
-                                </template>
-                                <Button as-child variant="outline" size="sm">
-                                    <Link :href="`/environments/${environment.id}/workspaces/${workspace.name}`">
-                                        Manage
-                                    </Link>
-                                </Button>
-                                <Button
-                                    @click="confirmDelete(workspace.name)"
-                                    variant="ghost"
-                                    size="sm"
-                                    class="text-red-400 hover:text-red-300"
-                                    :disabled="deletingWorkspace === workspace.name"
-                                >
-                                    <Loader2
-                                        v-if="deletingWorkspace === workspace.name"
-                                        class="w-3.5 h-3.5 animate-spin"
-                                    />
-                                    <Trash2 v-else class="w-3.5 h-3.5" />
-                                </Button>
-                            </div>
-                        </TableCell>
-                    </TableRow>
-                </TableBody>
-            </Table>
+                        </Button>
+                        <div class="flex items-center gap-0.5 opacity-60 hover:opacity-100 transition-opacity">
+                            <Button
+                                v-if="environment.external_access"
+                                @click="openInTerminal(workspace)"
+                                variant="ghost"
+                                size="icon-sm"
+                                class="h-8 w-8 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+                                title="Open in Terminal"
+                            >
+                                <Terminal class="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                                v-if="workspace.has_workspace_file"
+                                @click="openInEditor(workspace)"
+                                variant="ghost"
+                                size="icon-sm"
+                                class="h-8 w-8 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+                                :title="`Open in ${editor.name}`"
+                            >
+                                <EditorIcon :editor="editor.scheme" class="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                                @click="confirmDelete(workspace.name)"
+                                variant="ghost"
+                                size="icon-sm"
+                                class="h-8 w-8 text-zinc-400 hover:text-red-400 hover:bg-red-500/10"
+                                :disabled="deletingWorkspace === workspace.name"
+                                title="Delete workspace"
+                            >
+                                <Loader2
+                                    v-if="deletingWorkspace === workspace.name"
+                                    class="w-3.5 h-3.5 animate-spin"
+                                />
+                                <Trash2 v-else class="w-3.5 h-3.5" />
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

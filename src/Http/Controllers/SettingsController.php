@@ -2,6 +2,7 @@
 
 namespace HardImpact\Orbit\Http\Controllers;
 
+use HardImpact\Orbit\Models\Environment;
 use HardImpact\Orbit\Models\Setting;
 use HardImpact\Orbit\Models\SshKey;
 use HardImpact\Orbit\Models\TemplateFavorite;
@@ -31,6 +32,7 @@ class SettingsController extends Controller
         $templateFavorites = TemplateFavorite::orderByDesc('usage_count')->get();
         $notificationsEnabled = $this->notifications->isEnabled();
         $menuBarEnabled = UserPreference::getValue('menu_bar_enabled', false);
+        $environment = Environment::getLocal() ?? Environment::first();
 
         return Inertia::render('Settings', [
             'editor' => $editor,
@@ -43,6 +45,7 @@ class SettingsController extends Controller
             'templateFavorites' => $templateFavorites,
             'notificationsEnabled' => $notificationsEnabled,
             'menuBarEnabled' => $menuBarEnabled,
+            'environment' => $environment,
         ]);
     }
 
@@ -152,5 +155,25 @@ class SettingsController extends Controller
 
         return redirect()->route('settings.index')
             ->with('success', 'Menu bar settings updated. Restart the app for changes to take effect.');
+    }
+
+    public function updateExternalAccess(Request $request)
+    {
+        $validated = $request->validate([
+            'external_access' => 'required|boolean',
+            'external_host' => 'nullable|string|max:255',
+        ]);
+
+        $environment = Environment::getLocal() ?? Environment::first();
+
+        if ($environment) {
+            $environment->update([
+                'external_access' => $validated['external_access'],
+                'external_host' => $validated['external_host'] ?: null,
+            ]);
+        }
+
+        return redirect()->route('settings.index')
+            ->with('success', 'External access settings updated.');
     }
 }

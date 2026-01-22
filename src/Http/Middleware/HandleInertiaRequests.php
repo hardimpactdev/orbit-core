@@ -15,7 +15,7 @@ class HandleInertiaRequests extends Middleware
      *
      * @var string
      */
-    protected $rootView = 'app';
+    protected $rootView = 'orbit::app';
 
     /**
      * Determines the current asset version.
@@ -24,6 +24,12 @@ class HandleInertiaRequests extends Middleware
      */
     public function version(Request $request): ?string
     {
+        // During Vite HMR development, return a stable version to prevent
+        // 409 conflicts that cause full page reloads
+        if (file_exists(base_path('vendor/hardimpactdev/orbit-core/public/hot'))) {
+            return 'dev';
+        }
+
         return parent::version($request);
     }
 
@@ -56,6 +62,13 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'multi_environment' => $multiEnvironment,
+            'reverb' => [
+                'enabled' => config('broadcasting.default') === 'reverb',
+                'host' => config('reverb.apps.apps.0.options.host', config('reverb.servers.reverb.hostname', 'localhost')),
+                'port' => (int) config('reverb.apps.apps.0.options.port', 443),
+                'scheme' => config('reverb.apps.apps.0.options.scheme', 'https'),
+                'app_key' => config('reverb.apps.apps.0.key', ''),
+            ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
@@ -119,14 +132,7 @@ class HandleInertiaRequests extends Middleware
                     ];
                 }
 
-                $footerItems = [
-                    [
-                        'title' => 'App Settings',
-                        'href' => '/settings',
-                        'icon' => 'Cog',
-                        'isActive' => $currentPath === 'settings',
-                    ],
-                ];
+                $footerItems = [];
 
                 return [
                     'app' => [

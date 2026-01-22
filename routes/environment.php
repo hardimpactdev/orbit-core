@@ -18,6 +18,7 @@ Route::get('sites', [EnvironmentController::class, 'sitesPage'])->name('environm
 Route::get('services', [EnvironmentController::class, 'servicesPage'])->name('environments.services');
 Route::get('settings', [EnvironmentController::class, 'settings'])->name('environments.settings');
 Route::post('settings', [EnvironmentController::class, 'updateSettings'])->name('environments.settings.update');
+Route::post('settings/external-access', [EnvironmentController::class, 'updateExternalAccess'])->name('environments.settings.external-access');
 
 // Note: api/sites moved to routes/api.php (stateless)
 Route::post('start', [EnvironmentController::class, 'start'])->name('environments.start');

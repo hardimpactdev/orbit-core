@@ -8,15 +8,15 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('projects', function (Blueprint $table) {
-            $table->string('github_url')->nullable()->change();
+        Schema::table('environments', function (Blueprint $table) {
+            $table->string('external_host')->nullable()->after('external_access');
         });
     }
 
     public function down(): void
     {
-        Schema::table('projects', function (Blueprint $table) {
-            $table->string('github_url')->nullable(false)->change();
+        Schema::table('environments', function (Blueprint $table) {
+            $table->dropColumn('external_host');
         });
     }
 };

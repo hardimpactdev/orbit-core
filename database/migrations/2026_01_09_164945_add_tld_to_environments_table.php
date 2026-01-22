@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('environments', function (Blueprint $table) {
-            $table->string('tld', 20)->nullable()->after('orchestrator_url');
+            $table->string('tld', 20)->nullable()->after('is_default');
         });
     }
 

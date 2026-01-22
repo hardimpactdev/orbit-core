@@ -4,14 +4,17 @@ namespace HardImpact\Orbit\Http\Controllers;
 
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\CreateSiteRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\DeleteSiteRequest;
-use HardImpact\Orbit\Models\Environment;
+use HardImpact\Orbit\Services\OrbitCli\ConfigurationService;
 use HardImpact\Orbit\Services\OrbitCli\Shared\ConnectorService;
+use HardImpact\Orbit\Services\EnvironmentManager;
 use Illuminate\Http\Request;
 
 class SiteController extends Controller
 {
     public function __construct(
         protected ConnectorService $connector,
+        protected EnvironmentManager $environments,
+        protected ConfigurationService $config,
     ) {}
 
     /**
@@ -20,7 +23,7 @@ class SiteController extends Controller
      */
     public function store(Request $request)
     {
-        $environment = Environment::getActive();
+        $environment = $this->environments->current();
 
         if (! $environment) {
             if ($request->wantsJson()) {
@@ -84,7 +87,7 @@ class SiteController extends Controller
      */
     public function destroy(Request $request, string $slug)
     {
-        $environment = Environment::getActive();
+        $environment = $this->environments->current();
 
         if (! $environment) {
             return response()->json([
@@ -104,6 +107,62 @@ class SiteController extends Controller
             return response()->json([
                 'success' => false,
                 'error' => $result['error'] ?? 'Failed to delete site',
+            ], 422);
+        }
+
+        return response()->json($result);
+    }
+
+    /**
+     * Set the PHP version for a site in the active environment.
+     */
+    public function setPhpVersion(Request $request, string $site)
+    {
+        $environment = $this->environments->current();
+
+        if (! $environment) {
+            return response()->json([
+                'success' => false,
+                'error' => 'No active environment',
+            ], 400);
+        }
+
+        $validated = $request->validate([
+            'version' => 'required|string',
+        ]);
+
+        $result = $this->config->php($environment, $site, $validated['version']);
+
+        if (! $result['success']) {
+            return response()->json([
+                'success' => false,
+                'error' => $result['error'] ?? 'Failed to update PHP version',
+            ], 422);
+        }
+
+        return response()->json($result);
+    }
+
+    /**
+     * Reset the PHP version for a site to the environment default.
+     */
+    public function resetPhpVersion(string $site)
+    {
+        $environment = $this->environments->current();
+
+        if (! $environment) {
+            return response()->json([
+                'success' => false,
+                'error' => 'No active environment',
+            ], 400);
+        }
+
+        $result = $this->config->phpReset($environment, $site);
+
+        if (! $result['success']) {
+            return response()->json([
+                'success' => false,
+                'error' => $result['error'] ?? 'Failed to reset PHP version',
             ], 422);
         }
 
