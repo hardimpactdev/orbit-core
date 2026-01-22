@@ -6,6 +6,25 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property int $id
+ * @property int|null $environment_id
+ * @property string $name
+ * @property string|null $display_name
+ * @property string $slug
+ * @property string|null $path
+ * @property string|null $php_version
+ * @property string|null $github_repo
+ * @property string|null $site_type
+ * @property bool $has_public_folder
+ * @property string|null $domain
+ * @property string|null $site_url
+ * @property string|null $status
+ * @property string|null $error_message
+ * @property string|null $job_id
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ */
 class Site extends Model
 {
     protected $casts = [
