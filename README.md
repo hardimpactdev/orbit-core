@@ -15,6 +15,7 @@ Orbit Core is the shared foundation for both [orbit-desktop](https://github.com/
 - **HTTP Integrations**: Saloon connectors for Orbit API communication
 - **Vue Frontend**: Pages, components, layouts, stores, and composables
 - **Routes**: Web and API routes with mode-aware registration
+- **MCP Server**: AI tool integration via Model Context Protocol (CLI and HTTP)
 
 ## Installation
 
@@ -123,6 +124,25 @@ Services return consistent response structures:
     "error" => ?string,
 ]
 ```
+
+## MCP (Model Context Protocol)
+
+Orbit Core includes an MCP server for AI tool integration. This enables AI assistants like Claude to interact with your local development environment.
+
+### Features
+
+- **10 Tools**: Status, start/stop/restart, sites, PHP version, logs, worktrees
+- **4 Resources**: Config, sites, infrastructure, env-template
+- **2 Prompts**: Laravel .env configuration, Horizon setup
+
+### Transports
+
+| Transport | Endpoint | Consumer |
+|-----------|----------|----------|
+| CLI (stdio) | `orbit mcp:start orbit` | orbit-cli, Claude Code |
+| HTTP | `POST /orbit` | orbit-web, web integrations |
+
+See [docs/mcp.md](docs/mcp.md) for complete documentation.
 
 ## Related Projects
 
