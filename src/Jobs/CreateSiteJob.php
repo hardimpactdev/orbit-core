@@ -118,11 +118,6 @@ class CreateSiteJob implements ShouldQueue
             $hasPublicFolder = is_dir("{$projectPath}/public");
             $siteType = $this->detectSiteType($projectPath);
 
-            // Regenerate Caddyfile and reload Caddy (runs on host via systemd)
-            if ($hasPublicFolder) {
-                $this->regenerateCaddy($logger);
-            }
-
             // Update site with final details
             $site->update([
                 'status' => Site::STATUS_READY,
@@ -134,7 +129,14 @@ class CreateSiteJob implements ShouldQueue
                 'error_message' => null,
             ]);
 
+            // Broadcast ready BEFORE Caddy reload to ensure event is received
+            // (Caddy reload may temporarily drop WebSocket connections)
             $logger->broadcast('ready');
+
+            // Regenerate Caddyfile and reload Caddy (runs on host via systemd)
+            if ($hasPublicFolder) {
+                $this->regenerateCaddy($logger);
+            }
             Log::info("CreateSiteJob: Site {$this->slug} created successfully");
 
         } catch (\Throwable $e) {
