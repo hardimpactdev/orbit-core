@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 import { useServicesStore, type Service } from '@/stores/services';
-import { useEcho } from '@/composables/useEcho';
+import { useEchoPublic, useConnectionStatus } from '@laravel/echo-vue';
 import { toast } from 'vue-sonner';
 import Heading from '@/components/Heading.vue';
 import Modal from '@/components/Modal.vue';
@@ -24,8 +24,9 @@ import {
     Settings,
     Trash2,
     Plus,
+    MoreHorizontal,
 } from 'lucide-vue-next';
-import { Button, Badge, Input } from '@hardimpactdev/craft-ui';
+import { Button, Badge, Input, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@hardimpactdev/craft-ui';
 
 interface Environment {
     id: number;
@@ -59,7 +60,27 @@ const props = defineProps<{
 }>();
 
 const store = useServicesStore();
-const { connect, disconnect } = useEcho();
+const page = usePage();
+const connectionStatus = useConnectionStatus();
+
+const reverbEnabled = computed(
+    () => Boolean((page.props.reverb as { enabled?: boolean } | undefined)?.enabled),
+);
+
+const shouldWarnRealtime = ref(false);
+
+watch(connectionStatus, (status) => {
+    if (!reverbEnabled.value) {
+        return;
+    }
+
+    if (status === 'failed' && !shouldWarnRealtime.value) {
+        shouldWarnRealtime.value = true;
+        toast.warning('Real-time updates unavailable', {
+            description: 'Could not connect to Reverb. Status updates may be delayed.',
+        });
+    }
+});
 
 // Helper to get the API URL - uses remote API directly when available
 const getApiUrl = (path: string) => {
@@ -91,6 +112,7 @@ const logsService = ref<string | null>(null);
 const logs = ref<string>('');
 const logsLoading = ref(false);
 const logsAutoRefresh = ref(false);
+const logsClearedAt = ref<Date | null>(null);
 let logsInterval: ReturnType<typeof setInterval> | null = null;
 
 // PHP Settings Modal
@@ -166,7 +188,14 @@ const serviceMeta: Record<string, ServiceMeta> = {
     },
     horizon: {
         name: 'Laravel Horizon',
-        description: 'Queue worker management for Redis',
+        description: 'Queue worker for production (orbit.ccc)',
+        icon: FileText,
+        category: 'utility',
+        required: true,
+    },
+    'horizon-dev': {
+        name: 'Laravel Horizon',
+        description: 'Queue worker for development (orbit-web.ccc)',
         icon: FileText,
         category: 'utility',
         required: true,
@@ -174,7 +203,7 @@ const serviceMeta: Record<string, ServiceMeta> = {
 };
 
 function getServiceType(key: string) {
-    if (key === 'caddy' || key.startsWith('php-') || key === 'horizon') {
+    if (key === 'caddy' || key.startsWith('php-') || key === 'horizon' || key === 'horizon-dev') {
         return 'host';
     }
     return 'docker';
@@ -509,10 +538,16 @@ function closeLogs() {
     logsService.value = null;
     logs.value = '';
     logsAutoRefresh.value = false;
+    logsClearedAt.value = null;
     if (logsInterval) {
         clearInterval(logsInterval);
         logsInterval = null;
     }
+}
+
+function clearLogs() {
+    logsClearedAt.value = new Date();
+    logs.value = `--- Logs cleared at ${logsClearedAt.value.toLocaleTimeString()} ---\n\nRefresh to see new logs.`;
 }
 
 function toggleAutoRefresh() {
@@ -538,6 +573,18 @@ interface ServiceStatusEvent {
     timestamp: number;
 }
 
+if (reverbEnabled.value) {
+    useEchoPublic('orbit', '.service.status.changed', (event: ServiceStatusEvent) => {
+        store.handleServiceStatusChanged(event.job_id, event.service, event.status, event.error);
+
+        if (event.error) {
+            toast.error(`Failed to ${event.action} ${event.service}: ${event.error}`);
+        } else {
+            toast.success(`${event.service} ${event.action} completed`);
+        }
+    });
+}
+
 onMounted(async () => {
     store.setActiveEnvironment(props.environment.id);
 
@@ -546,31 +593,11 @@ onMounted(async () => {
         loadStatus();
     }
 
-    // Connect Echo for real-time updates
-    const echo = connect(props.environment);
-    if (echo) {
-        echo.channel('orbit').listen('.service.status.changed', (event: ServiceStatusEvent) => {
-            store.handleServiceStatusChanged(
-                event.job_id,
-                event.service,
-                event.status,
-                event.error,
-            );
-
-            if (event.error) {
-                toast.error(`Failed to ${event.action} ${event.service}: ${event.error}`);
-            } else {
-                toast.success(`${event.service} ${event.action} completed`);
-            }
-        });
-    }
-
     // Recover any pending jobs
     store.recoverPendingJobs(baseApiUrl.value);
 });
 
 onUnmounted(() => {
-    disconnect();
     if (logsInterval) {
         clearInterval(logsInterval);
     }
@@ -581,14 +608,13 @@ onUnmounted(() => {
     <Head :title="`Services - ${environment.name}`" />
 
     <div>
-        <div class="mb-8 flex items-start justify-between">
+        <!-- Header -->
+        <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
             <div>
-                <Heading title="Services" />
-                <p class="text-zinc-400 mt-1">
+                <h1 class="text-2xl font-semibold tracking-tight text-zinc-100">Services</h1>
+                <p class="text-sm text-zinc-500 mt-1">
                     <template v-if="loading">Loading services...</template>
-                    <template v-else
-                        >{{ servicesRunning }}/{{ servicesTotal }} services running</template
-                    >
+                    <template v-else>{{ servicesRunning }}/{{ servicesTotal }} services running</template>
                 </p>
             </div>
             <div class="flex items-center gap-2">
@@ -596,48 +622,37 @@ onUnmounted(() => {
                     @click="showAddServiceModal = true"
                     :disabled="loading"
                     size="sm"
+                    class="bg-lime-500 hover:bg-lime-600 text-zinc-950"
                 >
-                    <Plus class="w-4 h-4" />
+                    <Plus class="w-4 h-4 mr-1.5" />
                     Add Service
-                </Button>
-                <div class="w-px h-5 bg-zinc-700 mx-1" />
-                <Button
-                    v-if="!allRunning"
-                    @click="startAll"
-                    :disabled="loading || actionInProgress !== null"
-                    variant="outline"
-                    size="sm"
-                >
-                    <Loader2 v-if="actionInProgress === 'start-all'" class="w-4 h-4 animate-spin" />
-                    <Play v-else class="w-4 h-4" />
-                    Start All
                 </Button>
                 <Button
                     v-if="!allStopped"
                     @click="stopAll"
                     :disabled="loading || actionInProgress !== null"
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                 >
-                    <Loader2 v-if="actionInProgress === 'stop-all'" class="w-4 h-4 animate-spin" />
-                    <Square v-else class="w-4 h-4" />
+                    <Loader2 v-if="actionInProgress === 'stop-all'" class="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    <Square v-else class="w-3.5 h-3.5 mr-1.5" />
                     Stop All
                 </Button>
                 <Button
                     @click="restartAll"
                     :disabled="loading || actionInProgress !== null"
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                 >
-                    <Loader2 v-if="restartingAll" class="w-4 h-4 animate-spin" />
-                    <RefreshCw v-else class="w-4 h-4" />
+                    <Loader2 v-if="restartingAll" class="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    <RefreshCw v-else class="w-3.5 h-3.5 mr-1.5" />
                     Restart All
                 </Button>
             </div>
-        </div>
+        </header>
 
         <!-- Loading State -->
-        <div v-if="loading" class="border border-zinc-800 rounded-lg p-8 text-center">
+        <div v-if="loading" class="rounded-lg border border-zinc-800 bg-zinc-900/50 p-8 text-center">
             <Loader2 class="w-8 h-8 mx-auto text-zinc-600 animate-spin mb-3" />
             <p class="text-zinc-500">Loading services...</p>
         </div>
@@ -647,111 +662,107 @@ onUnmounted(() => {
             <template v-for="category in categories" :key="category.key">
                 <div
                     v-if="servicesByCategory[category.key].length > 0"
-                    class="border border-zinc-600/40 rounded-xl px-0.5 pt-4 pb-0.5 bg-zinc-800/40"
+                    class="rounded-lg border border-zinc-800 bg-zinc-900/50 overflow-hidden"
                 >
-                    <div class="px-4 mb-4 flex items-center justify-between">
-                        <h3 class="text-sm font-medium text-white">{{ category.label }}</h3>
-                        <Button
-                            v-if="category.key === 'php'"
-                            @click="openPhpSettings"
-                            variant="ghost"
-                            size="icon-sm"
-                            title="PHP Settings"
-                        >
-                            <Settings class="w-4 h-4" />
-                        </Button>
+                    <!-- Category Header -->
+                    <div class="px-4 py-3 border-b border-zinc-800 bg-zinc-800/30">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-sm font-medium text-zinc-100">{{ category.label }}</h2>
+                            <Button
+                                v-if="category.key === 'php'"
+                                @click="openPhpSettings"
+                                variant="ghost"
+                                size="icon-sm"
+                                class="h-7 w-7 text-zinc-400 hover:text-zinc-100"
+                                title="PHP Settings"
+                            >
+                                <Settings class="w-4 h-4" />
+                            </Button>
+                        </div>
                     </div>
-                    <div
-                        class="border border-zinc-600/50 rounded-lg overflow-hidden divide-y divide-zinc-600/40"
-                    >
+                    <!-- Service Rows -->
+                    <div class="divide-y divide-zinc-800/50">
                         <div
                             v-for="{ key, service, meta } in servicesByCategory[category.key]"
                             :key="key"
-                            class="p-4 flex items-center justify-between bg-zinc-700/30 group"
+                            class="flex items-center gap-4 px-4 py-3 transition-colors hover:bg-zinc-800/30"
                         >
-                            <div class="flex items-center gap-4">
-                                <div
-                                    class="w-10 h-10 rounded-lg flex items-center justify-center"
-                                    :class="
-                                        service.status === 'running'
-                                            ? 'bg-lime-500/10'
-                                            : 'bg-zinc-700/50'
-                                    "
-                                >
-                                    <component
-                                        :is="getServiceIcon(meta)"
-                                        class="w-5 h-5"
+                            <!-- Service Icon -->
+                            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-zinc-800/50 border border-zinc-700/50">
+                                <component
+                                    :is="getServiceIcon(meta)"
+                                    class="h-4 w-4 text-zinc-400"
+                                />
+                            </div>
+
+                            <!-- Service Info -->
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="font-medium text-sm text-zinc-100">{{ meta.name }}</span>
+                                    <span
+                                        v-if="service.required || meta.required"
+                                        class="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide rounded-full bg-zinc-800/80 text-zinc-400 ring-1 ring-inset ring-zinc-700/50"
+                                    >
+                                        Required
+                                    </span>
+                                    <span
+                                        class="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide rounded-full ring-1 ring-inset"
+                                        :class="
+                                            getServiceType(key) === 'docker'
+                                                ? 'bg-blue-500/10 text-blue-400 ring-blue-500/20'
+                                                : 'bg-lime-500/10 text-lime-400 ring-lime-500/20'
+                                        "
+                                    >
+                                        {{ getServiceType(key) }}
+                                    </span>
+                                    <span
+                                        class="h-2 w-2 rounded-full"
                                         :class="
                                             service.status === 'running'
-                                                ? 'text-lime-400'
-                                                : 'text-zinc-500'
+                                                ? 'bg-lime-400'
+                                                : service.status === 'stopped'
+                                                    ? 'bg-zinc-600'
+                                                    : 'bg-red-400'
                                         "
                                     />
                                 </div>
-                                <div>
-                                    <div class="flex items-center gap-2">
-                                        <span class="font-medium text-white">{{ meta.name }}</span>
-                                        <Badge
-                                            v-if="service.required || meta.required"
-                                            variant="secondary"
-                                            class="text-[10px] font-bold uppercase tracking-tight"
-                                        >
-                                            Required
-                                        </Badge>
-                                        <Badge
-                                            class="text-[10px] font-bold uppercase tracking-tight"
-                                            :class="
-                                                getServiceType(key) === 'host'
-                                                    ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                                                    : 'bg-purple-500/10 text-purple-400 border-purple-500/20'
-                                            "
-                                        >
-                                            {{ getServiceType(key) === 'host' ? 'Host' : 'Docker' }}
-                                        </Badge>
-                                        <span
-                                            class="w-2 h-2 rounded-full"
-                                            :class="
-                                                service.status === 'running'
-                                                    ? 'bg-lime-400'
-                                                    : 'bg-zinc-600'
-                                            "
-                                        />
-                                    </div>
-                                    <div class="text-sm text-zinc-400">
-                                        {{ meta.description }}
-                                        <span v-if="meta.ports" class="text-zinc-600"> · </span>
-                                        <span v-if="meta.ports" class="font-mono text-xs">{{
-                                            meta.ports
-                                        }}</span>
-                                    </div>
-                                </div>
+                                <p class="text-xs text-zinc-500 mt-0.5 truncate">
+                                    {{ meta.description }}
+                                    <span v-if="meta.ports" class="text-zinc-600/70"> · </span>
+                                    <span v-if="meta.ports" class="text-zinc-500/70">{{ meta.ports }}</span>
+                                </p>
                             </div>
+
+                            <!-- Status & Actions -->
                             <div class="flex items-center gap-2">
                                 <span
-                                    class="text-xs px-2 py-1 rounded-full capitalize"
+                                    class="px-2.5 py-1 text-xs font-medium rounded-full ring-1 ring-inset"
                                     :class="
                                         service.status === 'running'
-                                            ? 'bg-lime-500/10 text-lime-400'
-                                            : 'bg-zinc-700/50 text-zinc-400'
+                                            ? 'bg-lime-500/15 text-lime-400 ring-lime-500/30'
+                                            : service.status === 'stopped'
+                                                ? 'bg-zinc-800 text-zinc-400 ring-zinc-700'
+                                                : 'bg-red-500/15 text-red-400 ring-red-500/30'
                                     "
                                 >
-                                    {{ service.status }}
+                                    {{ service.status === 'running' ? 'Running' : service.status === 'stopped' ? 'Stopped' : 'Error' }}
                                 </span>
-                                <div class="flex items-center gap-1 ml-2">
+
+                                <div class="flex items-center gap-0.5 opacity-40 hover:opacity-100 transition-opacity">
                                     <Button
                                         v-if="service.status !== 'running'"
                                         @click="serviceAction(key, 'start')"
                                         :disabled="store.isServicePending(key)"
                                         variant="ghost"
                                         size="icon-sm"
-                                        class="text-zinc-400 hover:text-lime-400"
+                                        class="h-8 w-8 text-zinc-400 hover:text-lime-400 hover:bg-zinc-800"
                                         title="Start"
                                     >
                                         <Loader2
                                             v-if="store.isServicePending(key)"
-                                            class="w-4 h-4 animate-spin"
+                                            class="w-3.5 h-3.5 animate-spin"
                                         />
-                                        <Play v-else class="w-4 h-4" />
+                                        <Play v-else class="w-3.5 h-3.5" />
                                     </Button>
                                     <Button
                                         v-if="service.status === 'running'"
@@ -759,76 +770,80 @@ onUnmounted(() => {
                                         :disabled="store.isServicePending(key)"
                                         variant="ghost"
                                         size="icon-sm"
-                                        class="text-zinc-400 hover:text-red-400"
+                                        class="h-8 w-8 text-zinc-400 hover:text-red-400 hover:bg-zinc-800"
                                         title="Stop"
                                     >
                                         <Loader2
                                             v-if="store.isServicePending(key)"
-                                            class="w-4 h-4 animate-spin"
+                                            class="w-3.5 h-3.5 animate-spin"
                                         />
-                                        <Square v-else class="w-4 h-4" />
+                                        <Square v-else class="w-3.5 h-3.5" />
                                     </Button>
                                     <Button
                                         @click="serviceAction(key, 'restart')"
                                         :disabled="store.isServicePending(key)"
                                         variant="ghost"
                                         size="icon-sm"
+                                        class="h-8 w-8 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
                                         title="Restart"
                                     >
                                         <Loader2
                                             v-if="store.isServicePending(key)"
-                                            class="w-4 h-4 animate-spin"
+                                            class="w-3.5 h-3.5 animate-spin"
                                         />
-                                        <RefreshCw v-else class="w-4 h-4" />
+                                        <RefreshCw v-else class="w-3.5 h-3.5" />
                                     </Button>
-                                    <Button
-                                        @click="configureService(key)"
-                                        variant="ghost"
-                                        size="icon-sm"
-                                        title="Configure"
-                                    >
-                                        <Settings class="w-4 h-4" />
-                                    </Button>
-                                    <Button
-                                        @click="openLogs(key)"
-                                        variant="ghost"
-                                        size="icon-sm"
-                                        title="View Logs"
-                                    >
-                                        <FileText class="w-4 h-4" />
-                                    </Button>
-                                    <Button
-                                        v-if="!service.required && !meta.required"
-                                        @click="removeService(key)"
-                                        :disabled="store.isServicePending(key)"
-                                        variant="ghost"
-                                        size="icon-sm"
-                                        class="text-zinc-400 hover:text-red-400"
-                                        title="Remove Service"
-                                    >
-                                        <Loader2
-                                            v-if="store.isServicePending(key)"
-                                            class="w-4 h-4 animate-spin"
-                                        />
-                                        <Trash2 v-else class="w-4 h-4" />
-                                    </Button>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger as-child>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon-sm"
+                                                class="h-8 w-8 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+                                            >
+                                                <MoreHorizontal class="w-4 h-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" class="w-40">
+                                            <DropdownMenuItem @click="configureService(key)">
+                                                <Settings class="w-4 h-4 mr-2" />
+                                                Settings
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem @click="openLogs(key)">
+                                                <FileText class="w-4 h-4 mr-2" />
+                                                View Logs
+                                            </DropdownMenuItem>
+                                            <template v-if="!service.required && !meta.required">
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem 
+                                                    @click="removeService(key)"
+                                                    :disabled="store.isServicePending(key)"
+                                                    class="text-red-400 focus:text-red-400"
+                                                >
+                                                    <Trash2 class="w-4 h-4 mr-2" />
+                                                    Remove
+                                                </DropdownMenuItem>
+                                            </template>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 </div>
                             </div>
-                            <!-- Error message for this service -->
-                            <div v-if="store.getServiceError(key)" class="px-4 pb-3 -mt-2">
+                        </div>
+                        <!-- Error message for services with errors -->
+                        <template v-for="{ key } in servicesByCategory[category.key]" :key="`error-${key}`">
+                            <div v-if="store.getServiceError(key)" class="px-4 py-3 bg-red-500/5">
                                 <div
-                                    class="text-xs text-red-400 bg-red-400/10 border border-red-400/20 rounded px-2 py-1 flex items-center justify-between"
+                                    class="text-xs text-red-400 bg-red-400/10 border border-red-400/20 rounded px-3 py-2 flex items-center justify-between"
                                 >
                                     <span>Error: {{ store.getServiceError(key) }}</span>
                                     <button
                                         @click="store.clearServiceError(key)"
-                                        class="text-red-400 hover:text-white"
+                                        class="text-red-400 hover:text-white ml-2"
                                     >
                                         <X class="w-3 h-3" />
                                     </button>
                                 </div>
                             </div>
-                        </div>
+                        </template>
                     </div>
                 </div>
             </template>
@@ -874,6 +889,15 @@ onUnmounted(() => {
                     >
                         <Loader2 v-if="logsLoading" class="w-4 h-4 animate-spin" />
                         <RefreshCw v-else class="w-4 h-4" />
+                    </Button>
+                    <Button
+                        @click="clearLogs"
+                        :disabled="logsLoading"
+                        variant="ghost"
+                        size="icon-sm"
+                        title="Clear logs display"
+                    >
+                        <Trash2 class="w-4 h-4" />
                     </Button>
                     <button
                         @click="toggleAutoRefresh"
