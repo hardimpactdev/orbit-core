@@ -243,18 +243,18 @@ class ServiceControlService
         $container = $this->getContainerName($service);
 
         if ($environment->is_local) {
-            $cmd = "docker logs --timestamps";
-            
+            $cmd = 'docker logs --timestamps';
+
             if ($since) {
                 // Use --since for filtering (clears old logs from view)
-                $cmd .= " --since ".escapeshellarg($since);
+                $cmd .= ' --since '.escapeshellarg($since);
             } else {
                 // Default: show last N lines
                 $cmd .= " --tail {$lines}";
             }
-            
+
             $cmd .= " {$container} 2>&1";
-            
+
             $result = Process::timeout(30)->run($cmd);
 
             return [
@@ -341,16 +341,16 @@ class ServiceControlService
             }
 
             $cmd = "journalctl -u {$unit} --no-pager -o short-iso";
-            
+
             if ($since) {
                 // Use --since for filtering (clears old logs from view)
-                $cmd .= " --since ".escapeshellarg($since);
+                $cmd .= ' --since '.escapeshellarg($since);
             } else {
                 // Default: show last N lines
                 $cmd .= " -n {$lines}";
             }
-            
-            $cmd .= " 2>&1";
+
+            $cmd .= ' 2>&1';
 
             $result = Process::timeout(10)->run($cmd);
 
