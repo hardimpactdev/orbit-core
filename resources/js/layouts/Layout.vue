@@ -241,7 +241,7 @@ router.on('finish', () => {
                 </nav>
 
                 <!-- Footer Navigation -->
-                <div v-if="navigation?.app?.footer?.items?.length > 0" class="p-2 border-t border-zinc-800/50">
+                <div v-if="navigation?.app?.footer?.items && navigation.app.footer.items.length > 0" class="p-2 border-t border-zinc-800/50">
                     <ul class="space-y-0.5">
                         <li v-for="item in navigation?.app?.footer?.items" :key="item.href">
                             <Link

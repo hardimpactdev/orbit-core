@@ -498,13 +498,28 @@ onUnmounted(() => {
         </div>
 
         <!-- Stats Grid -->
-        <div v-if="installation.installed" class="grid grid-cols-2 gap-4 mb-6">
+        <div v-if="installation.installed" class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="flex flex-col gap-1 p-4 rounded-lg bg-zinc-800/30 border border-zinc-800">
+                <span class="text-xs text-zinc-500 uppercase tracking-wide">Sites</span>
+                <span class="text-2xl font-semibold text-zinc-100 tabular-nums">
+                    <template v-if="sitesLoading">-</template>
+                    <template v-else>{{ sites.length }}</template>
+                </span>
+            </div>
             <div class="flex flex-col gap-1 p-4 rounded-lg bg-zinc-800/30 border border-zinc-800">
                 <span class="text-xs text-zinc-500 uppercase tracking-wide">Workspaces</span>
                 <span class="text-2xl font-semibold text-zinc-100 tabular-nums">
                     <template v-if="sitesLoading">-</template>
                     <template v-else>{{ Object.keys(worktrees).length }}</template>
                 </span>
+            </div>
+            <div class="flex flex-col gap-1 p-4 rounded-lg bg-zinc-800/30 border border-zinc-800">
+                <span class="text-xs text-zinc-500 uppercase tracking-wide">Services</span>
+                <span class="text-2xl font-semibold text-zinc-100 tabular-nums">
+                    <template v-if="servicesLoading">-</template>
+                    <template v-else>{{ servicesStore.servicesRunning }}/{{ servicesStore.servicesTotal }}</template>
+                </span>
+                <span v-if="!servicesLoading && servicesStore.servicesRunning === servicesStore.servicesTotal" class="text-xs text-zinc-500">All healthy</span>
             </div>
             <div class="flex flex-col gap-1 p-4 rounded-lg bg-zinc-800/30 border border-zinc-800">
                 <span class="text-xs text-zinc-500 uppercase tracking-wide">Status</span>
@@ -687,259 +702,9 @@ onUnmounted(() => {
                 </div>
             </div>
 
-            <!-- Services Card -->
-            <div class="rounded-lg border border-zinc-800 bg-zinc-900/50 mb-6">
-                <div class="flex items-center justify-between p-4 border-b border-zinc-800">
-                    <div class="flex items-center gap-3">
-                        <h2 class="text-sm font-medium text-zinc-100">Services</h2>
-                        <span class="text-xs text-zinc-500">
-                            <template v-if="servicesLoading">Loading...</template>
-                            <template v-else>{{ servicesStore.servicesRunning }}/{{ servicesStore.servicesTotal }} running</template>
-                        </span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <Button
-                            @click="restartAllServices"
-                            :disabled="servicesLoading || restartingAll"
-                            variant="outline"
-                            size="sm"
-                            class="h-7 px-2 text-xs bg-transparent border-zinc-700 text-zinc-300 hover:bg-zinc-800"
-                        >
-                            <RefreshCw class="h-3.5 w-3.5 mr-1" :class="{ 'animate-spin': restartingAll }" />
-                            Restart All
-                        </Button>
-                        <Button
-                            as-child
-                            variant="ghost"
-                            size="sm"
-                            class="h-7 px-2 text-xs text-zinc-400 hover:text-zinc-100"
-                        >
-                            <Link :href="`/environments/${environment.id}/services`">
-                                View all
-                                <ChevronRight class="h-3.5 w-3.5 ml-1" />
-                            </Link>
-                        </Button>
-                    </div>
-                </div>
-                <div class="p-4">
-                    <div
-                        v-if="servicesLoading"
-                        class="py-8 text-center text-zinc-500"
-                    >
-                        <Loader2 class="h-5 w-5 mx-auto mb-2 text-zinc-600 animate-spin" />
-                        <p class="text-sm">Loading services...</p>
-                    </div>
-                    <template v-else>
-                        <div class="grid md:grid-cols-2 gap-x-8">
-                            <div
-                                v-for="(service, name) in servicesStore.services"
-                                :key="name"
-                                class="flex items-center justify-between py-3 border-b border-zinc-800/50 last:border-b-0"
-                            >
-                                <div class="flex items-center gap-3">
-                                    <span
-                                        class="h-2 w-2 rounded-full"
-                                        :class="service.status === 'running' ? 'bg-lime-400' : 'bg-zinc-600'"
-                                    />
-                                    <div>
-                                        <p class="text-sm font-medium text-zinc-100">{{ serviceDescriptions[name] || name }}</p>
-                                        <p class="text-xs text-zinc-500 font-mono">
-                                            {{ name }}
-                                            <span v-if="servicePorts[name] && servicePorts[name] !== '-'"> · {{ servicePorts[name] }}</span>
-                                        </p>
-                                    </div>
-                                </div>
-                                <span
-                                    class="text-xs font-medium"
-                                    :class="service.status === 'running' ? 'text-lime-400' : 'text-zinc-500'"
-                                >
-                                    {{ service.status === 'running' ? 'Running' : 'Stopped' }}
-                                </span>
-                            </div>
-                        </div>
-                        <div
-                            v-if="servicesStore.servicesTotal === 0"
-                            class="py-8 text-center text-zinc-500 text-sm"
-                        >
-                            No services found
-                        </div>
-                    </template>
-                </div>
-            </div>
 
-            <!-- Sites Card -->
-            <div class="rounded-lg border border-zinc-800 bg-zinc-900/50">
-                <div class="flex items-center justify-between p-4 border-b border-zinc-800">
-                    <div class="flex items-center gap-3">
-                        <h2 class="text-sm font-medium text-zinc-100">Sites</h2>
-                        <span class="text-xs text-zinc-500">{{ sites.length }} total</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <Button as-child size="sm" class="bg-lime-500 hover:bg-lime-600 text-zinc-950">
-                            <Link :href="`/environments/${environment.id}/sites/create`">
-                                <Plus class="w-4 h-4 mr-1.5" />
-                                New Site
-                            </Link>
-                        </Button>
-                        <Button
-                            as-child
-                            variant="ghost"
-                            size="sm"
-                            class="h-7 px-2 text-xs text-zinc-400 hover:text-zinc-100"
-                        >
-                            <Link :href="`/environments/${environment.id}/sites`">
-                                View all
-                                <ChevronRight class="h-3.5 w-3.5 ml-1" />
-                            </Link>
-                        </Button>
-                    </div>
-                </div>
 
-                <!-- Table Header -->
-                <div class="grid grid-cols-[1fr_100px_1fr_140px] gap-4 px-4 py-3 bg-zinc-800/30 border-b border-zinc-800 text-xs font-medium text-zinc-500 uppercase tracking-wide">
-                    <div>Site</div>
-                    <div>PHP</div>
-                    <div>Path</div>
-                    <div class="text-right">Actions</div>
-                </div>
 
-                <!-- Loading State -->
-                <div v-if="sitesLoading" class="py-8 text-center text-zinc-500">
-                    <Loader2 class="h-5 w-5 mx-auto mb-2 text-zinc-600 animate-spin" />
-                    Loading sites...
-                </div>
-
-                <!-- Empty State -->
-                <div v-else-if="sites.length === 0" class="py-8 text-center text-zinc-500 text-sm">
-                    No sites configured.
-                </div>
-
-                <!-- Sites List -->
-                <div v-else>
-                    <template v-for="site in sites" :key="site.name">
-                        <!-- Site Row -->
-                        <div class="grid grid-cols-[1fr_100px_1fr_140px] gap-4 px-4 py-3 items-center border-b border-zinc-800/50 hover:bg-zinc-800/20 transition-colors group">
-                            <div class="flex items-center gap-2 min-w-0">
-                                <button
-                                    v-if="worktrees[site.name]?.length"
-                                    @click="toggleWorktrees(site.name)"
-                                    class="text-zinc-500 hover:text-zinc-300 transition-colors flex-shrink-0"
-                                >
-                                    <ChevronRight
-                                        class="w-4 h-4 transform transition-transform"
-                                        :class="{ 'rotate-90': expandedSites.has(site.name) }"
-                                    />
-                                </button>
-                                <span v-else class="w-4 flex-shrink-0" />
-                                <div class="flex h-8 w-8 items-center justify-center rounded-md bg-lime-500/15 flex-shrink-0">
-                                    <Lock v-if="site.secure" class="w-4 h-4 text-lime-400" />
-                                    <LockOpen v-else class="w-4 h-4 text-zinc-500" />
-                                </div>
-                                <span class="font-medium text-zinc-100 truncate">{{ site.domain }}</span>
-                                <Badge
-                                    v-if="worktrees[site.name]?.length"
-                                    variant="secondary"
-                                    class="flex-shrink-0 text-xs"
-                                >
-                                    {{ worktrees[site.name].length }}
-                                </Badge>
-                            </div>
-                            <div class="flex items-center gap-1">
-                                <Select
-                                    :model-value="site.php_version || '8.4'"
-                                    @update:model-value="(v) => changePhpVersion(site.name, String(v))"
-                                >
-                                    <SelectTrigger class="h-7 w-[80px] text-xs bg-zinc-800/50 border-zinc-700 text-zinc-100" size="sm">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="8.3">8.3</SelectItem>
-                                        <SelectItem value="8.4">8.4</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <button
-                                    v-if="site.has_custom_php"
-                                    @click="resetPhpVersion(site.name)"
-                                    class="text-zinc-500 hover:text-red-400 transition-colors"
-                                    title="Reset to default"
-                                >
-                                    <RefreshCw class="w-3 h-3" />
-                                </button>
-                            </div>
-                            <div class="text-zinc-500 text-sm font-mono truncate" :title="site.path">
-                                {{ site.path }}
-                            </div>
-                            <div class="flex items-center justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
-                                <Button
-                                    @click="openSite(site.domain, site.secure ?? false)"
-                                    variant="ghost"
-                                    size="sm"
-                                    class="h-7 px-2 text-xs text-zinc-400 hover:text-zinc-100"
-                                >
-                                    <ExternalLink class="w-3.5 h-3.5 mr-1" />
-                                    Open
-                                </Button>
-                                <Button
-                                    @click="openInEditor(site.path || '')"
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    class="h-7 w-7 text-zinc-500 hover:text-zinc-300"
-                                >
-                                    <Code class="w-3.5 h-3.5" />
-                                </Button>
-                            </div>
-                        </div>
-                        <!-- Worktree Rows -->
-                        <template v-if="expandedSites.has(site.name) && worktrees[site.name]?.length">
-                            <div
-                                v-for="wt in worktrees[site.name]"
-                                :key="`${site.name}-${wt.name}`"
-                                class="grid grid-cols-[1fr_100px_1fr_140px] gap-4 px-4 py-3 items-center border-b border-zinc-800/50 bg-zinc-800/20 hover:bg-zinc-800/30 transition-colors group"
-                            >
-                                <div class="flex items-center gap-2 pl-6 min-w-0">
-                                    <div class="flex h-8 w-8 items-center justify-center rounded-md bg-blue-500/15 flex-shrink-0">
-                                        <Zap class="w-4 h-4 text-blue-400" />
-                                    </div>
-                                    <span class="font-medium text-zinc-300 truncate">{{ wt.domain }}</span>
-                                </div>
-                                <div class="text-zinc-500 text-xs font-mono">
-                                    {{ wt.branch || '-' }}
-                                </div>
-                                <div class="text-zinc-500 text-xs font-mono truncate" :title="wt.path">
-                                    {{ wt.path }}
-                                </div>
-                                <div class="flex items-center justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
-                                    <Button
-                                        @click="openSite(wt.domain, wt.secure ?? true)"
-                                        variant="ghost"
-                                        size="sm"
-                                        class="h-7 px-2 text-xs text-zinc-400 hover:text-zinc-100"
-                                    >
-                                        Open
-                                    </Button>
-                                    <Button
-                                        @click="openInEditor(wt.path)"
-                                        variant="ghost"
-                                        size="sm"
-                                        class="h-7 px-2 text-xs text-zinc-400 hover:text-zinc-100"
-                                    >
-                                        {{ editor.name }}
-                                    </Button>
-                                    <Button
-                                        @click="unlinkWorktree(site.name, wt.name)"
-                                        variant="ghost"
-                                        size="icon-sm"
-                                        class="h-7 w-7 text-zinc-500 hover:text-red-400"
-                                        title="Unlink worktree"
-                                    >
-                                        <X class="w-3.5 h-3.5" />
-                                    </Button>
-                                </div>
-                            </div>
-                        </template>
-                    </template>
-                </div>
-            </div>
         </template>
     </div>
 </template>
