@@ -343,28 +343,26 @@ class CreateSiteJob implements ShouldQueue
      * Regenerate Caddyfile and reload Caddy.
      *
      * Caddy runs on the host via systemd, not in Docker.
+     * Uses the CLI's caddy:reload command which regenerates the Caddyfile
+     * and reloads Caddy in one step.
      */
     protected function regenerateCaddy(ProvisionLogger $logger): void
     {
         $logger->info('Regenerating Caddy configuration...');
 
-        // Use CLI to regenerate Caddyfile (scans sites and updates config)
         $cliPath = config('orbit.cli_path', '/usr/local/bin/orbit');
         $result = \Illuminate\Support\Facades\Process::timeout(30)
-            ->run("{$cliPath} sites --json 2>/dev/null");
+            ->run("{$cliPath} caddy:reload --json 2>/dev/null");
 
-        if (! $result->successful()) {
-            $logger->info('Warning: Could not regenerate Caddyfile via CLI');
+        if ($result->successful()) {
+            $output = json_decode($result->output(), true);
+            if ($output['success'] ?? false) {
+                $logger->info('Caddy configuration reloaded');
+
+                return;
+            }
         }
 
-        // Reload Caddy (runs on host via systemd)
-        $reloadResult = \Illuminate\Support\Facades\Process::timeout(10)
-            ->run('sudo systemctl reload caddy 2>/dev/null');
-
-        if ($reloadResult->successful()) {
-            $logger->info('Caddy configuration reloaded');
-        } else {
-            $logger->info('Warning: Could not reload Caddy - you may need to reload manually');
-        }
+        $logger->info('Warning: Could not reload Caddy - you may need to reload manually');
     }
 }
