@@ -36,7 +36,13 @@ src/
     CliUpdateService.php     # CLI update handling
     DnsResolverService.php   # DNS resolution
     NotificationService.php  # Notifications
+    GitHubService.php        # GitHub API operations
+    CaddyService.php         # Caddy configuration
     TemplateAnalyzer/        # Template analysis utilities
+    Provision/               # Site provisioning pipeline
+      ProvisionPipeline.php  # Main orchestrator
+      ProvisionLogger.php    # Native Laravel event broadcasting
+      Actions/               # Provisioning steps (CloneRepository, etc.)
     OrbitCli/                # CLI interaction
       SiteCliService.php     # Site CLI operations
       ConfigurationService.php  # Includes DNS mapping methods
@@ -48,6 +54,14 @@ src/
       Shared/
         CommandService.php
         ConnectorService.php
+  Data/
+    ProvisionContext.php     # Context for provisioning actions
+    StepResult.php           # Action result wrapper
+  Enums/
+    RepoIntent.php           # Repository operation type enum
+  Events/
+    SiteProvisioningStatus.php  # Broadcasting provisioning progress
+    SiteDeletionStatus.php      # Broadcasting deletion progress
   Jobs/
     CreateSiteJob.php        # Async site creation
   Console/Commands/
@@ -189,6 +203,71 @@ All long-running operations (site creation, provisioning, etc.) MUST:
 
 > **Clarification**: This async rule applies to web/desktop consumers (Controllers). Jobs are *supposed* to call the CLI synchronously - that's the whole point of queuing work. The "async" is about freeing the HTTP response, not the job execution itself.
 
+## Site Provisioning Pipeline
+
+Site provisioning is handled entirely within orbit-core using native Laravel broadcasting.
+
+### Architecture
+
+```
+CreateSiteJob dispatched to Horizon
+    ↓
+ProvisionPipeline orchestrates actions
+    ↓
+ProvisionLogger broadcasts status via native events
+    ↓
+SiteProvisioningStatus → Reverb → Frontend
+```
+
+### Key Classes
+
+| Class | Purpose |
+|-------|---------|
+| `ProvisionPipeline` | Main orchestrator - determines flow based on RepoIntent |
+| `ProvisionLogger` | Broadcasts status via native `event()` calls |
+| `ProvisionContext` | Data transfer object for action context |
+| `StepResult` | Result wrapper with success/failure + data |
+| `RepoIntent` | Enum: Clone, Fork, Template, Composer |
+
+### Provision Actions
+
+Located in `src/Services/Provision/Actions/`:
+
+| Action | Purpose |
+|--------|---------|
+| `CloneRepository` | Clone repo via `gh repo clone` |
+| `ForkRepository` | Fork repo to user's account |
+| `CreateGitHubRepository` | Create new repo from template |
+| `InstallComposerDependencies` | Run `composer install` |
+| `InstallNodeDependencies` | Run `bun ci` or `npm ci` |
+| `BuildAssets` | Run build scripts |
+| `ConfigureEnvironment` | Generate `.env` file |
+| `CreateDatabase` | Create SQLite/PostgreSQL database |
+| `GenerateAppKey` | Run `artisan key:generate` |
+| `RunMigrations` | Run `artisan migrate` |
+| `ConfigureTrustedProxies` | Laravel proxy config |
+| `SetPhpVersion` | Create `.php-version` file |
+| `RestartPhpContainer` | Restart PHP-FPM |
+| `ValidatePackagistPackage` | Check Packagist for composer create |
+
+### Native Broadcasting Events
+
+Status updates use `ShouldBroadcastNow` for immediate delivery:
+
+```php
+// SiteProvisioningStatus
+event(new SiteProvisioningStatus(
+    slug: $slug,
+    status: 'installing_composer',
+    error: null,
+    siteId: $site->id,
+));
+```
+
+Events broadcast on the `provisioning` channel with event names:
+- `site.provision.status` - Site creation progress
+- `site.deletion.status` - Site deletion progress
+
 ## WebSocket (Echo/Reverb)
 
 Orbit's frontend uses Laravel's official `@laravel/echo-vue` composables with a
@@ -200,6 +279,19 @@ Key files:
 - `resources/js/app.ts` configures Echo from the `reverb` page prop
 - `resources/js/composables/useSiteProvisioning.ts` subscribes via `useEchoPublic`
 - `resources/js/pages/environments/Services.vue` listens for service status updates
+
+## Host Services
+
+**IMPORTANT:** Caddy runs on the host via systemd, NOT in Docker.
+
+| Service | Type | Management |
+|---------|------|------------|
+| Caddy | systemd | `sudo systemctl reload caddy` |
+| Horizon | systemd | `sudo systemctl restart orbit-horizon` |
+| PHP-FPM | systemd | `sudo systemctl restart php8.4-fpm` |
+| Reverb | Docker | `docker restart orbit-reverb` |
+
+Caddy config: `~/.config/orbit/caddy/Caddyfile` (imported by `/etc/caddy/Caddyfile`)
 
 ## CLI Integration (CommandService)
 

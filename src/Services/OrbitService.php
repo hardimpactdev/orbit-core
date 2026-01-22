@@ -3,11 +3,10 @@
 namespace HardImpact\Orbit\Services;
 
 use HardImpact\Orbit\Http\Integrations\Orbit\OrbitConnector;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\AddWorkspaceProjectRequest;
+use HardImpact\Orbit\Http\Integrations\Orbit\Requests\AddWorkspaceSiteRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\ConfigureServiceRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\CreateProjectRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\CreateWorkspaceRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\DeleteProjectRequest;
+use HardImpact\Orbit\Http\Integrations\Orbit\Requests\CreateSiteRequest;
+use HardImpact\Orbit\Http\Integrations\Orbit\Requests\DeleteSiteRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\DeleteWorkspaceRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\DisableServiceRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\EnableServiceRequest;
@@ -15,7 +14,6 @@ use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetConfigRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetLinkedPackagesRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetPhpRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetPhpVersionsRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetProjectsRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetProvisionStatusRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetServiceInfoRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetServiceLogsRequest;
@@ -26,9 +24,9 @@ use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetWorktreesRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\LinkPackageRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\ListAvailableServicesRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\ListServicesRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\RebuildProjectRequest;
+use HardImpact\Orbit\Http\Integrations\Orbit\Requests\RebuildSiteRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\RefreshWorktreesRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\RemoveWorkspaceProjectRequest;
+use HardImpact\Orbit\Http\Integrations\Orbit\Requests\RemoveWorkspaceSiteRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\ResetPhpRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\RestartServiceRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\RestartServicesRequest;
@@ -175,16 +173,16 @@ BASH;
     }
 
     /**
-     * Get all projects from CLI (fresh, no caching).
+     * Get all sites from CLI (fresh, no caching).
      * Returns all directories in scan paths, with has_public_folder flag.
      */
-    public function projectList(Environment $environment): array
+    public function siteList(Environment $environment): array
     {
         if ($environment->is_local) {
             return $this->executeCommand($environment, 'site:list --json');
         }
 
-        return $this->sendRequest($environment, new GetProjectsRequest);
+        return $this->sendRequest($environment, new GetSitesRequest);
     }
 
     /**
@@ -398,9 +396,9 @@ BASH;
     protected function getContainerName(string $service): string
     {
         // Map service keys to container names
+        // Note: Caddy runs on the host via systemd, not in Docker
         $containerMap = [
             'dns' => 'orbit-dns',
-            'caddy' => 'orbit-caddy',
             'php-83' => 'orbit-php-83',
             'php-84' => 'orbit-php-84',
             'php-85' => 'orbit-php-85',
@@ -524,17 +522,17 @@ BASH;
     }
 
     /**
-     * Rebuild a project (re-run deps install, build, migrations without git pull).
+     * Rebuild a site (re-run deps install, build, migrations without git pull).
      */
     public function rebuild(Environment $environment, string $site): array
     {
         if ($environment->is_local) {
             $escapedSite = escapeshellarg($site);
 
-            return $this->executeCommand($environment, "project:update --site={$escapedSite} --no-git --json");
+            return $this->executeCommand($environment, "site:update --site={$escapedSite} --no-git --json");
         }
 
-        return $this->sendRequest($environment, new RebuildProjectRequest($site));
+        return $this->sendRequest($environment, new RebuildSiteRequest($site));
     }
 
     /**
@@ -1094,11 +1092,11 @@ BASH;
     }
 
     /**
-     * Create a new project via the CLI.
+     * Create a new site via the CLI.
      *
      * @param  array  $options  Array containing: name, template (optional), is_template (optional), directory (optional), visibility (optional), db_driver, session_driver, cache_driver, queue_driver
      */
-    public function createProject(Environment $environment, array $options): array
+    public function createSite(Environment $environment, array $options): array
     {
         // Build request payload
         $payload = [
@@ -1146,7 +1144,7 @@ BASH;
             $payload['php_version'] = $options['php_version'];
         }
 
-        $result = $this->sendRequest($environment, new CreateProjectRequest($payload));
+        $result = $this->sendRequest($environment, new CreateSiteRequest($payload));
 
         if ($result['success']) {
             return [
@@ -1154,7 +1152,7 @@ BASH;
                 'data' => [
                     'slug' => $result['slug'] ?? \Illuminate\Support\Str::slug($options['name']),
                     'status' => 'provisioning',
-                    'message' => $result['message'] ?? 'Project creation queued',
+                    'message' => $result['message'] ?? 'Site creation queued',
                 ],
             ];
         }
@@ -1163,7 +1161,7 @@ BASH;
     }
 
     /**
-     * Check the provisioning status of a project.
+     * Check the provisioning status of a site.
      */
     public function provisionStatus(Environment $environment, string $slug): array
     {

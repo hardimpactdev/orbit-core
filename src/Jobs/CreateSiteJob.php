@@ -118,6 +118,11 @@ class CreateSiteJob implements ShouldQueue
             $hasPublicFolder = is_dir("{$projectPath}/public");
             $siteType = $this->detectSiteType($projectPath);
 
+            // Regenerate Caddyfile and reload Caddy (runs on host via systemd)
+            if ($hasPublicFolder) {
+                $this->regenerateCaddy($logger);
+            }
+
             // Update site with final details
             $site->update([
                 'status' => Site::STATUS_READY,
@@ -332,5 +337,34 @@ class CreateSiteJob implements ShouldQueue
         }
 
         return 'unknown';
+    }
+
+    /**
+     * Regenerate Caddyfile and reload Caddy.
+     *
+     * Caddy runs on the host via systemd, not in Docker.
+     */
+    protected function regenerateCaddy(ProvisionLogger $logger): void
+    {
+        $logger->info('Regenerating Caddy configuration...');
+
+        // Use CLI to regenerate Caddyfile (scans sites and updates config)
+        $cliPath = config('orbit.cli_path', '/usr/local/bin/orbit');
+        $result = \Illuminate\Support\Facades\Process::timeout(30)
+            ->run("{$cliPath} sites --json 2>/dev/null");
+
+        if (! $result->successful()) {
+            $logger->info('Warning: Could not regenerate Caddyfile via CLI');
+        }
+
+        // Reload Caddy (runs on host via systemd)
+        $reloadResult = \Illuminate\Support\Facades\Process::timeout(10)
+            ->run('sudo systemctl reload caddy 2>/dev/null');
+
+        if ($reloadResult->successful()) {
+            $logger->info('Caddy configuration reloaded');
+        } else {
+            $logger->info('Warning: Could not reload Caddy - you may need to reload manually');
+        }
     }
 }
