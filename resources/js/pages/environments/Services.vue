@@ -508,6 +508,14 @@ async function openLogs(serviceKey: string) {
     await fetchLogs();
 }
 
+function formatLogTimestamps(logContent: string): string {
+    // Match ISO timestamps like 2026-01-21T23:21:17.678677551Z
+    return logContent.replace(
+        /(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):\d{2}\.\d+Z/g,
+        (_, date, hour, minute) => `${date} ${hour}:${minute}`
+    );
+}
+
 async function fetchLogs() {
     if (!logsService.value) return;
 
@@ -530,7 +538,7 @@ async function fetchLogs() {
         const result = await response.json();
 
         if (result.success) {
-            const logContent = result.logs || 'No logs available';
+            const logContent = formatLogTimestamps(result.logs || 'No logs available');
             if (logsClearedAt.value) {
                 // Show cleared marker + new logs
                 const clearedTime = logsClearedAt.value.toLocaleTimeString();
