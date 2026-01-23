@@ -131,8 +131,8 @@ Orbit Core includes an MCP server for AI tool integration. This enables AI assis
 
 ### Features
 
-- **10 Tools**: Status, start/stop/restart, sites, PHP version, logs, worktrees
-- **4 Resources**: Config, sites, infrastructure, env-template
+- **10 Tools**: Status, start/stop/restart, projects, PHP version, logs, worktrees
+- **4 Resources**: Config, projects, infrastructure, env-template
 - **2 Prompts**: Laravel .env configuration, Horizon setup
 
 ### Transports

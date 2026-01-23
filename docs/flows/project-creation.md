@@ -1,11 +1,11 @@
-# Site Creation Flow
+# Project Creation Flow
 
-> **Single Source of Truth** for the site creation workflow.  
+> **Single Source of Truth** for the project creation workflow.  
 > Reference this document during any refactoring to ensure consistency.
 
 ## Prerequisites
 
-**Horizon must be running** for site creation to work. Without it, jobs won't be processed and sites will be stuck in "Initializing" state forever.
+**Horizon must be running** for project creation to work. Without it, jobs won't be processed and projects will be stuck in "Initializing" state forever.
 
 ```bash
 # Start Horizon (development)
@@ -20,7 +20,7 @@ php artisan horizon:status
 **`ProvisionPipeline` is the single source of truth** for provisioning logic.
 
 Both entry points use the same pipeline:
-1. **Web UI** → Dispatches `CreateSiteJob` to Horizon → Async
+1. **Web UI** → Dispatches `CreateProjectJob` to Horizon → Async
 2. **CLI** → Runs `ProvisionPipeline` synchronously → Real-time output
 
 The pipeline accepts a `ProvisionLoggerContract` interface, allowing each consumer to provide its own logger:
@@ -39,18 +39,18 @@ sequenceDiagram
     participant WS as WebSocket (Reverb)
     participant DB as Database
 
-    U->>C: POST /sites
+    U->>C: POST /projects
     Note over C: Validate input
 
     C->>DB: Save TemplateFavorite (if template provided)
-    C->>DB: Create Site (status=queued)
-    C->>Q: Dispatch CreateSiteJob(site_id)
+    C->>DB: Create Project (status=queued)
+    C->>Q: Dispatch CreateProjectJob(project_id)
     C-->>U: Redirect with {provisioning: slug}
 
     Note over U: User sees "Creating..." UI
     U->>WS: Subscribe to provisioning channel
 
-    Q->>H: CreateSiteJob.handle()
+    Q->>H: CreateProjectJob.handle()
     activate H
 
     H->>PP: ProvisionPipeline->run()
@@ -71,11 +71,11 @@ sequenceDiagram
     PP-->>H: Return StepResult
     deactivate PP
 
-    H->>DB: Update Site status
+    H->>DB: Update Project status
     deactivate H
 
     WS-->>U: Receive status=ready
-    Note over U: UI updates to show site ready
+    Note over U: UI updates to show project ready
 ```
 
 ## Sequence Diagram (CLI Flow)
@@ -83,14 +83,14 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant U as User (Terminal)
-    participant CLI as SiteCreateCommand
+    participant CLI as ProjectCreateCommand
     participant PP as ProvisionPipeline
     participant PL as ProvisionLogger (CLI)
     participant WS as WebSocket (Reverb via Pusher)
     participant DB as Database
 
-    U->>CLI: orbit site:create my-site
-    CLI->>DB: Create Site (status=queued)
+    U->>CLI: orbit project:create my-project
+    CLI->>DB: Create Project (status=queued)
 
     CLI->>PP: ProvisionPipeline->run(context, logger)
     activate PP
@@ -109,15 +109,15 @@ sequenceDiagram
     PP-->>CLI: Return StepResult
     deactivate PP
 
-    CLI->>DB: Update Site status
-    CLI-->>U: Success message with site URL
+    CLI->>DB: Update Project status
+    CLI-->>U: Success message with project URL
 ```
 
 ## State Machine
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Queued: Site created
+    [*] --> Queued: Project created
     Queued --> CreatingRepo: Job starts
     CreatingRepo --> Cloning: Repository ready
     Cloning --> SettingUp: Clone complete
@@ -139,14 +139,14 @@ stateDiagram-v2
 
 | Component | Responsibility |
 |-----------|----------------|
-| **Controller** | Validate input, create Site (queued), dispatch job, return immediately |
-| **CreateSiteJob** | Run ProvisionPipeline, handle errors, update Site status |
+| **Controller** | Validate input, create Project (queued), dispatch job, return immediately |
+| **CreateProjectJob** | Run ProvisionPipeline, handle errors, update Project status |
 | **ProvisionPipeline** | Orchestrate provisioning actions, broadcast progress via native events |
 | **ProvisionLogger** | Dispatch native Laravel broadcasting events to Reverb |
 | **WebSocket** | Real-time status updates to browser (Echo configured once per app) |
-| **Site** | Persist status for recovery/polling |
+| **Project** | Persist status for recovery/polling |
 
-**Note:** The CLI's `site:create` command runs `ProvisionPipeline` synchronously with real-time console output, while web UI uses `CreateSiteJob` via Horizon. Both paths share the same provisioning logic.
+**Note:** The CLI's `project:create` command runs `ProvisionPipeline` synchronously with real-time console output, while web UI uses `CreateProjectJob` via Horizon. Both paths share the same provisioning logic.
 
 ## Active Environment Rules
 
@@ -155,13 +155,13 @@ Orbit web/desktop rely on a single active environment in the database.
 - `EnvironmentManager::current()` resolves the active environment for requests.
 - `POST /environments/{environment}/switch` updates the active environment.
 - `/` renders the active environment dashboard in web mode via `EnvironmentController@show`.
-- `/sites` uses the active environment and does not require an ID in the URL.
+- `/projects` uses the active environment and does not require an ID in the URL.
 
 ## API Contract
 
 ### Request
 ```
-POST /sites
+POST /projects
 Content-Type: application/json
 
 {
@@ -179,8 +179,8 @@ Content-Type: application/json
 
 ### Response (Web Request)
 ```
-302 Redirect to /environments/{active_id}/sites
-Session: {provisioning: "my-project", success: "Site is being created..."}
+302 Redirect to /environments/{active_id}/projects
+Session: {provisioning: "my-project", success: "Project is being created..."}
 ```
 
 ### Response (API Request)
@@ -189,9 +189,9 @@ HTTP 200 OK
 
 {
   "success": true,
-  "message": "Site creation queued",
+  "message": "Project creation queued",
   "slug": "my-project",
-  "site": {
+  "project": {
     "id": 123,
     "slug": "my-project",
     "status": "queued"
@@ -205,8 +205,8 @@ HTTP 200 OK
 |------------|---------|-----------------|
 | Validation error | Controller | Immediate redirect back with errors |
 | Job dispatch failure | Controller | Error flash message |
-| CLI failure | CreateSiteJob | WebSocket broadcasts error, Site marked failed |
-| Timeout | Horizon | Site marked failed, user sees error via WebSocket |
+| CLI failure | CreateProjectJob | WebSocket broadcasts error, Project marked failed |
+| Timeout | Horizon | Project marked failed, user sees error via WebSocket |
 
 ## WebSocket Setup (Vue)
 
@@ -217,7 +217,7 @@ managed by the composables and automatically cleaned up when components unmount.
 
 Key files:
 - `resources/js/app.ts` configures Echo from the `reverb` page prop
-- `resources/js/composables/useSiteProvisioning.ts` subscribes via `useEchoPublic`
+- `resources/js/composables/useProjectProvisioning.ts` subscribes via `useEchoPublic`
 - `resources/js/pages/environments/Services.vue` listens for service status updates
 
 ## What NOT to Do (Web/Desktop Consumers)
@@ -237,62 +237,62 @@ The pattern is:
 
 Jobs exist specifically to move long-running operations off the request thread. The job worker blocks while provisioning runs - this is correct and expected. The "async" is about the HTTP response, not the job execution.
 
-**Architecture note:** Provisioning now uses native Laravel broadcasting (`SiteProvisioningStatus` event with `ShouldBroadcastNow`) instead of CLI → Pusher SDK. This simplifies debugging (single process) and uses standard Laravel patterns.
+**Architecture note:** Provisioning now uses native Laravel broadcasting (`ProjectProvisioningStatus` event with `ShouldBroadcastNow`) instead of CLI → Pusher SDK. This simplifies debugging (single process) and uses standard Laravel patterns.
 
 ## Related Files
 
 ### orbit-core
-- `src/Http/Controllers/EnvironmentController.php:685` - `storeSite()` method
-- `src/Http/Controllers/SiteController.php` - Web entry point (`POST /sites`)
+- `src/Http/Controllers/EnvironmentController.php:685` - `storeProject()` method
+- `src/Http/Controllers/ProjectController.php` - Web entry point (`POST /projects`)
 - `src/Services/EnvironmentManager.php` - Active environment resolution
-- `src/Jobs/CreateSiteJob.php` - Async job, runs ProvisionPipeline
+- `src/Jobs/CreateProjectJob.php` - Async job, runs ProvisionPipeline
 - `src/Contracts/ProvisionLoggerContract.php` - Interface for logger implementations
 - `src/Services/Provision/ProvisionPipeline.php` - Main provisioning orchestrator
 - `src/Services/Provision/ProvisionLogger.php` - orbit-core's logger (native events)
 - `src/Services/Provision/Actions/*` - Individual provisioning steps
-- `src/Events/SiteProvisioningStatus.php` - Broadcasting event
+- `src/Events/ProjectProvisioningStatus.php` - Broadcasting event
 - `src/Data/ProvisionContext.php` - Context DTO for actions
 - `src/Data/StepResult.php` - Action result wrapper
-- `src/Models/Site.php` - Site status tracking
-- `resources/js/composables/useSiteProvisioning.ts` - WebSocket listener
+- `src/Models/Project.php` - Project status tracking
+- `resources/js/composables/useProjectProvisioning.ts` - WebSocket listener
 
 ### orbit-cli
-- `app/Commands/SiteCreateCommand.php` - CLI entry point, runs ProvisionPipeline sync
+- `app/Commands/ProjectCreateCommand.php` - CLI entry point, runs ProvisionPipeline sync
 - `app/Services/ProvisionLogger.php` - CLI's logger (console + Pusher SDK)
 - `app/Services/ReverbBroadcaster.php` - Broadcasts to Reverb via Pusher SDK
 
 ## Job Options Reference
 
-The `CreateSiteJob` receives these options and passes them to `ProvisionPipeline`:
+The `CreateProjectJob` receives these options and passes them to `ProvisionPipeline`:
 
 | Option | Purpose | Notes |
 |--------|---------|-------|
-| `name` | Site name | Slug derived from this |
+| `name` | Project name | Slug derived from this |
 | `org` | GitHub organization | For template/fork operations |
 | `template` | Template repo | GitHub repo URL |
 | `is_template` | Template vs clone | Determines RepoIntent |
 | `fork` | Fork mode | Fork vs import |
 | `visibility` | Repo visibility | `private` or `public` |
-| `directory` | Site path | Override default site path |
+| `directory` | Project path | Override default project path |
 | `php_version` | PHP version | e.g., `8.4` |
 | `db_driver` | Database driver | `sqlite` or `pgsql` |
 | `session_driver` | Session driver | |
 | `cache_driver` | Cache driver | |
 | `queue_driver` | Queue driver | |
 
-Tests in `tests/Unit/Jobs/CreateSiteJobTest.php` verify job behavior.
+Tests in `tests/Unit/Jobs/CreateProjectJobTest.php` verify job behavior.
 
 ## Browser Tests
 
-E2E browser tests are available in `orbit-web/tests/e2e/site-creation.spec.ts`.
+E2E browser tests are available in `orbit-web/tests/e2e/project-creation.spec.ts`.
 
 ```bash
-# Run all site creation tests
+# Run all project creation tests
 cd ~/projects/orbit-web
-npx playwright test tests/e2e/site-creation.spec.ts
+npx playwright test tests/e2e/project-creation.spec.ts
 
 # Run specific test group
-npx playwright test tests/e2e/site-creation.spec.ts --grep "Site Creation Form"
+npx playwright test tests/e2e/project-creation.spec.ts --grep "Project Creation Form"
 ```
 
 Test coverage:
@@ -300,7 +300,7 @@ Test coverage:
 - Organization dropdown (GitHub integration)
 - Form validation and submit button state
 - Template detection and metadata
-- Site creation submission and status tracking
+- Project creation submission and status tracking
 - Full provisioning completion (90s timeout)
 
 ## Changelog
@@ -308,14 +308,15 @@ Test coverage:
 | Date | Change |
 |------|--------|
 | 2026-01-19 | Initial documentation |
-| 2026-01-19 | Implemented CreateSiteJob, updated controller to dispatch async |
+| 2026-01-19 | Implemented CreateProjectJob, updated controller to dispatch async |
 | 2026-01-19 | Fixed `--org` -> `--organization` flag, added CLI flag reference |
-| 2026-01-19 | Consolidated `provision` into `site:create` - single command for all site creation |
-| 2026-01-19 | Added Playwright e2e browser tests for site creation flow |
+| 2026-01-19 | Consolidated `provision` into `project:create` - single command for all project creation |
+| 2026-01-19 | Added Playwright e2e browser tests for project creation flow |
 | 2026-01-20 | Switched to @laravel/echo-vue composables with global Echo config |
 | 2026-01-22 | Moved provisioning from CLI to orbit-core ProvisionPipeline with native Laravel broadcasting |
-| 2026-01-22 | Added automatic Caddy regeneration via `orbit caddy:reload` after site provisioning |
-| 2026-01-22 | CLI `site:create` runs ProvisionPipeline synchronously with real-time output |
+| 2026-01-22 | Added automatic Caddy regeneration via `orbit caddy:reload` after project provisioning |
+| 2026-01-22 | CLI `project:create` runs ProvisionPipeline synchronously with real-time output |
 | 2026-01-22 | Added `ProvisionLoggerContract` interface for CLI/web logger implementations |
 | 2026-01-22 | CLI broadcasts to Reverb via Pusher SDK for web UI updates during sync execution |
-| 2026-01-22 | Active environment manager + switch route for web/desktop site creation |
+| 2026-01-22 | Active environment manager + switch route for web/desktop project creation |
+| 2026-01-23 | Renamed from site to project throughout |
