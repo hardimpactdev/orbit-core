@@ -2,6 +2,13 @@
 
 All notable changes to `orbit-core` will be documented in this file.
 
+## v0.1.3 - Add missing dependencies - 2026-01-23
+
+### Fixes
+
+- Add illuminate/database dependency (required for Eloquent models)
+- Add illuminate/process dependency (required for Process facade)
+
 ## v0.1.1 - Move MCP to orbit-ui - 2026-01-23
 
 ### Changes
@@ -27,6 +34,7 @@ Now orbit-desktop and orbit-web can use:
 
 ```
 php artisan vendor:publish --tag=orbit-assets --force
+
 
 
 
