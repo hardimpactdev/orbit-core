@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('set-default', [EnvironmentController::class, 'setDefault'])->name('environments.set-default');
 
-// Note: test-connection, status, sites, config, worktrees moved to routes/api.php (stateless)
+// Note: test-connection, status, projects, config, worktrees moved to routes/api.php (stateless)
 
 // Doctor (health checks)
 Route::get('doctor', [EnvironmentController::class, 'runDoctor'])->name('environments.doctor');
@@ -14,13 +14,13 @@ Route::get('doctor/quick', [EnvironmentController::class, 'quickCheck'])->name('
 Route::post('doctor/fix/{check}', [EnvironmentController::class, 'fixDoctorIssue'])->name('environments.doctor.fix');
 
 // Environment pages
-Route::get('sites', [EnvironmentController::class, 'sitesPage'])->name('environments.sites');
+Route::get('projects', [EnvironmentController::class, 'projectsPage'])->name('environments.projects');
 Route::get('services', [EnvironmentController::class, 'servicesPage'])->name('environments.services');
 Route::get('settings', [EnvironmentController::class, 'settings'])->name('environments.settings');
 Route::post('settings', [EnvironmentController::class, 'updateSettings'])->name('environments.settings.update');
 Route::post('settings/external-access', [EnvironmentController::class, 'updateExternalAccess'])->name('environments.settings.external-access');
 
-// Note: api/sites moved to routes/api.php (stateless)
+// Note: api/projects moved to routes/api.php (stateless)
 Route::post('start', [EnvironmentController::class, 'start'])->name('environments.start');
 Route::post('stop', [EnvironmentController::class, 'stop'])->name('environments.stop');
 Route::post('restart', [EnvironmentController::class, 'restart'])->name('environments.restart');
@@ -50,12 +50,12 @@ Route::get('reverb-config', [EnvironmentController::class, 'getReverbConfig'])->
 Route::post('worktrees/unlink', [EnvironmentController::class, 'unlinkWorktree'])->name('environments.worktrees.unlink');
 Route::post('worktrees/refresh', [EnvironmentController::class, 'refreshWorktrees'])->name('environments.worktrees.refresh');
 
-// Site routes
-Route::get('sites/create', [EnvironmentController::class, 'createSite'])->name('environments.sites.create');
-Route::post('sites', [EnvironmentController::class, 'storeSite'])->name('environments.sites.store');
-Route::delete('sites/{siteName}', [EnvironmentController::class, 'destroySite'])->name('environments.sites.destroy');
-Route::post('sites/{siteName}/rebuild', [EnvironmentController::class, 'rebuildSite'])->name('environments.sites.rebuild');
-Route::get('sites/{siteSlug}/provision-status', [EnvironmentController::class, 'provisionStatus'])->name('environments.sites.provision-status');
+// Project routes
+Route::get('projects/create', [EnvironmentController::class, 'createProject'])->name('environments.projects.create');
+Route::post('projects', [EnvironmentController::class, 'storeProject'])->name('environments.projects.store');
+Route::delete('projects/{projectName}', [EnvironmentController::class, 'destroyProject'])->name('environments.projects.destroy');
+Route::post('projects/{projectName}/rebuild', [EnvironmentController::class, 'rebuildProject'])->name('environments.projects.rebuild');
+Route::get('projects/{projectSlug}/provision-status', [EnvironmentController::class, 'provisionStatus'])->name('environments.projects.provision-status');
 Route::post('template-defaults', [EnvironmentController::class, 'templateDefaults'])->name('environments.template-defaults');
 Route::get('github-user', [EnvironmentController::class, 'githubUser'])->name('environments.github-user');
 Route::get('github-orgs', [EnvironmentController::class, 'githubOrgs'])->name('environments.github-orgs');
@@ -71,10 +71,10 @@ Route::get('workspaces/create', [EnvironmentController::class, 'createWorkspace'
 Route::post('workspaces', [EnvironmentController::class, 'storeWorkspace'])->name('environments.workspaces.store');
 Route::get('workspaces/{workspace}', [EnvironmentController::class, 'showWorkspace'])->name('environments.workspaces.show');
 Route::delete('workspaces/{workspace}', [EnvironmentController::class, 'destroyWorkspace'])->name('environments.workspaces.destroy');
-Route::post('workspaces/{workspace}/sites', [EnvironmentController::class, 'addWorkspaceSite'])->name('environments.workspaces.sites.add');
-Route::delete('workspaces/{workspace}/sites/{site}', [EnvironmentController::class, 'removeWorkspaceSite'])->name('environments.workspaces.sites.remove');
+Route::post('workspaces/{workspace}/projects', [EnvironmentController::class, 'addWorkspaceProject'])->name('environments.workspaces.projects.add');
+Route::delete('workspaces/{workspace}/projects/{project}', [EnvironmentController::class, 'removeWorkspaceProject'])->name('environments.workspaces.projects.remove');
 
 // Package linking routes
-Route::get('sites/{site}/linked-packages', [EnvironmentController::class, 'linkedPackages'])->name('environments.sites.linked-packages');
-Route::post('sites/{site}/link-package', [EnvironmentController::class, 'linkPackage'])->name('environments.sites.link-package');
-Route::delete('sites/{site}/unlink-package/{package}', [EnvironmentController::class, 'unlinkPackage'])->name('environments.sites.unlink-package');
+Route::get('projects/{project}/linked-packages', [EnvironmentController::class, 'linkedPackages'])->name('environments.projects.linked-packages');
+Route::post('projects/{project}/link-package', [EnvironmentController::class, 'linkPackage'])->name('environments.projects.link-package');
+Route::delete('projects/{project}/unlink-package/{package}', [EnvironmentController::class, 'unlinkPackage'])->name('environments.projects.unlink-package');

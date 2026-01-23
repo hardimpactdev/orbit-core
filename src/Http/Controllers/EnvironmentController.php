@@ -2,10 +2,10 @@
 
 namespace HardImpact\Orbit\Http\Controllers;
 
-use HardImpact\Orbit\Jobs\CreateSiteJob;
+use HardImpact\Orbit\Jobs\CreateProjectJob;
 use HardImpact\Orbit\Models\Environment;
 use HardImpact\Orbit\Models\Setting;
-use HardImpact\Orbit\Models\Site;
+use HardImpact\Orbit\Models\Project;
 use HardImpact\Orbit\Models\TemplateFavorite;
 use HardImpact\Orbit\Services\DnsResolverService;
 use HardImpact\Orbit\Services\DoctorService;
@@ -15,7 +15,7 @@ use HardImpact\Orbit\Services\MacPhpFpmConfigService;
 use HardImpact\Orbit\Services\OrbitCli\ConfigurationService;
 use HardImpact\Orbit\Services\OrbitCli\PackageService;
 use HardImpact\Orbit\Services\OrbitCli\ServiceControlService;
-use HardImpact\Orbit\Services\OrbitCli\SiteCliService;
+use HardImpact\Orbit\Services\OrbitCli\ProjectCliService;
 use HardImpact\Orbit\Services\OrbitCli\StatusService;
 use HardImpact\Orbit\Services\OrbitCli\WorkspaceService;
 use HardImpact\Orbit\Services\OrbitCli\WorktreeService;
@@ -29,7 +29,7 @@ class EnvironmentController extends Controller
         protected StatusService $status,
         protected ServiceControlService $serviceControl,
         protected ConfigurationService $config,
-        protected SiteCliService $site,
+        protected ProjectCliService $project,
         protected WorktreeService $worktree,
         protected WorkspaceService $workspace,
         protected PackageService $package,
@@ -116,7 +116,7 @@ class EnvironmentController extends Controller
             ]);
         }
 
-        // Only check installation synchronously (fast), load status/sites via AJAX
+        // Only check installation synchronously (fast), load status/projects via AJAX
         $installation = $this->status->checkInstallation($environment);
         $editor = $environment->getEditor();
         $remoteApiUrl = $this->getRemoteApiUrl($environment);
@@ -280,9 +280,9 @@ class EnvironmentController extends Controller
         return response()->json($result);
     }
 
-    public function sites(Environment $environment)
+    public function projects(Environment $environment)
     {
-        $result = $this->status->sites($environment);
+        $result = $this->status->projects($environment);
 
         return response()->json($result);
     }
@@ -290,13 +290,13 @@ class EnvironmentController extends Controller
     /**
      * Projects page (Inertia view).
      */
-    public function sitesPage(Environment $environment): \Inertia\Response
+    public function projectsPage(Environment $environment): \Inertia\Response
     {
         $editor = $environment->getEditor();
         $remoteApiUrl = $this->getRemoteApiUrl($environment);
         $reverb = $this->config->getReverbConfig($environment);
 
-        return \Inertia\Inertia::render('environments/Sites', [
+        return \Inertia\Inertia::render('environments/Projects', [
             'environment' => $environment,
             'editor' => $editor,
             'remoteApiUrl' => $remoteApiUrl,
@@ -341,26 +341,26 @@ class EnvironmentController extends Controller
     }
 
     /**
-     * Sites API (JSON).
+     * Projects API (JSON).
      */
-    public function sitesApi(Environment $environment)
+    public function projectsApi(Environment $environment)
     {
-        return response()->json($this->site->siteList($environment));
+        return response()->json($this->project->projectList($environment));
     }
 
     /**
-     * Sync sites from CLI to database.
+     * Sync projects from CLI to database.
      */
-    public function sitesSyncApi(Environment $environment)
+    public function projectsSyncApi(Environment $environment)
     {
-        $result = $this->site->syncAllSitesFromCli($environment);
+        $result = $this->project->syncAllProjectsFromCli($environment);
 
         if (! $result['success']) {
             return response()->json($result, 500);
         }
 
-        // Return fresh site list after sync
-        return response()->json($this->site->siteList($environment));
+        // Return fresh project list after sync
+        return response()->json($this->project->projectList($environment));
     }
 
     /**
@@ -428,24 +428,24 @@ class EnvironmentController extends Controller
 
     public function start(Request $request, Environment $environment)
     {
-        $site = $request->input('site');
-        $result = $this->serviceControl->start($environment, $site);
+        $project = $request->input('project');
+        $result = $this->serviceControl->start($environment, $project);
 
         return response()->json($result);
     }
 
     public function stop(Request $request, Environment $environment)
     {
-        $site = $request->input('site');
-        $result = $this->serviceControl->stop($environment, $site);
+        $project = $request->input('project');
+        $result = $this->serviceControl->stop($environment, $project);
 
         return response()->json($result);
     }
 
     public function restart(Request $request, Environment $environment)
     {
-        $site = $request->input('site');
-        $result = $this->serviceControl->restart($environment, $site);
+        $project = $request->input('project');
+        $result = $this->serviceControl->restart($environment, $project);
 
         return response()->json($result);
     }
@@ -584,43 +584,43 @@ class EnvironmentController extends Controller
         return response()->json($result);
     }
 
-    public function changePhp(Request $request, Environment $environment, ?string $site = null)
+    public function changePhp(Request $request, Environment $environment, ?string $project = null)
     {
         $validated = $request->validate([
             'version' => 'required|string',
-            'site' => $site ? 'nullable|string' : 'required|string',
+            'project' => $project ? 'nullable|string' : 'required|string',
         ]);
 
-        $siteName = $site ?? ($validated['site'] ?? null);
+        $projectName = $project ?? ($validated['project'] ?? null);
 
-        if (! $siteName) {
+        if (! $projectName) {
             return response()->json([
                 'success' => false,
-                'error' => 'Site name is required',
+                'error' => 'Project name is required',
             ], 422);
         }
 
-        $result = $this->config->php($environment, $siteName, $validated['version']);
+        $result = $this->config->php($environment, $projectName, $validated['version']);
 
         return response()->json($result);
     }
 
-    public function resetPhp(Request $request, Environment $environment, ?string $site = null)
+    public function resetPhp(Request $request, Environment $environment, ?string $project = null)
     {
         $validated = $request->validate([
-            'site' => $site ? 'nullable|string' : 'required|string',
+            'project' => $project ? 'nullable|string' : 'required|string',
         ]);
 
-        $siteName = $site ?? ($validated['site'] ?? null);
+        $projectName = $project ?? ($validated['project'] ?? null);
 
-        if (! $siteName) {
+        if (! $projectName) {
             return response()->json([
                 'success' => false,
-                'error' => 'Site name is required',
+                'error' => 'Project name is required',
             ], 422);
         }
 
-        $result = $this->config->phpReset($environment, $siteName);
+        $result = $this->config->phpReset($environment, $projectName);
 
         return response()->json($result);
     }
@@ -663,10 +663,10 @@ class EnvironmentController extends Controller
             $oldTld = $currentConfig['success'] ? ($currentConfig['data']['tld'] ?? 'test') : null;
             $newTld = $validated['tld'];
 
-            // Preserve existing site-specific settings (like PHP versions per site)
+            // Preserve existing project-specific settings (like PHP versions per project)
             $configToSave = $validated;
-            if ($currentConfig['success'] && isset($currentConfig['data']['sites'])) {
-                $configToSave['sites'] = $currentConfig['data']['sites'];
+            if ($currentConfig['success'] && isset($currentConfig['data']['projects'])) {
+                $configToSave['projects'] = $currentConfig['data']['projects'];
             }
 
             // Save the config to the environment
@@ -832,18 +832,18 @@ class EnvironmentController extends Controller
     }
 
     /**
-     * Unlink a worktree from a site.
+     * Unlink a worktree from a project.
      */
     public function unlinkWorktree(Request $request, Environment $environment)
     {
         $validated = $request->validate([
-            'site' => 'required|string',
+            'project' => 'required|string',
             'worktree' => 'required|string',
         ]);
 
         $result = $this->worktree->unlinkWorktree(
             $environment,
-            $validated['site'],
+            $validated['project'],
             $validated['worktree']
         );
 
@@ -861,24 +861,24 @@ class EnvironmentController extends Controller
     }
 
     /**
-     * Show the create site form.
+     * Show the create project form.
      */
-    public function createSite(Environment $environment): \Inertia\Response
+    public function createProject(Environment $environment): \Inertia\Response
     {
         $recentTemplates = TemplateFavorite::orderByDesc('last_used_at')
             ->limit(5)
             ->get();
 
-        return \Inertia\Inertia::render('environments/sites/SiteCreate', [
+        return \Inertia\Inertia::render('environments/projects/ProjectCreate', [
             'environment' => $environment,
             'recentTemplates' => $recentTemplates,
         ]);
     }
 
     /**
-     * Store a newly created site.
+     * Store a newly created project.
      */
-    public function storeSite(Request $request, Environment $environment)
+    public function storeProject(Request $request, Environment $environment)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -921,7 +921,7 @@ class EnvironmentController extends Controller
         }
 
         // Build options for the job
-        // @see /docs/flows/site-creation.md
+        // @see /docs/flows/project-creation.md
         $projectOptions = [
             'name' => $validated['name'],
             'org' => $validated['org'] ?? null,
@@ -942,8 +942,8 @@ class EnvironmentController extends Controller
         $basePath = $paths[0] ?? '~/projects';
         $projectPath = rtrim((string) $basePath, '/').'/'.$projectSlug;
 
-        // Create site in database
-        $site = Site::create([
+        // Create project in database
+        $project = Project::create([
             'environment_id' => $environment->id,
             'name' => $validated['name'],
             'display_name' => $validated['name'],
@@ -952,58 +952,58 @@ class EnvironmentController extends Controller
             'php_version' => $validated['php_version'] ?? '8.4',
             'github_repo' => $validated['template'] ?? null,
             'has_public_folder' => false,
-            'status' => Site::STATUS_QUEUED,
+            'status' => Project::STATUS_QUEUED,
         ]);
 
         // 2. Dispatch job
-        CreateSiteJob::dispatch($site->id, $projectOptions);
+        CreateProjectJob::dispatch($project->id, $projectOptions);
 
         // API requests get 200 OK
         if ($request->wantsJson()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Site creation queued',
+                'message' => 'Project creation queued',
                 'slug' => $projectSlug,
-                'site' => $site,
+                'project' => $project,
             ]);
         }
 
         // Web requests get redirect with provisioning slug for WebSocket tracking
-        return redirect()->route('environments.sites', ['environment' => $environment->id])
+        return redirect()->route('environments.projects', ['environment' => $environment->id])
             ->with([
                 'provisioning' => $projectSlug,
-                'success' => "Site '{$validated['name']}' is being created...",
+                'success' => "Project '{$validated['name']}' is being created...",
             ]);
     }
 
     /**
-     * Delete a site from the environment.
+     * Delete a project from the environment.
      */
-    public function destroySite(Request $request, Environment $environment, string $projectName)
+    public function destroyProject(Request $request, Environment $environment, string $projectName)
     {
         $keepDb = $request->boolean('keep_db', false);
 
-        $result = $this->site->deleteSite($environment, $projectName, force: true, keepDb: $keepDb);
+        $result = $this->project->deleteProject($environment, $projectName, force: true, keepDb: $keepDb);
 
         if (! $result['success']) {
             return response()->json([
                 'success' => false,
-                'error' => $result['error'] ?? 'Failed to delete site',
+                'error' => $result['error'] ?? 'Failed to delete project',
             ], 500);
         }
 
         return response()->json([
             'success' => true,
-            'message' => "Site '{$projectName}' deleted successfully",
+            'message' => "Project '{$projectName}' deleted successfully",
         ]);
     }
 
     /**
-     * Rebuild a site (re-run composer install, npm install, build, migrations).
+     * Rebuild a project (re-run composer install, npm install, build, migrations).
      */
-    public function rebuildSite(Request $request, Environment $environment, string $projectName)
+    public function rebuildProject(Request $request, Environment $environment, string $projectName)
     {
-        $result = $this->site->rebuild($environment, $projectName);
+        $result = $this->project->rebuild($environment, $projectName);
 
         return response()->json($result);
     }
@@ -1013,7 +1013,7 @@ class EnvironmentController extends Controller
      */
     public function provisionStatus(Environment $environment, string $projectSlug)
     {
-        $result = $this->site->provisionStatus($environment, $projectSlug);
+        $result = $this->project->provisionStatus($environment, $projectSlug);
 
         return response()->json($result);
     }
@@ -1023,7 +1023,7 @@ class EnvironmentController extends Controller
      */
     public function githubUser(Environment $environment)
     {
-        $user = $this->site->getGitHubUser($environment);
+        $user = $this->project->getGitHubUser($environment);
 
         return response()->json([
             'success' => $user !== null,
@@ -1036,7 +1036,7 @@ class EnvironmentController extends Controller
      */
     public function githubOrgs(Environment $environment)
     {
-        $result = $this->site->getGitHubOrgs($environment);
+        $result = $this->project->getGitHubOrgs($environment);
 
         return response()->json($result);
     }
@@ -1052,7 +1052,7 @@ class EnvironmentController extends Controller
         ]);
 
         $repo = $request->input('repo');
-        $result = $this->site->checkGitHubRepoExists($environment, $repo);
+        $result = $this->project->checkGitHubRepoExists($environment, $repo);
 
         return response()->json([
             'success' => true,
@@ -1335,7 +1335,7 @@ class EnvironmentController extends Controller
     {
         $result = $this->workspace->workspacesList($environment);
 
-        // Normalize workspace data for frontend (projects -> sites)
+        // Normalize workspace data for frontend (rename keys)
         if ($result['success'] && isset($result['data']['workspaces'])) {
             $result['data']['workspaces'] = array_map(
                 fn ($workspace) => $this->normalizeWorkspaceData($workspace),
@@ -1431,15 +1431,15 @@ class EnvironmentController extends Controller
     }
 
     /**
-     * Add a site to a workspace.
+     * Add a project to a workspace.
      */
-    public function addWorkspaceSite(Request $request, Environment $environment, string $workspace)
+    public function addWorkspaceProject(Request $request, Environment $environment, string $workspace)
     {
         $validated = $request->validate([
-            'site' => 'required|string|max:255',
+            'project' => 'required|string|max:255',
         ]);
 
-        $result = $this->workspace->workspaceAddProject($environment, $workspace, $validated['site']);
+        $result = $this->workspace->workspaceAddProject($environment, $workspace, $validated['project']);
 
         if (! $result['success']) {
             return response()->json([
@@ -1455,11 +1455,11 @@ class EnvironmentController extends Controller
     }
 
     /**
-     * Remove a site from a workspace.
+     * Remove a project from a workspace.
      */
-    public function removeWorkspaceSite(Environment $environment, string $workspace, string $site)
+    public function removeWorkspaceProject(Environment $environment, string $workspace, string $project)
     {
-        $result = $this->workspace->workspaceRemoveProject($environment, $workspace, $site);
+        $result = $this->workspace->workspaceRemoveProject($environment, $workspace, $project);
 
         if (! $result['success']) {
             return response()->json([
@@ -1818,17 +1818,17 @@ class EnvironmentController extends Controller
     }
 
     /**
-     * Normalize workspace data from CLI (projects -> sites) for frontend consistency.
+     * Normalize workspace data from CLI for frontend for frontend consistency.
      */
     protected function normalizeWorkspaceData(array $workspace): array
     {
-        // Rename projects to sites for frontend consistency
+        // Format workspace data for frontend
         if (isset($workspace['projects'])) {
-            $workspace['sites'] = $workspace['projects'];
+            $workspace['projects'] = $workspace['projects'];
             unset($workspace['projects']);
         }
         if (isset($workspace['project_count'])) {
-            $workspace['site_count'] = $workspace['project_count'];
+            $workspace['project_count'] = $workspace['project_count'];
             unset($workspace['project_count']);
         }
 

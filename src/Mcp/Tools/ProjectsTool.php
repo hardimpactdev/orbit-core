@@ -15,11 +15,11 @@ use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 
 #[IsReadOnly]
-final class SitesTool extends Tool
+final class ProjectsTool extends Tool
 {
-    protected string $name = 'orbit_sites';
+    protected string $name = 'orbit_projects';
 
-    protected string $description = 'List all registered sites with their domains, paths, PHP versions, and configuration details';
+    protected string $description = 'List all registered projects with their domains, paths, PHP versions, and configuration details';
 
     public function __construct(
         protected StatusService $statusService,
@@ -42,33 +42,33 @@ final class SitesTool extends Tool
             ]);
         }
 
-        $sitesResult = $this->statusService->sites($environment);
+        $projectsResult = $this->statusService->projects($environment);
         $configResult = $this->configService->getConfig($environment);
 
-        if (! $sitesResult['success']) {
+        if (! $projectsResult['success']) {
             return Response::structured([
                 'success' => false,
-                'error' => $sitesResult['error'] ?? 'Failed to get sites',
+                'error' => $projectsResult['error'] ?? 'Failed to get projects',
             ]);
         }
 
-        $sites = $sitesResult['data']['sites'] ?? [];
+        $projects = $projectsResult['data']['projects'] ?? [];
         $config = $configResult['success'] ? ($configResult['data'] ?? []) : [];
         $defaultPhp = $config['default_php_version'] ?? '8.4';
 
-        $formattedSites = array_map(fn ($project) => [
+        $formattedProjects = array_map(fn ($project) => [
             'name' => $project['name'],
             'domain' => $project['domain'] ?? null,
             'path' => $project['path'],
             'php_version' => $project['php_version'] ?? $defaultPhp,
             'has_custom_php' => ($project['php_version'] ?? $defaultPhp) !== $defaultPhp,
             'secure' => $project['secure'] ?? true,
-        ], $sites);
+        ], $projects);
 
         return Response::structured([
-            'sites' => $formattedSites,
+            'projects' => $formattedProjects,
             'default_php_version' => $defaultPhp,
-            'sites_count' => count($formattedSites),
+            'projects_count' => count($formattedProjects),
         ]);
     }
 }

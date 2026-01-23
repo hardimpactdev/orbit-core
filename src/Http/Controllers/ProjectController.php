@@ -2,14 +2,14 @@
 
 namespace HardImpact\Orbit\Http\Controllers;
 
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\CreateSiteRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\DeleteSiteRequest;
+use HardImpact\Orbit\Http\Integrations\Orbit\Requests\CreateProjectRequest;
+use HardImpact\Orbit\Http\Integrations\Orbit\Requests\DeleteProjectRequest;
 use HardImpact\Orbit\Services\EnvironmentManager;
 use HardImpact\Orbit\Services\OrbitCli\ConfigurationService;
 use HardImpact\Orbit\Services\OrbitCli\Shared\ConnectorService;
 use Illuminate\Http\Request;
 
-class SiteController extends Controller
+class ProjectController extends Controller
 {
     public function __construct(
         protected ConnectorService $connector,
@@ -18,7 +18,7 @@ class SiteController extends Controller
     ) {}
 
     /**
-     * Create a new site in the active environment.
+     * Create a new project in the active environment.
      * Always uses the Saloon API connector for consistency.
      */
     public function store(Request $request)
@@ -52,18 +52,18 @@ class SiteController extends Controller
 
         $result = $this->connector->sendRequest(
             $environment,
-            new CreateSiteRequest($validated)
+            new CreateProjectRequest($validated)
         );
 
         if (! $result['success']) {
             if ($request->wantsJson()) {
                 return response()->json([
                     'success' => false,
-                    'error' => $result['error'] ?? 'Failed to create site',
+                    'error' => $result['error'] ?? 'Failed to create project',
                 ], 422);
             }
 
-            return redirect()->back()->withErrors(['error' => $result['error'] ?? 'Failed to create site']);
+            return redirect()->back()->withErrors(['error' => $result['error'] ?? 'Failed to create project']);
         }
 
         // API requests get JSON response
@@ -74,15 +74,15 @@ class SiteController extends Controller
         // Web requests get redirect with provisioning slug for WebSocket tracking
         $slug = $result['slug'] ?? $result['data']['slug'] ?? null;
 
-        return redirect()->route('environments.sites', ['environment' => $environment->id])
+        return redirect()->route('environments.projects', ['environment' => $environment->id])
             ->with([
                 'provisioning' => $slug,
-                'success' => "Site '{$validated['name']}' is being created...",
+                'success' => "Project '{$validated['name']}' is being created...",
             ]);
     }
 
     /**
-     * Delete a site from the active environment.
+     * Delete a project from the active environment.
      * Always uses the Saloon API connector for consistency.
      */
     public function destroy(Request $request, string $slug)
@@ -100,13 +100,13 @@ class SiteController extends Controller
 
         $result = $this->connector->sendRequest(
             $environment,
-            new DeleteSiteRequest($slug, $keepDb)
+            new DeleteProjectRequest($slug, $keepDb)
         );
 
         if (! $result['success']) {
             return response()->json([
                 'success' => false,
-                'error' => $result['error'] ?? 'Failed to delete site',
+                'error' => $result['error'] ?? 'Failed to delete project',
             ], 422);
         }
 
@@ -114,9 +114,9 @@ class SiteController extends Controller
     }
 
     /**
-     * Set the PHP version for a site in the active environment.
+     * Set the PHP version for a project in the active environment.
      */
-    public function setPhpVersion(Request $request, string $site)
+    public function setPhpVersion(Request $request, string $project)
     {
         $environment = $this->environments->current();
 
@@ -131,7 +131,7 @@ class SiteController extends Controller
             'version' => 'required|string',
         ]);
 
-        $result = $this->config->php($environment, $site, $validated['version']);
+        $result = $this->config->php($environment, $project, $validated['version']);
 
         if (! $result['success']) {
             return response()->json([
@@ -144,9 +144,9 @@ class SiteController extends Controller
     }
 
     /**
-     * Reset the PHP version for a site to the environment default.
+     * Reset the PHP version for a project to the environment default.
      */
-    public function resetPhpVersion(string $site)
+    public function resetPhpVersion(string $project)
     {
         $environment = $this->environments->current();
 
@@ -157,7 +157,7 @@ class SiteController extends Controller
             ], 400);
         }
 
-        $result = $this->config->phpReset($environment, $site);
+        $result = $this->config->phpReset($environment, $project);
 
         if (! $result['success']) {
             return response()->json([

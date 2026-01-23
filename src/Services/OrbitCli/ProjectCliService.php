@@ -2,13 +2,13 @@
 
 namespace HardImpact\Orbit\Services\OrbitCli;
 
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\CreateSiteRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\DeleteSiteRequest;
+use HardImpact\Orbit\Http\Integrations\Orbit\Requests\CreateProjectRequest;
+use HardImpact\Orbit\Http\Integrations\Orbit\Requests\DeleteProjectRequest;
+use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetProjectsRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetProvisionStatusRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetSitesRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\RebuildSiteRequest;
+use HardImpact\Orbit\Http\Integrations\Orbit\Requests\RebuildProjectRequest;
 use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Models\Site;
+use HardImpact\Orbit\Models\Project;
 use HardImpact\Orbit\Services\OrbitCli\Shared\CommandService;
 use HardImpact\Orbit\Services\OrbitCli\Shared\ConnectorService;
 use HardImpact\Orbit\Services\SshService;
@@ -17,9 +17,9 @@ use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Str;
 
 /**
- * Service for site management operations via CLI.
+ * Service for project management operations via CLI.
  */
-class SiteCliService
+class ProjectCliService
 {
     public function __construct(
         protected ConnectorService $connector,
@@ -29,28 +29,28 @@ class SiteCliService
     ) {}
 
     /**
-     * Sync all sites from CLI to database.
-     * Creates new sites, updates existing ones, removes orphans.
+     * Sync all projects from CLI to database.
+     * Creates new projects, updates existing ones, removes orphans.
      */
-    public function syncAllSitesFromCli(Environment $environment): array
+    public function syncAllProjectsFromCli(Environment $environment): array
     {
         if ($environment->is_local) {
-            $result = $this->command->executeCommand($environment, 'site:list --json');
+            $result = $this->command->executeCommand($environment, 'project:list --json');
         } else {
-            $result = $this->connector->sendRequest($environment, new GetSitesRequest);
+            $result = $this->connector->sendRequest($environment, new GetProjectsRequest);
         }
 
         if (! $result['success']) {
             return $result;
         }
 
-        $cliSites = collect($result['data']['sites'] ?? []);
-        $cliSlugs = $cliSites->pluck('name')->toArray();
+        $cliProjects = collect($result['data']['projects'] ?? []);
+        $cliSlugs = $cliProjects->pluck('name')->toArray();
 
-        // Update or create sites from CLI
-        foreach ($cliSites as $cliSite) {
-            $slug = $cliSite['name'];
-            $site = Site::where('environment_id', $environment->id)
+        // Update or create projects from CLI
+        foreach ($cliProjects as $cliProject) {
+            $slug = $cliProject['name'];
+            $project = Project::where('environment_id', $environment->id)
                 ->where(fn ($q) => $q->where('slug', $slug)->orWhere('name', $slug))
                 ->first();
 
@@ -58,26 +58,26 @@ class SiteCliService
                 'environment_id' => $environment->id,
                 'slug' => $slug,
                 'name' => $slug,
-                'display_name' => $cliSite['display_name'] ?? ucwords(str_replace(['-', '_'], ' ', $slug)),
-                'github_repo' => $cliSite['github_repo'] ?? null,
-                'site_type' => $cliSite['site_type'] ?? 'unknown',
-                'has_public_folder' => $cliSite['has_public_folder'] ?? false,
-                'domain' => $cliSite['domain'] ?? null,
-                'site_url' => $cliSite['site_url'] ?? null,
-                'php_version' => $cliSite['php_version'] ?? '8.4',
-                'path' => $cliSite['path'] ?? '',
+                'display_name' => $cliProject['display_name'] ?? ucwords(str_replace(['-', '_'], ' ', $slug)),
+                'github_repo' => $cliProject['github_repo'] ?? null,
+                'project_type' => $cliProject['project_type'] ?? 'unknown',
+                'has_public_folder' => $cliProject['has_public_folder'] ?? false,
+                'domain' => $cliProject['domain'] ?? null,
+                'url' => $cliProject['url'] ?? null,
+                'php_version' => $cliProject['php_version'] ?? '8.4',
+                'path' => $cliProject['path'] ?? '',
                 'status' => 'active',
             ];
 
-            if ($site) {
-                $site->update($data);
+            if ($project) {
+                $project->update($data);
             } else {
-                Site::create($data);
+                Project::create($data);
             }
         }
 
-        // Remove orphan sites (in DB but not in CLI)
-        Site::where('environment_id', $environment->id)
+        // Remove orphan projects (in DB but not in CLI)
+        Project::where('environment_id', $environment->id)
             ->whereNotIn('slug', $cliSlugs)
             ->whereNotIn('name', $cliSlugs)
             ->delete();
@@ -90,49 +90,49 @@ class SiteCliService
         ];
     }
 
-    public function syncSiteFromCli(Environment $environment, Site $site, string $slug): array
+    public function syncProjectFromCli(Environment $environment, Project $project, string $slug): array
     {
         if ($environment->is_local) {
-            $result = $this->command->executeCommand($environment, 'site:list --json');
+            $result = $this->command->executeCommand($environment, 'project:list --json');
         } else {
-            $result = $this->connector->sendRequest($environment, new GetSitesRequest);
+            $result = $this->connector->sendRequest($environment, new GetProjectsRequest);
         }
 
         if (! $result['success']) {
             return $result;
         }
 
-        $sites = $result['data']['sites'] ?? [];
-        $matched = collect($sites)->first(function (array $candidate) use ($slug) {
+        $projects = $result['data']['projects'] ?? [];
+        $matched = collect($projects)->first(function (array $candidate) use ($slug) {
             return ($candidate['name'] ?? null) === $slug || ($candidate['slug'] ?? null) === $slug;
         });
 
         if (! $matched) {
-            return ['success' => false, 'error' => 'Site not found in CLI list'];
+            return ['success' => false, 'error' => 'Project not found in CLI list'];
         }
 
-        $site->update([
-            'display_name' => $matched['display_name'] ?? $site->display_name,
-            'github_repo' => $matched['github_repo'] ?? $site->github_repo,
-            'site_type' => $matched['site_type'] ?? $site->site_type,
-            'has_public_folder' => $matched['has_public_folder'] ?? $site->has_public_folder,
-            'domain' => $matched['domain'] ?? $site->domain,
-            'site_url' => $matched['site_url'] ?? $site->site_url,
-            'php_version' => $matched['php_version'] ?? $site->php_version,
-            'path' => $matched['path'] ?? $site->path,
-            'status' => Arr::get($matched, 'status', $site->status),
+        $project->update([
+            'display_name' => $matched['display_name'] ?? $project->display_name,
+            'github_repo' => $matched['github_repo'] ?? $project->github_repo,
+            'project_type' => $matched['project_type'] ?? $project->project_type,
+            'has_public_folder' => $matched['has_public_folder'] ?? $project->has_public_folder,
+            'domain' => $matched['domain'] ?? $project->domain,
+            'url' => $matched['url'] ?? $project->url,
+            'php_version' => $matched['php_version'] ?? $project->php_version,
+            'path' => $matched['path'] ?? $project->path,
+            'status' => Arr::get($matched, 'status', $project->status),
         ]);
 
         return ['success' => true, 'data' => $matched];
     }
 
     /**
-     * Get all sites from CLI (fresh, no caching).
+     * Get all projects from CLI (fresh, no caching).
      * Returns all directories in scan paths, with has_public_folder flag.
      */
-    public function siteList(Environment $environment): array
+    public function projectList(Environment $environment): array
     {
-        $sites = Site::query()
+        $projects = Project::query()
             ->where('environment_id', $environment->id)
             ->orderBy('name')
             ->get();
@@ -143,7 +143,7 @@ class SiteCliService
         return [
             'success' => true,
             'data' => [
-                'sites' => $sites,
+                'projects' => $projects,
                 'tld' => $configData['tld'] ?? 'test',
                 'default_php_version' => $configData['default_php_version'] ?? '8.4',
                 'available_php_versions' => $configData['available_php_versions'] ?? ['8.3', '8.4', '8.5'],
@@ -152,28 +152,28 @@ class SiteCliService
     }
 
     /**
-     * Create a new site via the CLI.
+     * Create a new project via the CLI.
      *
      * @param  array  $options  Array containing: name, org (optional), template (optional), is_template (optional), directory (optional), visibility (optional), db_driver, session_driver, cache_driver, queue_driver
      */
-    public function createSite(Environment $environment, array $options): array
+    public function createProject(Environment $environment, array $options): array
     {
         // For local environments, use CLI command directly
         if ($environment->is_local) {
-            return $this->createSiteViaCommand($environment, $options);
+            return $this->createProjectViaCommand($environment, $options);
         }
 
         // For remote environments, use HTTP API
-        return $this->createSiteViaHttp($environment, $options);
+        return $this->createProjectViaHttp($environment, $options);
     }
 
     /**
-     * Create site via CLI command (for local environments).
+     * Create project via CLI command (for local environments).
      */
-    protected function createSiteViaCommand(Environment $environment, array $options): array
+    protected function createProjectViaCommand(Environment $environment, array $options): array
     {
         $name = escapeshellarg($options['name']);
-        $command = "site:create {$name}";
+        $command = "project:create {$name}";
 
         // Handle template vs clone
         if (! empty($options['template'])) {
@@ -219,9 +219,9 @@ class SiteCliService
             return [
                 'success' => true,
                 'data' => [
-                    'slug' => $result['data']['slug'] ?? $result['data']['site_slug'] ?? Str::slug($options['name']),
+                    'slug' => $result['data']['slug'] ?? $result['data']['project_slug'] ?? Str::slug($options['name']),
                     'status' => $result['data']['status'] ?? 'provisioning',
-                    'message' => $result['data']['message'] ?? 'Site creation started',
+                    'message' => $result['data']['message'] ?? 'Project creation started',
                 ],
             ];
         }
@@ -230,9 +230,9 @@ class SiteCliService
     }
 
     /**
-     * Create site via HTTP API (for remote environments).
+     * Create project via HTTP API (for remote environments).
      */
-    protected function createSiteViaHttp(Environment $environment, array $options): array
+    protected function createProjectViaHttp(Environment $environment, array $options): array
     {
         // Build request payload
         $payload = [
@@ -285,7 +285,7 @@ class SiteCliService
             $payload['php_version'] = $options['php_version'];
         }
 
-        $result = $this->connector->sendRequest($environment, new CreateSiteRequest($payload));
+        $result = $this->connector->sendRequest($environment, new CreateProjectRequest($payload));
 
         if ($result['success']) {
             return [
@@ -293,7 +293,7 @@ class SiteCliService
                 'data' => [
                     'slug' => $result['slug'] ?? Str::slug($options['name']),
                     'status' => 'provisioning',
-                    'message' => $result['message'] ?? 'Site creation queued',
+                    'message' => $result['message'] ?? 'Project creation queued',
                 ],
             ];
         }
@@ -302,25 +302,25 @@ class SiteCliService
     }
 
     /**
-     * Rebuild a site (re-run deps install, build, migrations without git pull).
+     * Rebuild a project (re-run deps install, build, migrations without git pull).
      */
-    public function rebuild(Environment $environment, string $site): array
+    public function rebuild(Environment $environment, string $project): array
     {
         if ($environment->is_local) {
-            $escapedSite = escapeshellarg($site);
+            $escapedProject = escapeshellarg($project);
 
-            return $this->command->executeCommand($environment, "site:update --site={$escapedSite} --no-git --json");
+            return $this->command->executeCommand($environment, "project:update --project={$escapedProject} --no-git --json");
         }
 
-        return $this->connector->sendRequest($environment, new RebuildSiteRequest($site));
+        return $this->connector->sendRequest($environment, new RebuildProjectRequest($project));
     }
 
     /**
-     * Scan for existing sites on a server.
+     * Scan for existing projects on a server.
      */
-    public function scanSites(Environment $environment, ?string $path = null, int $depth = 2): array
+    public function scanProjects(Environment $environment, ?string $path = null, int $depth = 2): array
     {
-        $command = 'site:scan';
+        $command = 'project:scan';
 
         if ($path) {
             $command .= ' '.escapeshellarg($path);
@@ -333,12 +333,12 @@ class SiteCliService
     }
 
     /**
-     * Update a site (git pull + dependencies + migrations).
+     * Update a project (git pull + dependencies + migrations).
      */
-    public function updateSite(Environment $environment, string $path, array $options = []): array
+    public function updateProject(Environment $environment, string $path, array $options = []): array
     {
         $escapedPath = escapeshellarg($path);
-        $command = "site:update {$escapedPath}";
+        $command = "project:update {$escapedPath}";
 
         if (! empty($options['no_deps'])) {
             $command .= ' --no-deps';
@@ -354,17 +354,17 @@ class SiteCliService
     }
 
     /**
-     * Delete a site via the CLI (uses DeletionPipeline for proper cleanup).
+     * Delete a project via the CLI (uses DeletionPipeline for proper cleanup).
      */
-    public function deleteSite(Environment $environment, string $slug, bool $force = false, bool $keepDb = false): array
+    public function deleteProject(Environment $environment, string $slug, bool $force = false, bool $keepDb = false): array
     {
         if (! $environment->is_local) {
-            return $this->connector->sendRequest($environment, new DeleteSiteRequest($slug, $keepDb));
+            return $this->connector->sendRequest($environment, new DeleteProjectRequest($slug, $keepDb));
         }
 
         // For local environments, use the CLI command which runs the DeletionPipeline
         $escapedSlug = escapeshellarg($slug);
-        $command = "site:delete {$escapedSlug} --force";
+        $command = "project:delete {$escapedSlug} --force";
 
         if ($keepDb) {
             $command .= ' --keep-db';
@@ -377,9 +377,9 @@ class SiteCliService
 
     /**
      * Check if a GitHub repository already exists.
-     * Used to validate site names BEFORE starting provisioning.
+     * Used to validate project names BEFORE starting provisioning.
      *
-     * @param  string  $repo  Repository in "owner/name" format (e.g., "nckrtl/my-site")
+     * @param  string  $repo  Repository in "owner/name" format (e.g., "nckrtl/my-project")
      * @return array{exists: bool, error?: string}
      */
     public function checkGitHubRepoExists(Environment $environment, string $repo): array
@@ -475,7 +475,7 @@ class SiteCliService
     }
 
     /**
-     * Check the provisioning status of a site.
+     * Check the provisioning status of a project.
      */
     public function provisionStatus(Environment $environment, string $slug): array
     {
@@ -487,12 +487,12 @@ class SiteCliService
     }
 
     /**
-     * Setup a Laravel site (configure env, create database, run composer setup).
+     * Setup a Laravel project (configure env, create database, run composer setup).
      */
-    public function setupSite(Environment $environment, string $site): array
+    public function setupProject(Environment $environment, string $project): array
     {
-        $escapedSite = escapeshellarg($site);
+        $escapedProject = escapeshellarg($project);
 
-        return $this->command->executeCommand($environment, "setup {$escapedSite} --json");
+        return $this->command->executeCommand($environment, "setup {$escapedProject} --json");
     }
 }

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace HardImpact\Orbit\Jobs;
 
 use HardImpact\Orbit\Data\DeletionContext;
-use HardImpact\Orbit\Models\Site;
+use HardImpact\Orbit\Models\Project;
 use HardImpact\Orbit\Services\Deletion\DeletionLogger;
 use HardImpact\Orbit\Services\Deletion\DeletionPipeline;
 use Illuminate\Bus\Queueable;
@@ -16,17 +16,17 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Job for deleting a site via queue (web-initiated).
+ * Job for deleting a project via queue (web-initiated).
  *
- * This job handles the complete site deletion process:
+ * This job handles the complete project deletion process:
  * - Database cleanup
  * - Project files removal
  * - Caddy configuration regeneration
- * - Site record deletion
+ * - Project record deletion
  *
  * Status updates are broadcast via native Laravel events to Reverb.
  */
-final class DeleteSiteJob implements ShouldQueue
+final class DeleteProjectJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -41,7 +41,7 @@ final class DeleteSiteJob implements ShouldQueue
     public int $tries = 1; // Don't retry - deletion is not idempotent
 
     public function __construct(
-        public int $siteId,
+        public int $projectId,
         public bool $keepDatabase = false,
     ) {}
 
@@ -50,17 +50,17 @@ final class DeleteSiteJob implements ShouldQueue
      */
     public function handle(DeletionPipeline $pipeline): void
     {
-        $site = Site::findOrFail($this->siteId);
+        $project = Project::findOrFail($this->projectId);
 
         // Initialize logger with native Laravel broadcasting
-        $logger = new DeletionLogger($site->slug, $this->siteId);
+        $logger = new DeletionLogger($project->slug, $this->projectId);
 
-        Log::info("DeleteSiteJob: Starting deletion for {$site->slug}");
+        Log::info("DeleteProjectJob: Starting deletion for {$project->slug}");
         $logger->broadcast('deleting');
 
         try {
-            // Build deletion context from site
-            $context = DeletionContext::fromSite($site, $this->keepDatabase)
+            // Build deletion context from project
+            $context = DeletionContext::fromProject($project, $this->keepDatabase)
                 ->withDatabaseFromEnv();
 
             // Run the deletion pipeline
@@ -70,15 +70,15 @@ final class DeleteSiteJob implements ShouldQueue
                 throw new \RuntimeException($result->error ?? 'Deletion pipeline failed');
             }
 
-            // Delete site record from database
-            $site->delete();
+            // Delete project record from database
+            $project->delete();
 
             $logger->broadcast('deleted');
-            Log::info("DeleteSiteJob: Site {$site->slug} deleted successfully");
+            Log::info("DeleteProjectJob: Project {$project->slug} deleted successfully");
 
         } catch (\Throwable $e) {
             $logger->broadcast('delete_failed', $e->getMessage());
-            Log::error("DeleteSiteJob: Site {$site->slug} deletion failed", [
+            Log::error("DeleteProjectJob: Project {$project->slug} deletion failed", [
                 'error' => $e->getMessage(),
             ]);
 
@@ -92,8 +92,8 @@ final class DeleteSiteJob implements ShouldQueue
     public function tags(): array
     {
         return [
-            'delete-site',
-            "site-id:{$this->siteId}",
+            'delete-project',
+            "project-id:{$this->projectId}",
         ];
     }
 }

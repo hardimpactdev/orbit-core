@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace HardImpact\Orbit\Data;
 
-use HardImpact\Orbit\Models\Site;
+use HardImpact\Orbit\Models\Project;
 
 /**
  * Context object passed through all deletion actions.
  *
- * Contains all parameters needed for site deletion.
+ * Contains all parameters needed for project deletion.
  * Immutable - use factory methods to create instances.
  */
 final readonly class DeletionContext
@@ -17,7 +17,7 @@ final readonly class DeletionContext
     public function __construct(
         public string $slug,
         public string $projectPath,
-        public ?int $siteId = null,
+        public ?int $projectId = null,
         public bool $keepDatabase = false,
         public bool $keepRepository = true, // Always true for now - GitHub repo deletion not yet implemented
         public ?string $dbConnection = null,
@@ -26,19 +26,19 @@ final readonly class DeletionContext
     ) {}
 
     /**
-     * Create context from a Site model.
+     * Create context from a Project model.
      */
-    public static function fromSite(Site $site, bool $keepDatabase = false): self
+    public static function fromProject(Project $project, bool $keepDatabase = false): self
     {
         return new self(
-            slug: $site->slug,
-            projectPath: $site->path ?? '',
-            siteId: $site->id,
+            slug: $project->slug,
+            projectPath: $project->path ?? '',
+            projectId: $project->id,
             keepDatabase: $keepDatabase,
             keepRepository: true,
             dbConnection: null,
             dbName: null,
-            tld: self::extractTldFromDomain($site->domain),
+            tld: self::extractTldFromDomain($project->domain),
         );
     }
 
@@ -71,7 +71,7 @@ final readonly class DeletionContext
         return new self(
             slug: $this->slug,
             projectPath: $this->projectPath,
-            siteId: $this->siteId,
+            projectId: $this->projectId,
             keepDatabase: $this->keepDatabase,
             keepRepository: $this->keepRepository,
             dbConnection: $dbConnection,
@@ -81,7 +81,7 @@ final readonly class DeletionContext
     }
 
     /**
-     * Check if this site uses PostgreSQL.
+     * Check if this project uses PostgreSQL.
      */
     public function usesPostgres(): bool
     {

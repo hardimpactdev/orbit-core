@@ -15,17 +15,17 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $path
  * @property string|null $php_version
  * @property string|null $github_repo
- * @property string|null $site_type
+ * @property string|null $project_type
  * @property bool $has_public_folder
  * @property string|null $domain
- * @property string|null $site_url
+ * @property string|null $url
  * @property string|null $status
  * @property string|null $error_message
  * @property string|null $job_id
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  */
-class Site extends Model
+class Project extends Model
 {
     protected $casts = [
         'has_public_folder' => 'boolean',
@@ -59,10 +59,10 @@ class Site extends Model
         'path',
         'php_version',
         'github_repo',
-        'site_type',
+        'project_type',
         'has_public_folder',
         'domain',
-        'site_url',
+        'url',
         'status',
         'error_message',
         'job_id',

@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace HardImpact\Orbit\Services\Deletion;
 
 use HardImpact\Orbit\Contracts\ProvisionLoggerContract;
-use HardImpact\Orbit\Events\SiteDeletionStatus;
+use HardImpact\Orbit\Events\ProjectDeletionStatus;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Logger for site deletion operations.
+ * Logger for project deletion operations.
  *
  * Handles logging to Laravel logs and broadcasting status updates
  * via native Laravel events to Reverb WebSocket.
@@ -22,7 +22,7 @@ final class DeletionLogger implements ProvisionLoggerContract
 
     public function __construct(
         private readonly string $slug,
-        private readonly ?int $siteId = null,
+        private readonly ?int $projectId = null,
     ) {
         $this->initializeLogFile();
     }
@@ -87,7 +87,7 @@ final class DeletionLogger implements ProvisionLoggerContract
     /**
      * Broadcast a status update via native Laravel events.
      *
-     * This dispatches a SiteDeletionStatus event which implements
+     * This dispatches a ProjectDeletionStatus event which implements
      * ShouldBroadcastNow, sending immediately to Reverb without queueing.
      */
     public function broadcast(string $status, ?string $error = null): void
@@ -95,12 +95,12 @@ final class DeletionLogger implements ProvisionLoggerContract
         $errorSuffix = $error ? " - Error: {$error}" : '';
         $this->log("Status: {$status}{$errorSuffix}");
 
-        Log::info("Site {$this->slug} deletion: {$status}", [
-            'site_id' => $this->siteId,
+        Log::info("Project {$this->slug} deletion: {$status}", [
+            'project_id' => $this->projectId,
             'error' => $error,
         ]);
 
-        event(new SiteDeletionStatus(
+        event(new ProjectDeletionStatus(
             slug: $this->slug,
             status: $status,
             error: $error,
@@ -116,10 +116,10 @@ final class DeletionLogger implements ProvisionLoggerContract
     }
 
     /**
-     * Get the site ID for this logger instance.
+     * Get the project ID for this logger instance.
      */
-    public function getSiteId(): ?int
+    public function getProjectId(): ?int
     {
-        return $this->siteId;
+        return $this->projectId;
     }
 }

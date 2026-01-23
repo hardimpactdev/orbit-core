@@ -5,20 +5,20 @@ declare(strict_types=1);
 namespace HardImpact\Orbit\Mcp\Tools;
 
 use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Services\OrbitCli\SiteCliService;
+use HardImpact\Orbit\Services\OrbitCli\ProjectCliService;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tool;
 
-class SiteCreateTool extends Tool
+class ProjectCreateTool extends Tool
 {
-    protected string $name = 'orbit_site_create';
+    protected string $name = 'orbit_project_create';
 
-    protected string $description = 'Create a new site with optional GitHub template';
+    protected string $description = 'Create a new project with optional GitHub template';
 
-    public function __construct(protected SiteCliService $siteService) {}
+    public function __construct(protected ProjectCliService $projectService) {}
 
     /**
      * @return array<string, mixed>
@@ -26,7 +26,7 @@ class SiteCreateTool extends Tool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'name' => $schema->string()->required()->description('Site name/slug'),
+            'name' => $schema->string()->required()->description('Project name/slug'),
             'template' => $schema->string()->description('GitHub template repository (user/repo format)'),
             'visibility' => $schema->string()->enum(['private', 'public'])->description('Repository visibility'),
         ];
@@ -45,7 +45,7 @@ class SiteCreateTool extends Tool
         $visibility = $request->get('visibility', 'private');
 
         if (! $name) {
-            return Response::error('Site name is required');
+            return Response::error('Project name is required');
         }
 
         $options = [
@@ -58,17 +58,17 @@ class SiteCreateTool extends Tool
             $options['is_template'] = true;
         }
 
-        $result = $this->siteService->createSite($environment, $options);
+        $result = $this->projectService->createProject($environment, $options);
 
         if (! $result['success']) {
-            return Response::error($result['error'] ?? 'Failed to create site');
+            return Response::error($result['error'] ?? 'Failed to create project');
         }
 
         return Response::structured([
             'success' => true,
-            'site_slug' => $result['data']['slug'] ?? $name,
+            'project_slug' => $result['data']['slug'] ?? $name,
             'status' => $result['data']['status'] ?? 'provisioning',
-            'message' => $result['data']['message'] ?? 'Site created successfully',
+            'message' => $result['data']['message'] ?? 'Project created successfully',
         ]);
     }
 }

@@ -21,11 +21,11 @@ import {
     Clock3,
 } from 'lucide-vue-next';
 import {
-    useSiteProvisioning,
-    type ProvisioningSite,
+    useProjectProvisioning,
+    type ProvisioningProject,
     type ProvisionStatus,
     type DeletionStatus,
-} from '@/composables/useSiteProvisioning';
+} from '@/composables/useProjectProvisioning';
 import Modal from '@/components/Modal.vue';
 import { Button, Badge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Checkbox, Label } from '@hardimpactdev/craft-ui';
 
@@ -42,17 +42,17 @@ interface Editor {
     name: string;
 }
 
-interface Site {
+interface Project {
     id: number;
     name: string;
     display_name?: string;
     github_repo?: string | null;
-    site_type?: string | null;
+    project_type?: string | null;
     path: string;
     has_public_folder: boolean;
     php_version?: string;
     domain?: string | null;
-    site_url?: string | null;
+    url?: string | null;
     status?: ProvisionStatus | null;
     error_message?: string | null;
 }
@@ -73,7 +73,7 @@ const getApiUrl = (path: string) => {
 
 const page = usePage();
 
-const sites = ref<Site[]>([]);
+const projects = ref<Site[]>([]);
 const provisioningStatuses = [
     'queued',
     'creating_repo',
@@ -91,16 +91,16 @@ const availablePhpVersions = ref<string[]>(['8.3', '8.4', '8.5']);
 const changingPhpFor = ref<string | null>(null);
 
 // Combine real sites with provisioning sites that might not be in the list yet
-const allSites = computed(() => {
-    const siteMap = new Map(sites.value.map((p) => [p.name, p]));
+const allProjects = computed(() => {
+    const siteMap = new Map(projects.value.map((p) => [p.name, p]));
 
     // Add placeholder entries for provisioning sites not in the list
-    for (const [slug, provSite] of provisioningSites.value) {
+    for (const [slug, provSite] of provisioningProjects.value) {
         if (!siteMap.has(slug)) {
             siteMap.set(slug, {
                 id: 0,
                 name: slug,
-                path: `~/sites/${slug}`,
+                path: `~/projects/${slug}`,
                 has_public_folder: false,
                 php_version: defaultPhpVersion.value,
                 status: provSite.status,
@@ -116,21 +116,21 @@ const allSites = computed(() => {
 
 // Initialize provisioning composable
 const {
-    provisioningSites,
-    deletingSites,
+    provisioningProjects,
+    deletingProjects,
     isConnected,
     connectionError,
-    siteReadyCount,
-    siteDeletedCount,
+    projectReadyCount,
+    projectDeletedCount,
     isConfigured: isProvisioningConfigured,
-    trackSite,
-    getSiteStatus,
-    trackDeletion: trackSiteDeletion,
-    getDeletionStatus: getSiteDeletionStatus,
-    markDeletionComplete: markSiteDeletionComplete,
-    markDeletionFailed: markSiteDeletionFailed,
-    clearDeletion: clearSiteDeletion,
-} = useSiteProvisioning();
+    trackProject,
+    getProjectStatus,
+    trackDeletion: trackProjectDeletion,
+    getDeletionStatus: getProjectDeletionStatus,
+    markDeletionComplete: markProjectDeletionComplete,
+    markDeletionFailed: markProjectDeletionFailed,
+    clearDeletion: clearProjectDeletion,
+} = useProjectProvisioning();
 
 // Get provisioning slug from flash data or URL query param
 const provisioningSlug = computed(() => {
@@ -169,34 +169,34 @@ const deletionStatusLabels: Record<DeletionStatus, string> = {
     delete_failed: 'Delete failed',
 };
 
-function getSiteSlug(siteName: string): string {
+function getProjectSlug(siteName: string): string {
     return siteName
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '');
 }
 
-function isSiteDeleting(siteName: string): boolean {
-    const slug = getSiteSlug(siteName);
-    const status = getSiteDeletionStatus(slug);
+function isProjectDeleting(siteName: string): boolean {
+    const slug = getProjectSlug(siteName);
+    const status = getProjectDeletionStatus(slug);
     if (!status) return false;
     // Include 'deleted' so the row stays dimmed until it's removed from the list
     return status.status !== 'delete_failed';
 }
 
-function getSiteDeletionStatusValue(siteName: string): DeletionStatus | null {
-    const slug = getSiteSlug(siteName);
-    const status = getSiteDeletionStatus(slug);
+function getProjectDeletionStatusValue(siteName: string): DeletionStatus | null {
+    const slug = getProjectSlug(siteName);
+    const status = getProjectDeletionStatus(slug);
     return status?.status ?? null;
 }
 
-function getSiteProvisioningStatus(site: Site): ProvisioningSite | null {
+function getProjectProvisioningStatus(site: Site): ProvisioningProject | null {
     // Check WebSocket status FIRST - it has the most up-to-date status
     const slug = site.name
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '');
-    const wsStatus = getSiteStatus(slug);
+    const wsStatus = getProjectStatus(slug);
 
     if (wsStatus) {
         return wsStatus;
@@ -208,21 +208,21 @@ function getSiteProvisioningStatus(site: Site): ProvisioningSite | null {
             slug: site.name,
             status: site.status,
             error: site.error_message ?? null,
-            siteId: site.id,
+            projectId: site.id,
         };
     }
 
     return null;
 }
 
-function isSiteProvisioning(site: Site): boolean {
-    const status = getSiteProvisioningStatus(site);
+function isProjectProvisioning(site: Site): boolean {
+    const status = getProjectProvisioningStatus(site);
     if (!status) return false;
     return status.status !== 'ready' && status.status !== 'failed';
 }
 
-function getSiteProvisionStatus(site: Site): ProvisionStatus | null {
-    const status = getSiteProvisioningStatus(site);
+function getProjectProvisionStatus(site: Site): ProvisionStatus | null {
+    const status = getProjectProvisioningStatus(site);
     // Return null for 'ready' so it's treated as done (no status shown)
     if (status?.status === 'ready') return null;
     return status?.status ?? null;
@@ -243,26 +243,26 @@ function handleApiError(error: string | undefined, context: string) {
     }
 }
 
-async function loadSites(silent = false) {
+async function loadProjects(silent = false) {
     if (!silent) {
         loading.value = true;
     }
     try {
-        const { data: result } = await api.get(getApiUrl('/sites'));
+        const { data: result } = await api.get(getApiUrl('/projects'));
 
         if (result.success && result.data) {
-            sites.value = result.data.sites || [];
+            projects.value = result.data.sites || [];
             tld.value = result.data.tld || 'test';
             defaultPhpVersion.value = result.data.default_php_version || '8.4';
             if (result.data.available_php_versions?.length) {
                 availablePhpVersions.value = result.data.available_php_versions;
             }
         } else if (!result.success && !silent) {
-            handleApiError(result.error, 'load sites');
+            handleApiError(result.error, 'load projects');
         }
     } catch (error) {
         if (axios.isCancel(error)) return;
-        console.error('Failed to load sites:', error);
+        console.error('Failed to load projects:', error);
         // Error toast handled by axios interceptor for non-silent loads
     } finally {
         if (!silent) {
@@ -293,7 +293,7 @@ async function changePhpVersion(site: Site, version: string) {
     changingPhpFor.value = site.name;
     try {
         const siteName = encodeURIComponent(site.name);
-        const { data: result } = await api.post(`/sites/${siteName}/php`, {
+        const { data: result } = await api.post(`/projects/${siteName}/php`, {
             version: version,
         });
 
@@ -302,7 +302,7 @@ async function changePhpVersion(site: Site, version: string) {
                 description: `Now using PHP ${version} for this site.`,
             });
             // Refresh sites to get updated PHP version
-            await loadSites(true);
+            await loadProjects(true);
         } else {
             handleApiError(result.error, 'change PHP version');
         }
@@ -313,25 +313,25 @@ async function changePhpVersion(site: Site, version: string) {
     }
 }
 
-// Delete site state
+// Delete project state
 const showDeleteModal = ref(false);
-const siteToDelete = ref<Site | null>(null);
+const projectToDelete = ref<Site | null>(null);
 const deleting = ref(false);
 const deleteError = ref<string | null>(null);
 const deleteDatabase = ref(true);
 
-function confirmDelete(site: Site) {
-    siteToDelete.value = site;
+function confirmDeleteProject(site: Site) {
+    projectToDelete.value = site;
     deleteError.value = null;
     deleteDatabase.value = true; // Reset to default (checked)
     showDeleteModal.value = true;
 }
 
-async function deleteSite() {
-    if (!siteToDelete.value) return;
+async function deleteProject() {
+    if (!projectToDelete.value) return;
 
-    const siteName = siteToDelete.value.name;
-    const slug = getSiteSlug(siteName);
+    const siteName = projectToDelete.value.name;
+    const slug = getProjectSlug(siteName);
 
     // Warn if WebSocket is not connected
     if (!isConnected.value) {
@@ -343,8 +343,8 @@ async function deleteSite() {
 
     // Close modal immediately and start tracking deletion
     showDeleteModal.value = false;
-    trackSiteDeletion(slug);
-    siteToDelete.value = null;
+    trackProjectDeletion(slug);
+    projectToDelete.value = null;
     deleting.value = false;
     deleteError.value = null;
 
@@ -354,8 +354,8 @@ async function deleteSite() {
     try {
         // When remoteApiUrl is set, use the flat route /sites/{slug}
         const deleteUrl = props.remoteApiUrl
-            ? `/sites/${slug}`
-            : getApiUrl(`/sites/${slug}`);
+            ? `/projects/${slug}`
+            : getApiUrl(`/projects/${slug}`);
 
         const { data: result } = await api.delete(deleteUrl, {
             params: { keep_db: keepDb ? '1' : '0' },
@@ -363,49 +363,49 @@ async function deleteSite() {
 
         if (result.success) {
             // Mark deletion complete immediately - the API is synchronous
-            markSiteDeletionComplete(slug);
+            markProjectDeletionComplete(slug);
             // Reload sites to update the list
-            await loadSites(true);
+            await loadProjects(true);
         } else {
-            markSiteDeletionFailed(slug, result.error || 'Failed to delete site');
+            markProjectDeletionFailed(slug, result.error || 'Failed to delete project');
         }
     } catch (error) {
-        console.error('Failed to delete site:', error);
-        markSiteDeletionFailed(slug, 'An error occurred while deleting the site');
+        console.error('Failed to delete project:', error);
+        markProjectDeletionFailed(slug, 'An error occurred while deleting the site');
     }
 }
 
-// Rebuild site state
-const rebuildingSite = ref<string | null>(null);
+// Rebuild project state
+const rebuildingProject = ref<string | null>(null);
 
-async function rebuildSite(site: Site) {
-    rebuildingSite.value = site.name;
-    const slug = getSiteSlug(site.name);
+async function rebuildProject(site: Site) {
+    rebuildingProject.value = site.name;
+    const slug = getProjectSlug(site.name);
     try {
-        const { data: result } = await api.post(getApiUrl(`/sites/${slug}/rebuild`), {});
+        const { data: result } = await api.post(getApiUrl(`/projects/${slug}/rebuild`), {});
 
         if (result.success) {
-            toast.success('Site Rebuilt', {
+            toast.success('Project Rebuilt', {
                 description: `"${site.name}" has been rebuilt successfully.`,
             });
             // Refresh sites to get updated status
-            await loadSites(true);
+            await loadProjects(true);
         } else {
-            handleApiError(result.error, 'rebuild site');
+            handleApiError(result.error, 'rebuild project');
         }
     } catch {
         // Error toast handled by axios interceptor
     } finally {
-        rebuildingSite.value = null;
+        rebuildingProject.value = null;
     }
 }
 
 // Watch for site ready events - show toast and reload the list
-watch(siteReadyCount, () => {
+watch(projectReadyCount, () => {
     // Find the site that just became ready
-    for (const [slug, site] of provisioningSites.value) {
+    for (const [slug, site] of provisioningProjects.value) {
         if (site.status === 'ready') {
-            toast.success('Site Created', {
+            toast.success('Project Created', {
                 description: `"${slug}" has been created successfully.`,
             });
             break;
@@ -413,16 +413,16 @@ watch(siteReadyCount, () => {
     }
     // Debounce reload to prevent multiple refreshes
     setTimeout(() => {
-        loadSites(true); // Silent refresh - no spinner
+        loadProjects(true); // Silent refresh - no spinner
     }, 500);
 });
 
 // Watch for site deleted events - show toast and reload the list
-watch(siteDeletedCount, () => {
+watch(projectDeletedCount, () => {
     // Find the site that was just deleted
-    for (const [slug, site] of deletingSites.value) {
+    for (const [slug, site] of deletingProjects.value) {
         if (site.status === 'deleted') {
-            toast.success('Site Deleted', {
+            toast.success('Project Deleted', {
                 description: `"${slug}" has been removed.`,
             });
             break;
@@ -430,18 +430,18 @@ watch(siteDeletedCount, () => {
     }
     // Debounce reload to prevent multiple refreshes
     setTimeout(() => {
-        loadSites(true); // Silent refresh - no spinner
+        loadProjects(true); // Silent refresh - no spinner
     }, 500);
 });
 
 // Watch for provisioning/deletion failures
 watch(
-    () => [...provisioningSites.value.values()],
+    () => [...provisioningProjects.value.values()],
     (newSites, oldSites) => {
         for (const site of newSites) {
             const oldSite = oldSites?.find((p) => p.slug === site.slug);
             if (site.status === 'failed' && oldSite?.status !== 'failed') {
-                toast.error(`Failed to create site "${site.slug}"`, {
+                toast.error(`Failed to create project "${site.slug}"`, {
                     description: site.error || 'Unknown error occurred',
                 });
             }
@@ -451,12 +451,12 @@ watch(
 );
 
 watch(
-    () => [...deletingSites.value.values()],
+    () => [...deletingProjects.value.values()],
     (newSites, oldSites) => {
         for (const site of newSites) {
             const oldSite = oldSites?.find((p) => p.slug === site.slug);
             if (site.status === 'delete_failed' && oldSite?.status !== 'delete_failed') {
-                toast.error(`Failed to delete site "${site.slug}"`, {
+                toast.error(`Failed to delete project "${site.slug}"`, {
                     description: site.error || 'Unknown error occurred',
                 });
             }
@@ -469,31 +469,31 @@ onMounted(() => {
     // Track site from flash data IMMEDIATELY (before loading sites or connecting)
     // This ensures the provisioning state shows instantly
     if (provisioningSlug.value) {
-        trackSite(provisioningSlug.value);
+        trackProject(provisioningSlug.value);
     }
 
     // Load sites list (non-blocking - page renders immediately with loading state)
-    loadSites();
+    loadProjects();
 
     // No explicit connect needed; Echo is configured globally.
 });
 </script>
 
 <template>
-    <Head :title="`Sites - ${environment.name}`" />
+    <Head :title="`Projects - ${environment.name}`" />
 
     <div>
         <!-- Header -->
         <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
             <div>
-                <h1 class="text-2xl font-semibold tracking-tight text-zinc-100">Sites</h1>
-                <p class="text-sm text-zinc-500 mt-1">Sites in {{ environment.name }}</p>
+                <h1 class="text-2xl font-semibold tracking-tight text-zinc-100">Projects</h1>
+                <p class="text-sm text-zinc-500 mt-1">Projects in {{ environment.name }}</p>
             </div>
             <div class="flex items-center gap-2">
                 <Button as-child size="sm" class="bg-lime-500 hover:bg-lime-600 text-zinc-950">
-                    <Link :href="`/environments/${environment.id}/sites/create`">
+                    <Link :href="`/environments/${environment.id}/projects/create`">
                         <Plus class="w-4 h-4 mr-1.5" />
-                        New Site
+                        New Project
                     </Link>
                 </Button>
             </div>
@@ -523,24 +523,24 @@ onMounted(() => {
         <!-- Loading State -->
         <div v-if="loading" class="rounded-lg border border-zinc-800 bg-zinc-900/50 p-8 text-center">
             <Loader2 class="w-8 h-8 mx-auto text-zinc-600 animate-spin mb-3" />
-            <p class="text-zinc-500">Loading sites...</p>
+            <p class="text-zinc-500">Loading projects...</p>
         </div>
 
         <!-- Empty State -->
         <div
-            v-else-if="allSites.length === 0"
+            v-else-if="allProjects.length === 0"
             class="rounded-lg border border-zinc-800 bg-zinc-900/50 p-8 text-center"
         >
             <FolderOpen class="w-12 h-12 mx-auto text-zinc-600 mb-3" />
-            <h3 class="text-lg font-medium text-zinc-100 mb-2">No sites found</h3>
-            <p class="text-zinc-400">Add site directories in the environment configuration.</p>
+            <h3 class="text-lg font-medium text-zinc-100 mb-2">No projects found</h3>
+            <p class="text-zinc-400">Add project directories in the environment configuration.</p>
         </div>
 
-        <!-- Sites Table -->
+        <!-- Projects Table -->
         <div v-else class="rounded-lg border border-zinc-800 bg-zinc-900/50 overflow-hidden">
             <!-- Table Header -->
             <div class="grid grid-cols-[1fr_100px_140px_160px] items-center gap-4 px-4 py-3 border-b border-zinc-800 bg-zinc-800/30">
-                <span class="text-xs font-medium text-zinc-500 uppercase tracking-wide">Site</span>
+                <span class="text-xs font-medium text-zinc-500 uppercase tracking-wide">Project</span>
                 <span class="text-xs font-medium text-zinc-500 uppercase tracking-wide">Status</span>
                 <span class="text-xs font-medium text-zinc-500 uppercase tracking-wide">PHP</span>
                 <span class="text-xs font-medium text-zinc-500 uppercase tracking-wide text-right">Actions</span>
@@ -549,49 +549,49 @@ onMounted(() => {
             <!-- Table Body -->
             <div>
                 <div
-                    v-for="site in allSites"
+                    v-for="site in allProjects"
                     :key="site.name"
                     class="grid grid-cols-[1fr_100px_140px_160px] items-center gap-4 px-4 py-3 border-b border-zinc-800/50 last:border-b-0 transition-colors hover:bg-zinc-800/30"
                     :class="{
-                        'opacity-50': isSiteDeleting(site.name),
-                        'bg-zinc-800/20': isSiteProvisioning(site),
-                        'bg-lime-500/5': getSiteDeletionStatusValue(site.name) === 'deleted',
+                        'opacity-50': isProjectDeleting(site.name),
+                        'bg-zinc-800/20': isProjectProvisioning(site),
+                        'bg-lime-500/5': getProjectDeletionStatusValue(site.name) === 'deleted',
                         'bg-red-500/5':
-                            isSiteDeleting(site.name) &&
-                            getSiteDeletionStatusValue(site.name) !== 'deleted',
+                            isProjectDeleting(site.name) &&
+                            getProjectDeletionStatusValue(site.name) !== 'deleted',
                     }"
                 >
                     <!-- Site info -->
                     <div class="flex items-center gap-3 min-w-0">
                         <Check
-                            v-if="getSiteDeletionStatusValue(site.name) === 'deleted'"
+                            v-if="getProjectDeletionStatusValue(site.name) === 'deleted'"
                             class="w-4 h-4 shrink-0 text-lime-400"
                         />
                         <Loader2
-                            v-else-if="isSiteDeleting(site.name)"
+                            v-else-if="isProjectDeleting(site.name)"
                             class="w-4 h-4 shrink-0 text-red-400 animate-spin"
                         />
                         <Loader2
-                            v-else-if="isSiteProvisioning(site)"
+                            v-else-if="isProjectProvisioning(site)"
                             class="w-4 h-4 shrink-0 text-amber-400 animate-spin"
                         />
                         <Clock3
-                            v-else-if="getSiteProvisionStatus(site) === 'queued'"
+                            v-else-if="getProjectProvisionStatus(site) === 'queued'"
                             class="w-4 h-4 shrink-0 text-blue-400"
                         />
                         <AlertCircle
                             v-else-if="
-                                getSiteProvisionStatus(site) === 'failed' ||
-                                getSiteDeletionStatusValue(site.name) === 'delete_failed'
+                                getProjectProvisionStatus(site) === 'failed' ||
+                                getProjectDeletionStatusValue(site.name) === 'delete_failed'
                             "
                             class="w-4 h-4 shrink-0 text-red-400"
                         />
                         <Package
-                            v-else-if="site.site_type === 'laravel-package'"
+                            v-else-if="site.project_type === 'laravel-package'"
                             class="w-4 h-4 shrink-0 text-purple-400"
                         />
                         <Terminal
-                            v-else-if="site.site_type === 'cli'"
+                            v-else-if="site.project_type === 'cli'"
                             class="w-4 h-4 shrink-0 text-amber-400"
                         />
                         <Globe
@@ -604,8 +604,8 @@ onMounted(() => {
                             <p
                                 v-if="
                                     site.github_repo &&
-                                    !isSiteProvisioning(site) &&
-                                    !isSiteDeleting(site.name)
+                                    !isProjectProvisioning(site) &&
+                                    !isProjectDeleting(site.name)
                                 "
                                 class="text-xs text-zinc-500 truncate"
                             >
@@ -618,35 +618,35 @@ onMounted(() => {
                     <div class="text-sm">
                         <!-- Deletion status -->
                         <span
-                            v-if="getSiteDeletionStatusValue(site.name) === 'deleted'"
+                            v-if="getProjectDeletionStatusValue(site.name) === 'deleted'"
                             class="px-2 py-0.5 text-xs font-medium rounded-full bg-lime-500/15 text-lime-400"
                         >
                             Deleted
                         </span>
                         <span
-                            v-else-if="getSiteDeletionStatusValue(site.name) === 'delete_failed'"
+                            v-else-if="getProjectDeletionStatusValue(site.name) === 'delete_failed'"
                             class="px-2 py-0.5 text-xs font-medium rounded-full bg-red-500/15 text-red-400"
                         >
                             Failed
                         </span>
                         <span
-                            v-else-if="isSiteDeleting(site.name)"
+                            v-else-if="isProjectDeleting(site.name)"
                             class="px-2 py-0.5 text-xs font-medium rounded-full bg-red-500/15 text-red-400"
                         >
-                            {{ deletionStatusLabels[getSiteDeletionStatusValue(site.name)!] }}
+                            {{ deletionStatusLabels[getProjectDeletionStatusValue(site.name)!] }}
                         </span>
                         <!-- Provisioning status -->
                         <span
-                            v-else-if="getSiteProvisionStatus(site) === 'failed'"
+                            v-else-if="getProjectProvisionStatus(site) === 'failed'"
                             class="px-2 py-0.5 text-xs font-medium rounded-full bg-red-500/15 text-red-400"
                         >
                             Failed
                         </span>
                         <span
-                            v-else-if="getSiteProvisionStatus(site)"
+                            v-else-if="getProjectProvisionStatus(site)"
                             class="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-500/15 text-amber-400"
                         >
-                            {{ statusLabels[getSiteProvisionStatus(site)!] }}
+                            {{ statusLabels[getProjectProvisionStatus(site)!] }}
                         </span>
                         <span v-else class="text-zinc-500/50">—</span>
                     </div>
@@ -654,7 +654,7 @@ onMounted(() => {
                     <!-- PHP Version Dropdown -->
                     <div>
                         <div
-                            v-if="isSiteProvisioning(site) || isSiteDeleting(site.name)"
+                            v-if="isProjectProvisioning(site) || isProjectDeleting(site.name)"
                             class="text-sm text-zinc-500 font-mono"
                         >
                             {{ site.php_version || defaultPhpVersion }}
@@ -692,22 +692,22 @@ onMounted(() => {
                     <!-- Actions -->
                     <div class="flex items-center justify-end gap-1">
                         <div
-                            v-if="getSiteDeletionStatusValue(site.name) === 'deleted'"
+                            v-if="getProjectDeletionStatusValue(site.name) === 'deleted'"
                             class="text-xs text-lime-400"
                         >
                             Deleted
                         </div>
                         <div
-                            v-else-if="isSiteDeleting(site.name)"
+                            v-else-if="isProjectDeleting(site.name)"
                             class="text-xs text-red-400"
                         >
                             Deleting...
                         </div>
                         <div
-                            v-else-if="isSiteProvisioning(site)"
+                            v-else-if="isProjectProvisioning(site)"
                             class="text-xs text-zinc-500"
                         >
-                            {{ statusLabels[getSiteProvisionStatus(site) ?? 'queued'] }}
+                            {{ statusLabels[getProjectProvisionStatus(site) ?? 'queued'] }}
                         </div>
                         <template v-else>
                             <Button
@@ -734,28 +734,28 @@ onMounted(() => {
                                 <Button
                                     v-if="
                                         site.has_public_folder &&
-                                        !isSiteProvisioning(site) &&
-                                        !isSiteDeleting(site.name)
+                                        !isProjectProvisioning(site) &&
+                                        !isProjectDeleting(site.name)
                                     "
-                                    @click="rebuildSite(site)"
+                                    @click="rebuildProject(site)"
                                     variant="ghost"
                                     size="icon-sm"
                                     class="h-8 w-8 text-zinc-400 hover:text-amber-400 hover:bg-zinc-800"
-                                    :disabled="rebuildingSite === site.name"
-                                    title="Rebuild site"
+                                    :disabled="rebuildingProject === site.name"
+                                    title="Rebuild project"
                                 >
                                     <Loader2
-                                        v-if="rebuildingSite === site.name"
+                                        v-if="rebuildingProject === site.name"
                                         class="w-3.5 h-3.5 animate-spin"
                                     />
                                     <RefreshCw v-else class="w-3.5 h-3.5" />
                                 </Button>
                                 <Button
-                                    @click="confirmDelete(site)"
+                                    @click="confirmDeleteProject(site)"
                                     variant="ghost"
                                     size="icon-sm"
                                     class="h-8 w-8 text-zinc-400 hover:text-red-400 hover:bg-red-500/10"
-                                    title="Delete site"
+                                    title="Delete project"
                                 >
                                     <Trash2 class="w-3.5 h-3.5" />
                                 </Button>
@@ -791,11 +791,11 @@ onMounted(() => {
         </div>
 
         <!-- Delete Confirmation Modal -->
-        <Modal :show="showDeleteModal" title="Delete Site" @close="showDeleteModal = false">
+        <Modal :show="showDeleteModal" title="Delete Project" @close="showDeleteModal = false">
             <div class="p-6">
                 <p class="text-zinc-300 mb-4">
                     Are you sure you want to delete
-                    <strong class="text-white">{{ siteToDelete?.name }}</strong
+                    <strong class="text-white">{{ projectToDelete?.name }}</strong
                     >?
                 </p>
                 <p class="text-zinc-400 text-sm mb-4">This will:</p>
@@ -833,13 +833,13 @@ onMounted(() => {
                         Cancel
                     </Button>
                     <Button
-                        @click="deleteSite"
+                        @click="deleteProject"
                         variant="destructive"
                         :disabled="deleting"
                     >
                         <Loader2 v-if="deleting" class="w-4 h-4 animate-spin" />
                         <Trash2 v-else class="w-4 h-4" />
-                        {{ deleting ? 'Deleting...' : 'Delete Site' }}
+                        {{ deleting ? 'Deleting...' : 'Delete Project' }}
                     </Button>
                 </div>
             </div>

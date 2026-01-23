@@ -392,7 +392,7 @@ const submit = () => {
     submitError.value = null;
 
     router.post(
-        '/sites',
+        '/projects',
         {
             ...form.value,
             org: selectedOrg.value,
@@ -406,7 +406,7 @@ const submit = () => {
                     errors.error ||
                     errors.name ||
                     Object.values(errors)[0] ||
-                    'Failed to create site';
+                    'Failed to create project';
                 submitting.value = false;
             },
             onFinish: () => {
@@ -418,21 +418,21 @@ const submit = () => {
 </script>
 
 <template>
-    <Head title="New Site" />
+    <Head title="New Project" />
 
     <div>
         <div class="mb-8">
-            <h1 class="text-2xl font-bold text-white">New Site</h1>
-            <p class="text-zinc-400 mt-1">Create a new site in {{ environment.name }}</p>
+            <h1 class="text-2xl font-bold text-white">New Project</h1>
+            <p class="text-zinc-400 mt-1">Create a new project in {{ environment.name }}</p>
         </div>
 
         <form @submit.prevent="submit">
-            <!-- Site Name -->
+            <!-- Project Name -->
             <div class="grid grid-cols-2 gap-8 py-6">
                 <div>
-                    <h3 class="text-sm font-medium text-white">Site Name</h3>
+                    <h3 class="text-sm font-medium text-white">Project Name</h3>
                     <p class="text-sm text-zinc-500 mt-1">
-                        Display name for the app. Will be slugified for the directory and URL.
+                        Display name for the project. Will be slugified for the directory and URL.
                     </p>
                 </div>
                 <div>
@@ -441,7 +441,7 @@ const submit = () => {
                         type="text"
                         id="name"
                         required
-                        placeholder="My Awesome Site"
+                        placeholder="My Awesome Project"
                         class="w-full"
                         :class="{ 'border-red-500': repoExists === true }"
                     />
@@ -848,7 +848,7 @@ const submit = () => {
             <!-- Submit Buttons -->
             <div class="flex justify-end gap-3 pt-6 mt-6 border-t border-zinc-800">
                 <Button as-child variant="ghost">
-                    <Link :href="`/environments/${environment.id}/sites`">
+                    <Link :href="`/environments/${environment.id}/projects`">
                         Cancel
                     </Link>
                 </Button>
@@ -859,7 +859,7 @@ const submit = () => {
                 >
                     <Loader2 v-if="submitting" class="w-4 h-4 animate-spin" />
                     <FolderGit2 v-else class="w-4 h-4" />
-                    Create Site
+                    Create Project
                 </Button>
             </div>
         </form>

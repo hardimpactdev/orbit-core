@@ -5,7 +5,7 @@ namespace HardImpact\Orbit\Jobs;
 use HardImpact\Orbit\Data\ProvisionContext;
 use HardImpact\Orbit\Enums\RepoIntent;
 use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Models\Site;
+use HardImpact\Orbit\Models\Project;
 use HardImpact\Orbit\Services\OrbitCli\ConfigurationService;
 use HardImpact\Orbit\Services\Provision\ProvisionLogger;
 use HardImpact\Orbit\Services\Provision\ProvisionPipeline;
@@ -18,9 +18,9 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
- * Job for creating a new site with native Laravel broadcasting.
+ * Job for creating a new project with native Laravel broadcasting.
  *
- * This job handles the complete site provisioning process:
+ * This job handles the complete project provisioning process:
  * - Repository operations (clone, fork, template)
  * - Dependency installation
  * - Environment configuration
@@ -28,7 +28,7 @@ use Illuminate\Support\Str;
  *
  * Status updates are broadcast via native Laravel events to Reverb.
  */
-class CreateSiteJob implements ShouldQueue
+class CreateProjectJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -45,7 +45,7 @@ class CreateSiteJob implements ShouldQueue
     protected string $slug;
 
     public function __construct(
-        protected int $siteId,
+        protected int $projectId,
         protected array $options,
     ) {
         $this->slug = Str::slug($options['name']);
@@ -56,24 +56,24 @@ class CreateSiteJob implements ShouldQueue
      */
     public function handle(ProvisionPipeline $pipeline, ConfigurationService $configService): void
     {
-        $site = Site::findOrFail($this->siteId);
-        $environment = Environment::findOrFail($site->environment_id);
+        $project = Project::findOrFail($this->projectId);
+        $environment = Environment::findOrFail($project->environment_id);
 
         // Initialize logger with native Laravel broadcasting
-        $logger = new ProvisionLogger($this->slug, $this->siteId);
+        $logger = new ProvisionLogger($this->slug, $this->projectId);
 
-        $site->update([
-            'status' => Site::STATUS_QUEUED,
-            'job_id' => $this->job?->uuid() ?? $site->job_id,
+        $project->update([
+            'status' => Project::STATUS_QUEUED,
+            'job_id' => $this->job?->uuid() ?? $project->job_id,
             'error_message' => null,
         ]);
 
         $logger->broadcast('provisioning');
-        Log::info("CreateSiteJob: Starting site creation for {$this->slug}");
+        Log::info("CreateProjectJob: Starting project creation for {$this->slug}");
 
         try {
             // Determine project path
-            $projectPath = $this->determineProjectPath($site, $configService, $environment);
+            $projectPath = $this->determineProjectPath($project, $configService, $environment);
 
             // Create project directory if it doesn't exist
             if (! is_dir($projectPath)) {
@@ -82,8 +82,8 @@ class CreateSiteJob implements ShouldQueue
                 }
             }
 
-            // Update site with path
-            $site->update(['path' => $projectPath]);
+            // Update project with path
+            $project->update(['path' => $projectPath]);
 
             // Build provision context
             $context = $this->buildContext($projectPath, $environment);
@@ -114,18 +114,18 @@ class CreateSiteJob implements ShouldQueue
             // Phase 4: Finalize
             $logger->broadcast('finalizing');
 
-            // Detect site type and public folder
+            // Detect project type and public folder
             $hasPublicFolder = is_dir("{$projectPath}/public");
-            $siteType = $this->detectSiteType($projectPath);
+            $projectType = $this->detectProjectType($projectPath);
 
-            // Update site with final details
-            $site->update([
-                'status' => Site::STATUS_READY,
+            // Update project with final details
+            $project->update([
+                'status' => Project::STATUS_READY,
                 'github_repo' => $context->githubRepo,
-                'site_url' => "https://{$this->slug}.{$context->tld}",
+                'url' => "https://{$this->slug}.{$context->tld}",
                 'domain' => "{$this->slug}.{$context->tld}",
                 'has_public_folder' => $hasPublicFolder,
-                'site_type' => $siteType,
+                'project_type' => $projectType,
                 'error_message' => null,
             ]);
 
@@ -137,16 +137,16 @@ class CreateSiteJob implements ShouldQueue
             if ($hasPublicFolder) {
                 $this->regenerateCaddy($logger);
             }
-            Log::info("CreateSiteJob: Site {$this->slug} created successfully");
+            Log::info("CreateProjectJob: Project {$this->slug} created successfully");
 
         } catch (\Throwable $e) {
-            $site->update([
-                'status' => Site::STATUS_FAILED,
+            $project->update([
+                'status' => Project::STATUS_FAILED,
                 'error_message' => $e->getMessage(),
             ]);
 
             $logger->broadcast('failed', $e->getMessage());
-            Log::error("CreateSiteJob: Site {$this->slug} creation failed", [
+            Log::error("CreateProjectJob: Project {$this->slug} creation failed", [
                 'error' => $e->getMessage(),
             ]);
 
@@ -160,13 +160,13 @@ class CreateSiteJob implements ShouldQueue
     }
 
     /**
-     * Determine the project path for the site.
+     * Determine the project path for the project.
      */
-    protected function determineProjectPath(Site $site, ConfigurationService $configService, Environment $environment): string
+    protected function determineProjectPath(Project $project, ConfigurationService $configService, Environment $environment): string
     {
-        // If path already set on site, use it
-        if ($site->path) {
-            return $site->path;
+        // If path already set on project, use it
+        if ($project->path) {
+            return $project->path;
         }
 
         // If directory option provided, use it
@@ -196,7 +196,7 @@ class CreateSiteJob implements ShouldQueue
         return new ProvisionContext(
             slug: $this->slug,
             projectPath: $projectPath,
-            siteId: $this->siteId,
+            projectId: $this->projectId,
             cloneUrl: $cloneUrl,
             template: ($this->options['is_template'] ?? false) ? $cloneUrl : null,
             visibility: $this->options['visibility'] ?? 'private',
@@ -274,7 +274,7 @@ class CreateSiteJob implements ShouldQueue
     }
 
     /**
-     * Get the slug for this site.
+     * Get the slug for this project.
      */
     public function getSlug(): string
     {
@@ -287,16 +287,16 @@ class CreateSiteJob implements ShouldQueue
     public function tags(): array
     {
         return [
-            'create-site',
-            "site:{$this->slug}",
-            "site-id:{$this->siteId}",
+            'create-project',
+            "project:{$this->slug}",
+            "project-id:{$this->projectId}",
         ];
     }
 
     /**
-     * Detect the site type based on file structure.
+     * Detect the project type based on file structure.
      */
-    protected function detectSiteType(string $directory): string
+    protected function detectProjectType(string $directory): string
     {
         $hasPublicFolder = is_dir("{$directory}/public");
         $hasArtisan = file_exists("{$directory}/artisan");

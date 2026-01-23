@@ -8,7 +8,7 @@ import { createPinia } from 'pinia';
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate';
 import { configureEcho } from '@laravel/echo-vue';
 import Pusher from 'pusher-js';
-import { globalProvisioningHandler } from '@/composables/useSiteProvisioning';
+import { globalProvisioningHandler } from '@/composables/useProjectProvisioning';
 
 window.Pusher = Pusher;
 
@@ -62,8 +62,8 @@ const configureReverbEcho = (page: Page<PageProps>) => {
             const pusherInstance = window.Pusher.instances?.[0];
             if (pusherInstance) {
                 const channel = pusherInstance.subscribe('provisioning');
-                channel.bind('site.provision.status', globalProvisioningHandler);
-                channel.bind('site.deletion.status', globalProvisioningHandler);
+                channel.bind('project.provision.status', globalProvisioningHandler);
+                channel.bind('project.deletion.status', globalProvisioningHandler);
             }
         }, 100);
 

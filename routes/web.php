@@ -60,11 +60,11 @@ if (config('orbit.multi_environment')) {
 
 // SHARED ROUTES (Outside conditional)
 
-// Site routes - forwards to active environment's API
-Route::post('sites', [\HardImpact\Orbit\Http\Controllers\SiteController::class, 'store'])->name('sites.store');
-Route::delete('sites/{slug}', [\HardImpact\Orbit\Http\Controllers\SiteController::class, 'destroy'])->name('sites.destroy');
-Route::post('sites/{site}/php', [\HardImpact\Orbit\Http\Controllers\SiteController::class, 'setPhpVersion'])->name('sites.php.set');
-Route::post('sites/{site}/php/reset', [\HardImpact\Orbit\Http\Controllers\SiteController::class, 'resetPhpVersion'])->name('sites.php.reset');
+// Project routes - forwards to active environment's API
+Route::post('projects', [\HardImpact\Orbit\Http\Controllers\ProjectController::class, 'store'])->name('projects.store');
+Route::delete('projects/{slug}', [\HardImpact\Orbit\Http\Controllers\ProjectController::class, 'destroy'])->name('projects.destroy');
+Route::post('projects/{project}/php', [\HardImpact\Orbit\Http\Controllers\ProjectController::class, 'setPhpVersion'])->name('projects.php.set');
+Route::post('projects/{project}/php/reset', [\HardImpact\Orbit\Http\Controllers\ProjectController::class, 'resetPhpVersion'])->name('projects.php.reset');
 
 // API routes for environment data
 Route::prefix('api/environments')->group(function (): void {

@@ -2,7 +2,7 @@
 
 namespace HardImpact\Orbit\Services\OrbitCli;
 
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetSitesRequest;
+use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetProjectsRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetStatusRequest;
 use HardImpact\Orbit\Models\Environment;
 use HardImpact\Orbit\Services\OrbitCli\Shared\CommandService;
@@ -52,15 +52,15 @@ class StatusService
     }
 
     /**
-     * Get all sites for an environment.
+     * Get all projects for an environment.
      */
-    public function sites(Environment $environment): array
+    public function projects(Environment $environment): array
     {
         if ($environment->is_local) {
-            return $this->command->executeCommand($environment, 'sites --json');
+            return $this->command->executeCommand($environment, 'projects --json');
         }
 
-        return $this->connector->sendRequest($environment, new GetSitesRequest);
+        return $this->connector->sendRequest($environment, new GetProjectsRequest);
     }
 
     /**

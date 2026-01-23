@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace HardImpact\Orbit\Services\Provision;
 
 use HardImpact\Orbit\Contracts\ProvisionLoggerContract;
-use HardImpact\Orbit\Events\SiteProvisioningStatus;
+use HardImpact\Orbit\Events\ProjectProvisioningStatus;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Logger for site provisioning operations.
+ * Logger for project provisioning operations.
  *
  * Handles logging to Laravel logs and broadcasting status updates
  * via native Laravel events to Reverb WebSocket.
@@ -22,7 +22,7 @@ final class ProvisionLogger implements ProvisionLoggerContract
 
     public function __construct(
         private readonly string $slug,
-        private readonly ?int $siteId = null,
+        private readonly ?int $projectId = null,
     ) {
         $this->initializeLogFile();
     }
@@ -87,7 +87,7 @@ final class ProvisionLogger implements ProvisionLoggerContract
     /**
      * Broadcast a status update via native Laravel events.
      *
-     * This dispatches a SiteProvisioningStatus event which implements
+     * This dispatches a ProjectProvisioningStatus event which implements
      * ShouldBroadcastNow, sending immediately to Reverb without queueing.
      */
     public function broadcast(string $status, ?string $error = null): void
@@ -95,16 +95,16 @@ final class ProvisionLogger implements ProvisionLoggerContract
         $errorSuffix = $error ? " - Error: {$error}" : '';
         $this->log("Status: {$status}{$errorSuffix}");
 
-        Log::info("Site {$this->slug}: {$status}", [
-            'site_id' => $this->siteId,
+        Log::info("Project {$this->slug}: {$status}", [
+            'project_id' => $this->projectId,
             'error' => $error,
         ]);
 
-        event(new SiteProvisioningStatus(
+        event(new ProjectProvisioningStatus(
             slug: $this->slug,
             status: $status,
             error: $error,
-            siteId: $this->siteId,
+            projectId: $this->projectId,
         ));
     }
 
@@ -117,10 +117,10 @@ final class ProvisionLogger implements ProvisionLoggerContract
     }
 
     /**
-     * Get the site ID for this logger instance.
+     * Get the project ID for this logger instance.
      */
-    public function getSiteId(): ?int
+    public function getProjectId(): ?int
     {
-        return $this->siteId;
+        return $this->projectId;
     }
 }

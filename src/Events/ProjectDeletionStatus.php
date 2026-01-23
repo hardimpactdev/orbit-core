@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace HardImpact\Orbit\Events;
 
 use Illuminate\Broadcasting\Channel;
@@ -7,15 +9,12 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Queue\SerializesModels;
 
 /**
- * Broadcasts site provisioning status updates via Reverb.
+ * Event for broadcasting project deletion status updates.
  *
- * This event is dispatched during site creation to provide real-time
- * status updates to the frontend via WebSocket.
- *
- * Uses ShouldBroadcastNow to broadcast immediately without queueing,
- * ensuring real-time updates during the provisioning process.
+ * Broadcasts immediately via Reverb for real-time UI updates.
+ * Status values: deleting, removing_files, deleted, delete_failed
  */
-class SiteProvisioningStatus implements ShouldBroadcastNow
+class ProjectDeletionStatus implements ShouldBroadcastNow
 {
     use SerializesModels;
 
@@ -23,11 +22,10 @@ class SiteProvisioningStatus implements ShouldBroadcastNow
         public string $slug,
         public string $status,
         public ?string $error = null,
-        public ?int $siteId = null,
     ) {}
 
     /**
-     * Get the channel the event should broadcast on.
+     * Get the channels the event should broadcast on.
      */
     public function broadcastOn(): Channel
     {
@@ -39,7 +37,7 @@ class SiteProvisioningStatus implements ShouldBroadcastNow
      */
     public function broadcastAs(): string
     {
-        return 'site.provision.status';
+        return 'project.deletion.status';
     }
 
     /**
@@ -51,7 +49,7 @@ class SiteProvisioningStatus implements ShouldBroadcastNow
             'slug' => $this->slug,
             'status' => $this->status,
             'error' => $this->error,
-            'site_id' => $this->siteId,
+            'timestamp' => now()->toIso8601String(),
         ];
     }
 }

@@ -48,7 +48,7 @@ interface ProvisionLoggerContract
     public function getSlug(): string;
 
     /**
-     * Get the site ID for this logger instance.
+     * Get the project ID for this logger instance.
      */
-    public function getSiteId(): ?int;
+    public function getProjectId(): ?int;
 }

@@ -5,24 +5,23 @@ namespace HardImpact\Orbit\Http\Integrations\Orbit\Requests;
 use Saloon\Enums\Method;
 use Saloon\Http\Request;
 
-class DeleteSiteRequest extends Request
+class RebuildProjectRequest extends Request
 {
-    protected Method $method = Method::DELETE;
+    protected Method $method = Method::POST;
 
     public function __construct(
         protected string $slug,
-        protected bool $keepDb = false,
     ) {}
 
     public function resolveEndpoint(): string
     {
-        return "/sites/{$this->slug}";
+        return "/projects/{$this->slug}/rebuild";
     }
 
-    protected function defaultQuery(): array
+    protected function defaultConfig(): array
     {
         return [
-            'keep_db' => $this->keepDb ? '1' : '0',
+            'timeout' => 300,
         ];
     }
 }

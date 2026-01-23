@@ -28,7 +28,7 @@ export interface ProvisionEvent {
     slug: string;
     status: ProvisionStatus;
     error?: string | null;
-    site_id?: number | null;
+    project_id?: number | null;
     timestamp?: string;
 }
 
@@ -39,14 +39,14 @@ export interface DeletionEvent {
     timestamp?: string;
 }
 
-export interface ProvisioningSite {
+export interface ProvisioningProject {
     slug: string;
     status: ProvisionStatus;
     error?: string | null;
-    siteId?: number | null;
+    projectId?: number | null;
 }
 
-export interface DeletingSite {
+export interface DeletingProject {
     slug: string;
     status: DeletionStatus;
     error?: string | null;
@@ -58,10 +58,10 @@ interface ReverbProps {
 
 // Singleton state - persists across component re-mounts during Inertia navigation
 // This ensures WebSocket events received during navigation aren't lost
-const provisioningSites: Ref<Map<string, ProvisioningSite>> = ref(new Map());
-const deletingSites: Ref<Map<string, DeletingSite>> = ref(new Map());
-const siteReadyCount = ref(0);
-const siteDeletedCount = ref(0);
+const provisioningProjects: Ref<Map<string, ProvisioningProject>> = ref(new Map());
+const deletingProjects: Ref<Map<string, DeletingProject>> = ref(new Map());
+const projectReadyCount = ref(0);
+const projectDeletedCount = ref(0);
 const processedEvents = new Map<string, string>();
 const processedDeletionEvents = new Map<string, string>();
 
@@ -87,21 +87,21 @@ function handleGlobalProvisionEvent(event: ProvisionEvent) {
     }
     processedEvents.set(event.slug, event.status);
 
-    const existing = provisioningSites.value.get(event.slug);
-    provisioningSites.value.set(event.slug, {
+    const existing = provisioningProjects.value.get(event.slug);
+    provisioningProjects.value.set(event.slug, {
         slug: event.slug,
         status: event.status,
         error: event.error,
-        siteId: event.site_id ?? existing?.siteId,
+        projectId: event.project_id ?? existing?.projectId,
     });
 
     // Remove from tracking if terminal state
     if (event.status === 'ready' || event.status === 'failed') {
         if (event.status === 'ready') {
-            siteReadyCount.value++;
+            projectReadyCount.value++;
         }
         setTimeout(() => {
-            provisioningSites.value.delete(event.slug);
+            provisioningProjects.value.delete(event.slug);
             processedEvents.delete(event.slug);
         }, 15000);
     }
@@ -114,7 +114,7 @@ function handleGlobalDeletionEvent(event: DeletionEvent) {
     }
     processedDeletionEvents.set(event.slug, event.status);
 
-    deletingSites.value.set(event.slug, {
+    deletingProjects.value.set(event.slug, {
         slug: event.slug,
         status: event.status,
         error: event.error,
@@ -123,21 +123,21 @@ function handleGlobalDeletionEvent(event: DeletionEvent) {
     // Remove from tracking if terminal state
     if (event.status === 'deleted' || event.status === 'delete_failed') {
         if (event.status === 'deleted') {
-            siteDeletedCount.value++;
+            projectDeletedCount.value++;
         }
         setTimeout(() => {
-            deletingSites.value.delete(event.slug);
+            deletingProjects.value.delete(event.slug);
             processedDeletionEvents.delete(event.slug);
         }, 2000);
     }
 }
 
 /**
- * Composable for listening to site provisioning events via WebSocket.
+ * Composable for listening to project provisioning events via WebSocket.
  * Uses the globally configured Echo connection.
  * State is singleton - persists across navigations.
  */
-export function useSiteProvisioning() {
+export function useProjectProvisioning() {
     const connectionStatus = useConnectionStatus();
     const page = usePage();
 
@@ -160,31 +160,31 @@ export function useSiteProvisioning() {
     // lifecycle issues with useEchoPublic during Inertia navigation
 
     function trackDeletion(slug: string) {
-        if (!deletingSites.value.has(slug)) {
-            deletingSites.value.set(slug, {
+        if (!deletingProjects.value.has(slug)) {
+            deletingProjects.value.set(slug, {
                 slug,
                 status: 'deleting',
             });
         }
     }
 
-    function getDeletionStatus(slug: string): DeletingSite | undefined {
-        return deletingSites.value.get(slug);
+    function getDeletionStatus(slug: string): DeletingProject | undefined {
+        return deletingProjects.value.get(slug);
     }
 
     function markDeletionComplete(slug: string) {
-        deletingSites.value.set(slug, {
+        deletingProjects.value.set(slug, {
             slug,
             status: 'deleted',
         });
-        siteDeletedCount.value++;
+        projectDeletedCount.value++;
         setTimeout(() => {
-            deletingSites.value.delete(slug);
+            deletingProjects.value.delete(slug);
         }, 2000);
     }
 
     function markDeletionFailed(slug: string, error?: string) {
-        deletingSites.value.set(slug, {
+        deletingProjects.value.set(slug, {
             slug,
             status: 'delete_failed',
             error,
@@ -192,13 +192,13 @@ export function useSiteProvisioning() {
     }
 
     function clearDeletion(slug: string) {
-        deletingSites.value.delete(slug);
+        deletingProjects.value.delete(slug);
         processedDeletionEvents.delete(slug);
     }
 
-    function trackSite(slug: string) {
-        if (!provisioningSites.value.has(slug)) {
-            provisioningSites.value.set(slug, {
+    function trackProject(slug: string) {
+        if (!provisioningProjects.value.has(slug)) {
+            provisioningProjects.value.set(slug, {
                 slug,
                 status: 'queued',
             });
@@ -206,8 +206,8 @@ export function useSiteProvisioning() {
         // Events are now handled globally in app.ts
     }
 
-    function getSiteStatus(slug: string): ProvisioningSite | undefined {
-        return provisioningSites.value.get(slug);
+    function getProjectStatus(slug: string): ProvisioningProject | undefined {
+        return provisioningProjects.value.get(slug);
     }
 
     function disconnect() {
@@ -215,17 +215,17 @@ export function useSiteProvisioning() {
     }
 
     return {
-        provisioningSites,
-        deletingSites,
+        provisioningProjects,
+        deletingProjects,
         isConnected,
         connectionError,
         isConfigured,
-        siteReadyCount,
-        siteDeletedCount,
+        projectReadyCount,
+        projectDeletedCount,
         connect: () => undefined,
         disconnect,
-        trackSite,
-        getSiteStatus,
+        trackProject,
+        getProjectStatus,
         trackDeletion,
         getDeletionStatus,
         markDeletionComplete,

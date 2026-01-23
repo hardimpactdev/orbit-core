@@ -7,7 +7,7 @@ namespace HardImpact\Orbit\Data;
 /**
  * Context object passed through all provisioning actions.
  *
- * Contains all parameters needed for site provisioning.
+ * Contains all parameters needed for project provisioning.
  * Immutable - use withRepoInfo() to create updated instances.
  */
 final readonly class ProvisionContext
@@ -15,7 +15,7 @@ final readonly class ProvisionContext
     public function __construct(
         public string $slug,
         public string $projectPath,
-        public ?int $siteId = null,
+        public ?int $projectId = null,
         public ?string $githubRepo = null,
         public ?string $cloneUrl = null,
         public ?string $template = null,
@@ -40,7 +40,7 @@ final readonly class ProvisionContext
         return new self(
             slug: $this->slug,
             projectPath: $this->projectPath,
-            siteId: $this->siteId,
+            projectId: $this->projectId,
             githubRepo: $githubRepo,
             cloneUrl: $cloneUrl,
             template: $this->template,

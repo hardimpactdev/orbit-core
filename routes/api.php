@@ -18,14 +18,14 @@ Route::prefix('environments/{environment}')->group(function (): void {
     // Dashboard data endpoints
     Route::post('test-connection', [EnvironmentController::class, 'testConnection']);
     Route::get('status', [EnvironmentController::class, 'status']);
-    Route::get('sites/status', [EnvironmentController::class, 'sites']);
+    Route::get('projects/status', [EnvironmentController::class, 'projects']);
     Route::get('config', [EnvironmentController::class, 'getConfig']);
     Route::get('worktrees', [EnvironmentController::class, 'worktrees']);
 
     // Async data loading endpoints
-    Route::get('sites', [EnvironmentController::class, 'sitesApi']);
-    Route::post('sites/sync', [EnvironmentController::class, 'sitesSyncApi']);
-    Route::delete('sites/{siteName}', [EnvironmentController::class, 'destroySite']);
+    Route::get('projects', [EnvironmentController::class, 'projectsApi']);
+    Route::post('projects/sync', [EnvironmentController::class, 'projectsSyncApi']);
+    Route::delete('projects/{projectName}', [EnvironmentController::class, 'destroyProject']);
     Route::get('workspaces', [EnvironmentController::class, 'workspacesApi']);
     Route::get('workspaces/{workspace}', [EnvironmentController::class, 'workspaceApi']);
 
@@ -52,12 +52,12 @@ Route::prefix('environments/{environment}')->group(function (): void {
     // PHP Configuration
     Route::get('php/config/{version?}', [EnvironmentController::class, 'getPhpConfig']);
     Route::post('php/config/{version?}', [EnvironmentController::class, 'setPhpConfig']);
-    Route::post('php/{site}', [EnvironmentController::class, 'changePhp']);
-    Route::post('php/{site}/reset', [EnvironmentController::class, 'resetPhp']);
+    Route::post('php/{project}', [EnvironmentController::class, 'changePhp']);
+    Route::post('php/{project}/reset', [EnvironmentController::class, 'resetPhp']);
 });
 
-// Site routes (without environment prefix - used when remoteApiUrl is set)
-// These are accessed directly via orbit.{tld}/api/sites/{slug}
+// Project routes (without environment prefix - used when remoteApiUrl is set)
+// These are accessed directly via orbit.{tld}/api/projects/{slug}
 // Uses implicit.environment middleware to inject the local environment
 Route::middleware('implicit.environment')->group(function (): void {
     // Instance info endpoints (for environment naming sync)
@@ -66,7 +66,7 @@ Route::middleware('implicit.environment')->group(function (): void {
 
     // Flat routes for desktop app compatibility
     Route::get('status', [EnvironmentController::class, 'status'])->name('api.status');
-    Route::get('sites', [EnvironmentController::class, 'sitesApi'])->name('api.sites');
+    Route::get('projects', [EnvironmentController::class, 'projectsApi'])->name('api.projects');
     Route::get('config', [EnvironmentController::class, 'getConfig'])->name('api.config');
     Route::get('worktrees', [EnvironmentController::class, 'worktrees'])->name('api.worktrees');
     Route::get('workspaces', [EnvironmentController::class, 'workspacesApi'])->name('api.workspaces');
@@ -76,11 +76,11 @@ Route::middleware('implicit.environment')->group(function (): void {
     Route::post('stop', [EnvironmentController::class, 'stop'])->name('api.stop');
     Route::post('restart', [EnvironmentController::class, 'restart'])->name('api.restart');
 
-    Route::post('sites', [EnvironmentController::class, 'storeSite'])->name('api.sites.store');
-    Route::post('sites/sync', [EnvironmentController::class, 'sitesSyncApi'])->name('api.sites.sync');
-    Route::delete('sites/{siteName}', [EnvironmentController::class, 'destroySite'])->name('api.sites.destroy');
-    Route::post('sites/{siteName}/rebuild', [EnvironmentController::class, 'rebuildSite'])->name('api.sites.rebuild');
-    Route::get('sites/{siteSlug}/provision-status', [EnvironmentController::class, 'provisionStatus'])->name('api.sites.provision-status');
+    Route::post('projects', [EnvironmentController::class, 'storeProject'])->name('api.projects.store');
+    Route::post('projects/sync', [EnvironmentController::class, 'projectsSyncApi'])->name('api.projects.sync');
+    Route::delete('projects/{projectName}', [EnvironmentController::class, 'destroyProject'])->name('api.projects.destroy');
+    Route::post('projects/{projectName}/rebuild', [EnvironmentController::class, 'rebuildProject'])->name('api.projects.rebuild');
+    Route::get('projects/{projectSlug}/provision-status', [EnvironmentController::class, 'provisionStatus'])->name('api.projects.provision-status');
 
     // Service control endpoints (legacy paths)
     Route::get('services/status', [EnvironmentController::class, 'status']);
@@ -97,8 +97,8 @@ Route::middleware('implicit.environment')->group(function (): void {
             'versions' => ['8.3', '8.4', '8.5'],
         ]);
     });
-    Route::post('php/{site}', [EnvironmentController::class, 'changePhp'])->name('api.php.set');
-    Route::post('php/{site}/reset', [EnvironmentController::class, 'resetPhp'])->name('api.php.reset');
+    Route::post('php/{project}', [EnvironmentController::class, 'changePhp'])->name('api.php.set');
+    Route::post('php/{project}/reset', [EnvironmentController::class, 'resetPhp'])->name('api.php.reset');
 
     // Jobs
     Route::get('jobs/{trackedJob}', [JobController::class, 'show']);
@@ -113,7 +113,7 @@ Route::middleware('implicit.environment')->group(function (): void {
     // Test broadcast endpoint for debugging WebSocket
     Route::post('test-broadcast', function (\Illuminate\Http\Request $request) {
         $channel = $request->input('channel', 'provisioning');
-        $event = $request->input('event', 'site.provision.status');
+        $event = $request->input('event', 'project.provision.status');
         $data = $request->input('data', ['slug' => 'test', 'status' => 'ready']);
 
         $pusher = new \Pusher\Pusher(

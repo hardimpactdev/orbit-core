@@ -11,9 +11,9 @@ use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Resource;
 
-class SitesResource extends Resource
+class ProjectsResource extends Resource
 {
-    protected string $uri = 'orbit://sites';
+    protected string $uri = 'orbit://projects';
 
     protected string $mimeType = 'application/json';
 
@@ -24,17 +24,17 @@ class SitesResource extends Resource
 
     public function name(): string
     {
-        return 'sites';
+        return 'projects';
     }
 
     public function title(): string
     {
-        return 'Sites';
+        return 'Projects';
     }
 
     public function description(): string
     {
-        return 'All registered sites with their domains, paths, PHP versions, and custom settings.';
+        return 'All registered projects with their domains, paths, PHP versions, and custom settings.';
     }
 
     public function handle(Request $request): Response
@@ -47,38 +47,38 @@ class SitesResource extends Resource
             ]);
         }
 
-        // Get sites from CLI
-        $sitesResult = $this->statusService->sites($environment);
+        // Get projects from CLI
+        $projectsResult = $this->statusService->projects($environment);
         $configResult = $this->configService->getConfig($environment);
 
-        if (! $sitesResult['success']) {
+        if (! $projectsResult['success']) {
             return Response::json([
-                'error' => $sitesResult['error'] ?? 'Failed to get sites',
+                'error' => $projectsResult['error'] ?? 'Failed to get projects',
             ]);
         }
 
-        $sites = $sitesResult['data']['sites'] ?? [];
+        $projects = $projectsResult['data']['projects'] ?? [];
         $config = $configResult['success'] ? ($configResult['data'] ?? []) : [];
         $defaultPhp = $config['default_php_version'] ?? '8.4';
         $tld = $config['tld'] ?? 'test';
 
-        $formattedSites = array_values(array_map(fn ($site) => [
-            'name' => $site['name'],
-            'display_name' => $site['display_name'] ?? ucwords(str_replace(['-', '_'], ' ', $site['name'])),
-            'github_repo' => $site['github_repo'] ?? null,
-            'project_type' => $site['project_type'] ?? 'unknown',
-            'domain' => $site['domain'] ?? null,
-            'path' => $site['path'],
-            'php_version' => $site['php_version'] ?? $defaultPhp,
-            'has_custom_php' => ($site['php_version'] ?? $defaultPhp) !== $defaultPhp,
+        $formattedProjects = array_values(array_map(fn ($project) => [
+            'name' => $project['name'],
+            'display_name' => $project['display_name'] ?? ucwords(str_replace(['-', '_'], ' ', $project['name'])),
+            'github_repo' => $project['github_repo'] ?? null,
+            'project_type' => $project['project_type'] ?? 'unknown',
+            'domain' => $project['domain'] ?? null,
+            'path' => $project['path'],
+            'php_version' => $project['php_version'] ?? $defaultPhp,
+            'has_custom_php' => ($project['php_version'] ?? $defaultPhp) !== $defaultPhp,
             'secure' => true,
-        ], $sites));
+        ], $projects));
 
         return Response::json([
-            'sites' => $formattedSites,
+            'projects' => $formattedProjects,
             'summary' => [
-                'total' => count($sites),
-                'with_custom_php' => count(array_filter($formattedSites, fn ($s) => $s['has_custom_php'])),
+                'total' => count($projects),
+                'with_custom_php' => count(array_filter($formattedProjects, fn ($p) => $p['has_custom_php'])),
                 'default_php_version' => $defaultPhp,
                 'tld' => $tld,
             ],
