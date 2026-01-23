@@ -2,6 +2,16 @@
 
 All notable changes to `orbit-core` will be documented in this file.
 
+## v0.1.1 - Move MCP to orbit-ui - 2026-01-23
+
+### Changes
+
+- **Removed**: MCP code (Tools, Resources, Prompts, OrbitServer) moved to orbit-ui
+- **Fixed**: TestCase namespace references for CoreServiceProvider
+- orbit-core now remains CLI-compatible without laravel/mcp dependency
+
+This is a breaking change if you were using MCP directly from orbit-core. Update to orbit-ui for MCP functionality.
+
 ## v0.1.0 - Core namespace split - 2026-01-23
 
 Breaking change: Namespace changed from HardImpact\Orbit\ to HardImpact\Orbit\Core
@@ -17,6 +27,7 @@ Now orbit-desktop and orbit-web can use:
 
 ```
 php artisan vendor:publish --tag=orbit-assets --force
+
 
 
 ```
