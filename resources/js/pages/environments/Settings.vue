@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
+import { toast } from 'vue-sonner';
 import Heading from '@/components/Heading.vue';
 import DnsSettings from '@/components/DnsSettings.vue';
 import Modal from '@/components/Modal.vue';
@@ -25,6 +26,7 @@ import {
     Pencil,
     FileCode2,
     ExternalLink,
+    FolderOpen,
 } from 'lucide-vue-next';
 import { Button, Badge, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Switch, Textarea, Label } from '@hardimpactdev/craft-ui';
 
@@ -269,7 +271,7 @@ async function saveRemoteName() {
 async function loadConfig() {
     configLoading.value = true;
     try {
-        const response = await fetch(`/environments/${props.environment.id}/config`);
+        const response = await fetch(`/api/environments/${props.environment.id}/config`);
         const result = await response.json();
 
         if (result.success) {
@@ -307,10 +309,66 @@ function removePath(index: number) {
     editPaths.value.splice(index, 1);
 }
 
+// Directory picker state
+const showDirectoryPicker = ref(false);
+const directoryPickerIndex = ref<number | null>(null);
+const browsingPath = ref('~');
+const browsingDirectories = ref<{ name: string; path: string }[]>([]);
+const browsingParent = ref<string | null>(null);
+const browsingLoading = ref(false);
+const browsingError = ref<string | null>(null);
+
+async function openDirectoryPicker(index: number) {
+    directoryPickerIndex.value = index;
+    browsingPath.value = editPaths.value[index] || '~';
+    showDirectoryPicker.value = true;
+    await loadDirectories(browsingPath.value);
+}
+
+async function loadDirectories(path: string) {
+    browsingLoading.value = true;
+    browsingError.value = null;
+
+    try {
+        const response = await fetch(
+            `/environments/${props.environment.id}/browse-directories?path=${encodeURIComponent(path)}`,
+        );
+        const result = await response.json();
+
+        if (result.success) {
+            browsingPath.value = result.data.current;
+            browsingDirectories.value = result.data.directories;
+            browsingParent.value = result.data.parent;
+        } else {
+            browsingError.value = result.error || 'Failed to load directories';
+        }
+    } catch (error) {
+        browsingError.value = 'Failed to load directories';
+    } finally {
+        browsingLoading.value = false;
+    }
+}
+
+function navigateToDirectory(path: string) {
+    loadDirectories(path);
+}
+
+function selectCurrentDirectory() {
+    if (directoryPickerIndex.value !== null) {
+        editPaths.value[directoryPickerIndex.value] = browsingPath.value;
+    }
+    closeDirectoryPicker();
+}
+
+function closeDirectoryPicker() {
+    showDirectoryPicker.value = false;
+    directoryPickerIndex.value = null;
+}
+
 async function saveConfig() {
     const paths = editPaths.value.filter((p) => p.trim() !== '');
     if (paths.length === 0) {
-        alert('Please add at least one site path');
+        toast.error('Please add at least one site path');
         return;
     }
 
@@ -330,11 +388,14 @@ async function saveConfig() {
         if (result.success) {
             config.value = result.data;
             tld.value = editTld.value.trim() || 'test';
+            toast.success('Configuration saved');
         } else {
-            alert('Failed to save config: ' + (result.error || 'Unknown error'));
+            toast.error('Failed to save config', {
+                description: result.error || 'Unknown error',
+            });
         }
     } catch {
-        alert('Failed to save config');
+        toast.error('Failed to save config');
     } finally {
         configSaving.value = false;
     }
@@ -721,6 +782,14 @@ const toggleMenuBar = () => {
                                     placeholder="/home/user/sites"
                                     class="flex-1 font-mono"
                                 />
+                                <button
+                                    @click="openDirectoryPicker(index)"
+                                    type="button"
+                                    class="text-zinc-500 hover:text-white p-2 transition-colors"
+                                    title="Browse directories"
+                                >
+                                    <FolderOpen class="w-4 h-4" />
+                                </button>
                                 <button
                                     @click="removePath(index)"
                                     type="button"
@@ -1397,5 +1466,75 @@ const toggleMenuBar = () => {
                 </Button>
             </div>
         </form>
+    </Modal>
+
+    <!-- Directory Picker Modal -->
+    <Modal
+        :show="showDirectoryPicker"
+        title="Select Directory"
+        @close="closeDirectoryPicker"
+    >
+        <div class="p-6">
+            <!-- Current path display -->
+            <div class="flex items-center gap-2 mb-4 p-3 bg-zinc-800/50 rounded-lg">
+                <FolderOpen class="w-4 h-4 text-zinc-400 flex-shrink-0" />
+                <span class="font-mono text-sm text-white truncate">{{ browsingPath }}</span>
+            </div>
+
+            <!-- Loading state -->
+            <div v-if="browsingLoading" class="text-center py-8">
+                <Loader2 class="w-6 h-6 animate-spin mx-auto text-zinc-400" />
+                <p class="mt-2 text-sm text-zinc-500">Loading directories...</p>
+            </div>
+
+            <!-- Error state -->
+            <div v-else-if="browsingError" class="text-center py-8">
+                <AlertCircle class="w-8 h-8 mx-auto text-red-400" />
+                <p class="mt-2 text-sm text-red-400">{{ browsingError }}</p>
+            </div>
+
+            <!-- Directory listing -->
+            <div v-else class="space-y-1 max-h-80 overflow-y-auto">
+                <!-- Parent directory -->
+                <button
+                    v-if="browsingParent"
+                    @click="navigateToDirectory(browsingParent)"
+                    class="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-zinc-700/50 rounded-lg transition-colors"
+                >
+                    <ChevronRight class="w-4 h-4 text-zinc-500 rotate-180" />
+                    <span class="text-sm text-zinc-400">..</span>
+                </button>
+
+                <!-- Directories -->
+                <button
+                    v-for="dir in browsingDirectories"
+                    :key="dir.path"
+                    @click="navigateToDirectory(dir.path)"
+                    class="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-zinc-700/50 rounded-lg transition-colors group"
+                >
+                    <FolderOpen class="w-4 h-4 text-zinc-500 group-hover:text-white" />
+                    <span class="text-sm text-zinc-300 group-hover:text-white truncate">{{ dir.name }}</span>
+                </button>
+
+                <!-- Empty state -->
+                <div v-if="browsingDirectories.length === 0 && !browsingParent" class="text-center py-8 text-zinc-500">
+                    <p class="text-sm">No subdirectories</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-4 px-6 py-4 border-t border-zinc-800">
+            <Button type="button" @click="closeDirectoryPicker" variant="ghost">
+                Cancel
+            </Button>
+            <Button
+                type="button"
+                @click="selectCurrentDirectory"
+                variant="secondary"
+                :disabled="browsingLoading"
+            >
+                Select This Directory
+            </Button>
+        </div>
     </Modal>
 </template>

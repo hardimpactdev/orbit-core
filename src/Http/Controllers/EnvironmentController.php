@@ -725,6 +725,76 @@ class EnvironmentController extends Controller
     }
 
     /**
+     * Browse directories for the directory picker.
+     */
+    public function browseDirectories(Request $request, Environment $environment)
+    {
+        $path = $request->query('path', '~');
+
+        // Expand ~ to home directory
+        if (str_starts_with($path, '~')) {
+            $home = $_SERVER['HOME'] ?? getenv('HOME') ?? '/home/'.get_current_user();
+            $path = $home.substr($path, 1);
+        }
+
+        // Normalize the path
+        $path = realpath($path) ?: $path;
+
+        if (! is_dir($path)) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Directory not found',
+            ], 404);
+        }
+
+        // Get directories in this path
+        $directories = [];
+        $items = @scandir($path);
+
+        if ($items === false) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Unable to read directory',
+            ], 403);
+        }
+
+        foreach ($items as $item) {
+            if ($item === '.' || str_starts_with($item, '.')) {
+                continue; // Skip hidden files and current directory
+            }
+            if ($item === '..') {
+                continue; // We'll handle parent separately
+            }
+
+            $fullPath = $path.'/'.$item;
+            if (is_dir($fullPath) && is_readable($fullPath)) {
+                $directories[] = [
+                    'name' => $item,
+                    'path' => $fullPath,
+                ];
+            }
+        }
+
+        // Sort alphabetically
+        usort($directories, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
+
+        // Get parent directory
+        $parent = dirname($path);
+        if ($parent === $path) {
+            $parent = null; // At root
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'current' => $path,
+                'parent' => $parent,
+                'directories' => $directories,
+            ],
+        ]);
+    }
+
+    /**
      * Get all TLDs for all environments (for conflict detection).
      * Uses cached TLD from database instead of API calls.
      */

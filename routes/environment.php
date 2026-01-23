@@ -43,6 +43,7 @@ Route::get('services/{service}/info', [EnvironmentController::class, 'serviceInf
 
 // Note: GET config and worktrees moved to routes/api.php (stateless)
 Route::post('config', [EnvironmentController::class, 'saveConfig'])->name('environments.config.save');
+Route::get('browse-directories', [EnvironmentController::class, 'browseDirectories'])->name('environments.browse-directories');
 Route::get('reverb-config', [EnvironmentController::class, 'getReverbConfig'])->name('environments.reverb-config');
 
 // Worktree modification routes (need session for CSRF)
