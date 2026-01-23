@@ -1818,20 +1818,11 @@ class EnvironmentController extends Controller
     }
 
     /**
-     * Normalize workspace data from CLI for frontend for frontend consistency.
+     * Normalize workspace data from CLI for frontend consistency.
+     * CLI already returns 'projects' and 'project_count', so we just pass through.
      */
     protected function normalizeWorkspaceData(array $workspace): array
     {
-        // Format workspace data for frontend
-        if (isset($workspace['projects'])) {
-            $workspace['projects'] = $workspace['projects'];
-            unset($workspace['projects']);
-        }
-        if (isset($workspace['project_count'])) {
-            $workspace['project_count'] = $workspace['project_count'];
-            unset($workspace['project_count']);
-        }
-
         return $workspace;
     }
 }
