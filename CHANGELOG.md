@@ -2,6 +2,15 @@
 
 All notable changes to `orbit-core` will be documented in this file.
 
+## Release 0.0.7 - 2026-01-23
+
+### Changes
+
+- Fix: Compute client-side Reverb host dynamically from APP_URL TLD
+- Server-side PHP connects to 127.0.0.1:8080 directly
+- Client-side browsers connect via reverb.<tld> through Caddy
+- Fix bun run dev command in documentation
+
 ## Release 0.0.6 - 2026-01-23
 
 ### Added
