@@ -2,7 +2,7 @@
 
 namespace HardImpact\Orbit\Core\Tests;
 
-use HardImpact\Orbit\Core\OrbitServiceProvider;
+use HardImpact\Orbit\Core\CoreServiceProvider;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Orchestra\Testbench\TestCase as Orchestra;
 
@@ -13,14 +13,14 @@ class TestCase extends Orchestra
         parent::setUp();
 
         Factory::guessFactoryNamesUsing(
-            fn (string $modelName) => 'HardImpact\\Orbit\\Database\\Factories\\'.class_basename($modelName).'Factory'
+            fn (string $modelName) => 'HardImpact\\Orbit\\Core\\Database\\Factories\\'.class_basename($modelName).'Factory'
         );
     }
 
     protected function getPackageProviders($app)
     {
         return [
-            OrbitServiceProvider::class,
+            CoreServiceProvider::class,
         ];
     }
 

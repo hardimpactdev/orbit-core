@@ -278,7 +278,7 @@ describe('DeletionLogger', function () {
     it('implements ProvisionLoggerContract', function () {
         $logger = new DeletionLogger('test-slug', 123);
 
-        expect($logger)->toBeInstanceOf(\HardImpact\Orbit\Contracts\ProvisionLoggerContract::class);
+        expect($logger)->toBeInstanceOf(\HardImpact\Orbit\Core\Contracts\ProvisionLoggerContract::class);
         expect($logger->getSlug())->toBe('test-slug');
         expect($logger->getProjectId())->toBe(123);
     });
