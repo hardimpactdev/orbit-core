@@ -2,6 +2,18 @@
 
 All notable changes to `orbit-core` will be documented in this file.
 
+## Release 0.0.8 - 2026-01-23
+
+Include built assets in repo for vendor:publish support
+
+Now orbit-desktop and orbit-web can use:
+
+```
+php artisan vendor:publish --tag=orbit-assets --force
+
+```
+without needing to build assets locally.
+
 ## Release 0.0.7 - 2026-01-23
 
 ### Changes
