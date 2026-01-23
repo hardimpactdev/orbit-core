@@ -2,13 +2,14 @@
 
 ## Project Overview
 
-**orbit-core** is a Laravel package that provides shared functionality for the Orbit ecosystem. It is required by both orbit-desktop and orbit-web.
+**orbit-core** is a Laravel package that provides business logic and data models for the Orbit ecosystem. It contains no UI components - just PHP classes for models, services, jobs, and data structures. Required by orbit-cli, orbit-ui, and indirectly by orbit-web/orbit-desktop.
 
 ## Repository Locations
 
 | Project | Location | Purpose |
 |---------|----------|---------|
-| orbit-core | `~/projects/orbit-core` (remote) | Shared Laravel package |
+| orbit-core | `~/projects/orbit-core` (remote) | Business logic package |
+| orbit-ui | `~/projects/orbit-ui` (remote) | Web UI package |
 | orbit-web | `~/projects/orbit-web` (remote) | Web dashboard shell |
 | orbit-desktop | Local Mac | NativePHP desktop shell |
 | orbit-cli | `~/projects/orbit-cli` (remote) | CLI tool |
@@ -75,83 +76,36 @@ src/
     DeleteSiteJob.php        # Async site deletion
   Console/Commands/
     OrbitInit.php            # CLI initialization
-  Http/
-    Controllers/             # All route handlers
-      DnsController.php      # DNS mappings management
-      EnvironmentController.php  # Main environment operations
-      DashboardController.php
-      JobController.php
-      ProvisioningController.php
-      SettingsController.php
-      SshKeyController.php
-    Middleware/
-      HandleInertiaRequests.php
-      ImplicitEnvironment.php
-    Integrations/Orbit/      # Saloon API connectors
+  Mcp/                       # MCP tool integrations
 config/
   orbit.php                  # Package configuration
 database/
   migrations/                # Database migrations
   factories/                 # Model factories
-resources/
-  views/
-    app.blade.php            # Root Blade template (Horizon-style)
-  js/
-    pages/                   # Vue page components
-    components/              # Reusable Vue components
-      DnsSettings.vue        # DNS mappings management UI
-    layouts/                 # App layouts
-    stores/                  # Pinia stores
-    composables/             # Vue composables
-    types/                   # TypeScript definitions
-    lib/                     # Utility libraries
-    app.ts                   # Frontend entry point (configures Echo)
-  css/
-    app.css                  # Tailwind styles
-public/
-  hot                        # Vite dev server marker (gitignored)
-  build/                     # Production assets (gitignored)
-routes/
-  web.php                    # Web routes
-  api.php                    # API routes
-  environment.php            # Environment-scoped routes
 ```
 
 ## Namespace Convention
 
-All classes use `HardImpact\Orbit` namespace:
+All classes use `HardImpact\Orbit\Core` namespace:
 
 ```php
-use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Services\OrbitCli\SiteCliService;
-use HardImpact\Orbit\Http\Controllers\EnvironmentController;
+use HardImpact\Orbit\Core\Models\Environment;
+use HardImpact\Orbit\Core\Services\OrbitCli\SiteCliService;
+use HardImpact\Orbit\Core\Data\ProvisionContext;
+use HardImpact\Orbit\Core\Contracts\ProvisionLoggerContract;
 ```
-
-## Mode Configuration
-
-The package supports two modes via `config("orbit.multi_environment")`:
-
-- **Web mode** (`false`): Single implicit environment, flat routes
-- **Desktop mode** (`true`): Multiple environments, prefixed routes
 
 ## Development Workflow
 
-### Local Development (HMR)
+orbit-core is a PHP-only package with no frontend assets. Development consists of:
+
+### Local Development
 
 ```bash
 cd ~/projects/orbit-core
-bun run dev                     # Creates public/hot, enables HMR
-# Visit https://orbit-web.ccc   # Changes reflect instantly
-```
-
-### Production Build
-
-```bash
-cd ~/projects/orbit-core
-bun run build                   # Creates public/build/
-
-cd ~/projects/orbit-web
-php artisan vendor:publish --tag=orbit-assets --force
+composer test                   # Run PHPUnit tests
+composer analyse                # Run PHPStan analysis
+composer format                 # Format with Pint
 ```
 
 ### Package Changes
@@ -169,34 +123,29 @@ composer analyse        # PHPStan analysis
 composer format         # Format with Pint
 ```
 
-## UI Conventions
-
-### Vertical Tab Pages
-When implementing settings or multi-section pages with vertical tabs:
-- Remove border dividers between tabs and content (let spacing create separation)
-- Don't duplicate category titles in content when tabs already show active state
-- Example: Environment Settings page (`/resources/js/pages/environments/Settings.vue`)
 
 ## Important Notes
 
 - Always use fully qualified namespace for models/services
-- Never use `App\Models\*` - always `HardImpact\Orbit\Models\*`
-- Routes are registered via `OrbitServiceProvider::routes()` in consumer apps
+- Never use `App\Models\*` - always `HardImpact\Orbit\Core\Models\*`  
+- This package contains NO UI components - only business logic
+- UI components (controllers, routes, views) live in orbit-ui
 
-### Horizon-Style Architecture
+### Package Architecture
 
-orbit-core is a self-contained package (like Laravel Horizon) that serves its own views and assets. Shell apps (orbit-web, orbit-desktop) are empty wrappers.
+orbit-core is a business logic package that provides models, services, jobs, and data structures. It contains no UI components.
 
-**What orbit-core provides automatically:**
-- Blade view (`orbit::app`) - set as Inertia root view
-- Middleware (`HandleInertiaRequests`, `implicit.environment`) - auto-registered
-- Vite configuration - hot file at `public/hot`, build at `vendor/orbit/build`
+**What orbit-core provides:**
+- Eloquent Models (Project, Environment, etc.)
+- Services (ProvisionPipeline, DeletionPipeline, etc.)
+- Jobs (CreateProjectJob, DeleteProjectJob)
+- Data Transfer Objects (ProvisionContext, DeletionContext)
+- Database migrations and factories
 
-**Shell apps only need:**
-```php
-// bootstrap/app.php or routes/web.php
-\HardImpact\Orbit\OrbitServiceProvider::routes();
-```
+**Consumed by:**
+- orbit-cli - Direct dependency for business logic
+- orbit-ui - Direct dependency for models/services 
+- orbit-web/desktop - Indirect dependency through orbit-ui
 
 ## Flow Documentation
 
@@ -459,26 +408,20 @@ php ~/.local/bin/orbit site:create "test" --json 2>/dev/null
 
 **IMPORTANT: Always complete the full workflow below:**
 
-1. **Test locally**: `composer test` (if applicable)
-2. **Commit changes**: Use descriptive commit message
-3. **Push via gh CLI**: `git push`
-4. **Update orbit-web** (if changes affect frontend or backend):
+1. **Test locally**: `composer test`
+2. **Run static analysis**: `composer analyse`
+3. **Format code**: `composer format`
+4. **Commit changes**: Use descriptive commit message
+5. **Push via gh CLI**: `git push`
+6. **Update consumers** (if needed):
    ```bash
-   cd ~/projects/orbit-core
-   bun run build                 # Build assets in orbit-core
-
-   cd ~/projects/orbit-web
+   # orbit-cli (if it uses the changed classes)
+   cd ~/projects/orbit-cli
    composer update hardimpactdev/orbit-core
-   php artisan vendor:publish --tag=orbit-assets --force
-   ```
-5. **Update orbit-desktop** (when on Mac):
-   ```bash
-   cd ~/projects/orbit-core
-   bun run build
-
-   cd ~/projects/orbit-desktop
+   
+   # orbit-ui (always needs latest core)
+   cd ~/projects/orbit-ui
    composer update hardimpactdev/orbit-core
-   php artisan vendor:publish --tag=orbit-assets --force
    ```
 
-**Assets are built in orbit-core and published to shell apps via `--tag=orbit-assets`.**
+**Note:** orbit-core has no assets or UI components. All UI development happens in orbit-ui.
