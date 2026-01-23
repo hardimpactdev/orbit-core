@@ -760,7 +760,11 @@ const toggleMenuBar = () => {
                         <Separator class="bg-zinc-800" />
 
                         <div class="flex justify-end py-6">
-                            <Button type="submit" :disabled="envForm.processing || nameSaving">
+                            <Button
+                                type="submit"
+                                :disabled="envForm.processing || nameSaving"
+                                class="bg-lime-500 hover:bg-lime-600 text-zinc-950"
+                            >
                                 {{ envForm.processing || nameSaving ? "Saving..." : "Save Environment" }}
                             </Button>
                         </div>
@@ -861,7 +865,12 @@ const toggleMenuBar = () => {
                         <Separator class="bg-zinc-800" />
 
                         <div class="flex justify-end py-6">
-                            <Button type="button" @click="saveConfig" :disabled="configSaving">
+                            <Button
+                                type="button"
+                                @click="saveConfig"
+                                :disabled="configSaving"
+                                class="bg-lime-500 hover:bg-lime-600 text-zinc-950"
+                            >
                                 {{ configSaving ? "Saving..." : "Save Configuration" }}
                             </Button>
                         </div>
@@ -903,15 +912,14 @@ const toggleMenuBar = () => {
                         </div>
 
                         <!-- Save button always visible -->
-                        <div class="flex justify-end">
+                        <div class="flex justify-end py-6">
                             <Button
                                 type="button"
                                 @click="saveExternalAccess"
                                 :disabled="externalAccessForm.processing"
-                                variant="outline"
-                                size="sm"
+                                class="bg-lime-500 hover:bg-lime-600 text-zinc-950"
                             >
-                                Save External Access
+                                {{ externalAccessForm.processing ? "Saving..." : "Save External Access" }}
                             </Button>
                         </div>
                     </div>
