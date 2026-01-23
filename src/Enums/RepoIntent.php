@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace HardImpact\Orbit\Enums;
 
 /**
- * Represents the user's intent for repository handling during site creation.
+ * Represents the user's intent for repository handling during project creation.
  */
 enum RepoIntent: string
 {

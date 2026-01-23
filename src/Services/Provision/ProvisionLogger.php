@@ -89,6 +89,9 @@ final class ProvisionLogger implements ProvisionLoggerContract
      *
      * This dispatches a ProjectProvisioningStatus event which implements
      * ShouldBroadcastNow, sending immediately to Reverb without queueing.
+     *
+     * Broadcast failures are logged but don't stop provisioning - the project
+     * will still be created even if WebSocket updates fail.
      */
     public function broadcast(string $status, ?string $error = null): void
     {
@@ -100,12 +103,17 @@ final class ProvisionLogger implements ProvisionLoggerContract
             'error' => $error,
         ]);
 
-        event(new ProjectProvisioningStatus(
-            slug: $this->slug,
-            status: $status,
-            error: $error,
-            projectId: $this->projectId,
-        ));
+        try {
+            event(new ProjectProvisioningStatus(
+                slug: $this->slug,
+                status: $status,
+                error: $error,
+                projectId: $this->projectId,
+            ));
+        } catch (\Throwable $e) {
+            // Log broadcast failure but don't stop provisioning
+            Log::warning("Failed to broadcast status for {$this->slug}: {$e->getMessage()}");
+        }
     }
 
     /**

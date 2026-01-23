@@ -9,13 +9,13 @@ use HardImpact\Orbit\Mcp\Prompts\SetupHorizonPrompt;
 use HardImpact\Orbit\Mcp\Resources\ConfigResource;
 use HardImpact\Orbit\Mcp\Resources\EnvTemplateResource;
 use HardImpact\Orbit\Mcp\Resources\InfrastructureResource;
-use HardImpact\Orbit\Mcp\Resources\SitesResource;
+use HardImpact\Orbit\Mcp\Resources\ProjectsResource;
 use HardImpact\Orbit\Mcp\Tools\LogsTool;
 use HardImpact\Orbit\Mcp\Tools\PhpTool;
+use HardImpact\Orbit\Mcp\Tools\ProjectCreateTool;
+use HardImpact\Orbit\Mcp\Tools\ProjectDeleteTool;
+use HardImpact\Orbit\Mcp\Tools\ProjectsTool;
 use HardImpact\Orbit\Mcp\Tools\RestartTool;
-use HardImpact\Orbit\Mcp\Tools\SiteCreateTool;
-use HardImpact\Orbit\Mcp\Tools\SiteDeleteTool;
-use HardImpact\Orbit\Mcp\Tools\SitesTool;
 use HardImpact\Orbit\Mcp\Tools\StartTool;
 use HardImpact\Orbit\Mcp\Tools\StatusTool;
 use HardImpact\Orbit\Mcp\Tools\StopTool;
@@ -112,9 +112,9 @@ final class OrbitServer extends Server
 
         ## Common Workflows
 
-        1. **Create a new Laravel site**:
-           - Use `orbit_site_create` tool
-           - Site will be provisioned automatically with correct database/cache settings
+        1. **Create a new Laravel project**:
+           - Use `orbit_project_create` tool
+           - Project will be provisioned automatically with correct database/cache settings
 
         2. **Set PHP version for a project**:
            - Use `orbit_php` tool
@@ -138,10 +138,10 @@ final class OrbitServer extends Server
         StartTool::class,
         StopTool::class,
         RestartTool::class,
-        SitesTool::class,
+        ProjectsTool::class,
         PhpTool::class,
-        SiteCreateTool::class,
-        SiteDeleteTool::class,
+        ProjectCreateTool::class,
+        ProjectDeleteTool::class,
         LogsTool::class,
         WorktreesTool::class,
     ];
@@ -150,7 +150,7 @@ final class OrbitServer extends Server
         InfrastructureResource::class,
         ConfigResource::class,
         EnvTemplateResource::class,
-        SitesResource::class,
+        ProjectsResource::class,
     ];
 
     protected array $prompts = [

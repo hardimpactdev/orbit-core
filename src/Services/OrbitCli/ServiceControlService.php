@@ -123,7 +123,7 @@ class ServiceControlService
             return $this->command->executeCommand($environment, $command);
         }
 
-        // Note: Site-specific start not supported via API yet
+        // Note: Project-specific start not supported via API yet
         return $this->connector->sendRequest($environment, new StartServicesRequest);
     }
 

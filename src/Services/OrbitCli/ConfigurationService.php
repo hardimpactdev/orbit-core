@@ -49,7 +49,7 @@ class ConfigurationService
     }
 
     /**
-     * Get or set PHP version for a site.
+     * Get or set PHP version for a project.
      */
     public function php(Environment $environment, string $site, ?string $version = null): array
     {
@@ -69,7 +69,7 @@ class ConfigurationService
     }
 
     /**
-     * Reset PHP version for a site to default.
+     * Reset PHP version for a project to default.
      */
     public function phpReset(Environment $environment, string $site): array
     {

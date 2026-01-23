@@ -28,7 +28,7 @@ class WorktreesTool extends Tool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'site' => $schema->string()->description('Filter to a specific site (optional - returns all if omitted)'),
+            'site' => $schema->string()->description('Filter to a specific project (optional - returns all if omitted)'),
         ];
     }
 

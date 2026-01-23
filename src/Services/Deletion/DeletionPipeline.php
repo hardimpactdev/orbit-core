@@ -14,12 +14,12 @@ use HardImpact\Orbit\Services\Deletion\Actions\RegenerateCaddyConfig;
 /**
  * Pipeline for running deletion actions in sequence.
  *
- * Orchestrates the complete site deletion process including:
+ * Orchestrates the complete project deletion process including:
  * - Database cleanup
  * - Project file deletion
  * - Caddy configuration regeneration
  *
- * Note: Site model deletion is handled by the caller (CLI or Job)
+ * Note: Project model deletion is handled by the caller (CLI or Job)
  * to allow for transaction control.
  */
 class DeletionPipeline

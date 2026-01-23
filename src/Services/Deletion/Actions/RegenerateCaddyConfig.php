@@ -10,10 +10,10 @@ use HardImpact\Orbit\Data\StepResult;
 use Illuminate\Support\Facades\Process;
 
 /**
- * Action to regenerate Caddy configuration after site deletion.
+ * Action to regenerate Caddy configuration after project deletion.
  *
  * Uses the orbit CLI to regenerate the Caddyfile and reload Caddy.
- * This removes the deleted site from the web server configuration.
+ * This removes the deleted project from the web server configuration.
  */
 final readonly class RegenerateCaddyConfig
 {

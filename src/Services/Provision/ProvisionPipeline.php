@@ -24,7 +24,7 @@ use HardImpact\Orbit\Services\Provision\Actions\SetPhpVersion;
 /**
  * Pipeline for running provision actions in sequence.
  *
- * Orchestrates the complete site provisioning process including:
+ * Orchestrates the complete project provisioning process including:
  * - Repository operations (clone, fork, template)
  * - Dependency installation (composer, npm/bun)
  * - Environment configuration

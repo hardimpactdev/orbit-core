@@ -16,7 +16,7 @@ class PhpTool extends Tool
 {
     protected string $name = 'orbit_php';
 
-    protected string $description = 'Get or set PHP version for a site';
+    protected string $description = 'Get or set PHP version for a project';
 
     public function __construct(protected ConfigurationService $configService) {}
 
@@ -26,7 +26,7 @@ class PhpTool extends Tool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'site' => $schema->string()->required()->description('The site name'),
+            'site' => $schema->string()->required()->description('The project name'),
             'action' => $schema->string()->enum(['get', 'set', 'reset'])->required()->description('Action to perform: get current version, set new version, or reset to default'),
             'version' => $schema->string()->enum(['8.3', '8.4', '8.5'])->description('PHP version to set (required for "set" action)'),
         ];

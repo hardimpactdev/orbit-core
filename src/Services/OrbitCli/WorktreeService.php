@@ -20,7 +20,7 @@ class WorktreeService
     ) {}
 
     /**
-     * Get all worktrees for a server (optionally filtered by site).
+     * Get all worktrees for a server (optionally filtered by project).
      */
     public function worktrees(Environment $environment, ?string $site = null): array
     {
@@ -36,7 +36,7 @@ class WorktreeService
     }
 
     /**
-     * Unlink a worktree from a site.
+     * Unlink a worktree from a project.
      */
     public function unlinkWorktree(Environment $environment, string $site, string $worktreeName): array
     {

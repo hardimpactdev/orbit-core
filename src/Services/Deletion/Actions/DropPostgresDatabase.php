@@ -22,7 +22,7 @@ final readonly class DropPostgresDatabase
         // Skip if not using PostgreSQL
         if (! $context->usesPostgres()) {
             if ($context->dbConnection) {
-                $logger->info("Site uses {$context->dbConnection}, not PostgreSQL - skipping database drop");
+                $logger->info("Project uses {$context->dbConnection}, not PostgreSQL - skipping database drop");
             } else {
                 $logger->info('No database connection configured - skipping database drop');
             }

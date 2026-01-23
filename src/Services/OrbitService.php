@@ -272,7 +272,7 @@ BASH;
             return $this->executeCommand($environment, $command);
         }
 
-        // Note: Site-specific start not supported via API yet
+        // Note: Project-specific start not supported via API yet
         return $this->sendRequest($environment, new StartServicesRequest);
     }
 
@@ -523,7 +523,7 @@ BASH;
     }
 
     /**
-     * Rebuild a site (re-run deps install, build, migrations without git pull).
+     * Rebuild a project (re-run deps install, build, migrations without git pull).
      */
     public function rebuild(Environment $environment, string $site): array
     {
@@ -537,7 +537,7 @@ BASH;
     }
 
     /**
-     * Get all worktrees for a server (optionally filtered by site).
+     * Get all worktrees for a server (optionally filtered by project).
      */
     public function worktrees(Environment $environment, ?string $site = null): array
     {
@@ -1093,11 +1093,11 @@ BASH;
     }
 
     /**
-     * Create a new site via the CLI.
+     * Create a new project via the CLI.
      *
      * @param  array  $options  Array containing: name, template (optional), is_template (optional), directory (optional), visibility (optional), db_driver, session_driver, cache_driver, queue_driver
      */
-    public function createSite(Environment $environment, array $options): array
+    public function createProject(Environment $environment, array $options): array
     {
         // Build request payload
         $payload = [
@@ -1153,7 +1153,7 @@ BASH;
                 'data' => [
                     'slug' => $result['slug'] ?? \Illuminate\Support\Str::slug($options['name']),
                     'status' => 'provisioning',
-                    'message' => $result['message'] ?? 'Site creation queued',
+                    'message' => $result['message'] ?? 'Project creation queued',
                 ],
             ];
         }
@@ -1162,7 +1162,7 @@ BASH;
     }
 
     /**
-     * Check the provisioning status of a site.
+     * Check the provisioning status of a project.
      */
     public function provisionStatus(Environment $environment, string $slug): array
     {

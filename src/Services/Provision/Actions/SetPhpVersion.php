@@ -7,7 +7,7 @@ namespace HardImpact\Orbit\Services\Provision\Actions;
 use HardImpact\Orbit\Contracts\ProvisionLoggerContract;
 use HardImpact\Orbit\Data\ProvisionContext;
 use HardImpact\Orbit\Data\StepResult;
-use HardImpact\Orbit\Models\Site;
+use HardImpact\Orbit\Models\Project;
 
 final readonly class SetPhpVersion
 {
@@ -31,11 +31,11 @@ final readonly class SetPhpVersion
         file_put_contents($versionFile, "{$version}\n");
         $logger->log('Wrote .php-version file');
 
-        // Update database if site ID is available
-        if ($context->siteId) {
-            $site = Site::find($context->siteId);
-            if ($site) {
-                $site->update(['php_version' => $version]);
+        // Update database if project ID is available
+        if ($context->projectId) {
+            $project = Project::find($context->projectId);
+            if ($project) {
+                $project->update(['php_version' => $version]);
                 $logger->log('Updated database with PHP version');
             }
         }
