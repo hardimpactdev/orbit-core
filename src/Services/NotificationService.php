@@ -1,8 +1,8 @@
 <?php
 
-namespace HardImpact\Orbit\Services;
+namespace HardImpact\Orbit\Core\Services;
 
-use HardImpact\Orbit\Models\UserPreference;
+use HardImpact\Orbit\Core\Models\UserPreference;
 
 class NotificationService
 {

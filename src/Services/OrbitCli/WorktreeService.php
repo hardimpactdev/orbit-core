@@ -1,13 +1,13 @@
 <?php
 
-namespace HardImpact\Orbit\Services\OrbitCli;
+namespace HardImpact\Orbit\Core\Services\OrbitCli;
 
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetWorktreesRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\RefreshWorktreesRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\UnlinkWorktreeRequest;
-use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Services\OrbitCli\Shared\CommandService;
-use HardImpact\Orbit\Services\OrbitCli\Shared\ConnectorService;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\GetWorktreesRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\RefreshWorktreesRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\UnlinkWorktreeRequest;
+use HardImpact\Orbit\Core\Models\Environment;
+use HardImpact\Orbit\Core\Services\OrbitCli\Shared\CommandService;
+use HardImpact\Orbit\Core\Services\OrbitCli\Shared\ConnectorService;
 
 /**
  * Service for git worktree management.

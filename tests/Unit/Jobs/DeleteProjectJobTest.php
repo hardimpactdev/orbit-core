@@ -1,8 +1,8 @@
 <?php
 
-use HardImpact\Orbit\Jobs\DeleteProjectJob;
-use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Models\Project;
+use HardImpact\Orbit\Core\Jobs\DeleteProjectJob;
+use HardImpact\Orbit\Core\Models\Environment;
+use HardImpact\Orbit\Core\Models\Project;
 
 beforeEach(function () {
     $environment = Environment::factory()->local()->create([

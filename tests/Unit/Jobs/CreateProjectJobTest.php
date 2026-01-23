@@ -1,10 +1,10 @@
 <?php
 
-use HardImpact\Orbit\Data\ProvisionContext;
-use HardImpact\Orbit\Jobs\CreateProjectJob;
-use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Models\Project;
-use HardImpact\Orbit\Services\Provision\GitHubService;
+use HardImpact\Orbit\Core\Data\ProvisionContext;
+use HardImpact\Orbit\Core\Jobs\CreateProjectJob;
+use HardImpact\Orbit\Core\Models\Environment;
+use HardImpact\Orbit\Core\Models\Project;
+use HardImpact\Orbit\Core\Services\Provision\GitHubService;
 
 beforeEach(function () {
     $environment = Environment::factory()->local()->create([

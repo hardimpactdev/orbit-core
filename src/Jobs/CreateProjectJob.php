@@ -1,14 +1,14 @@
 <?php
 
-namespace HardImpact\Orbit\Jobs;
+namespace HardImpact\Orbit\Core\Jobs;
 
-use HardImpact\Orbit\Data\ProvisionContext;
-use HardImpact\Orbit\Enums\RepoIntent;
-use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Models\Project;
-use HardImpact\Orbit\Services\OrbitCli\ConfigurationService;
-use HardImpact\Orbit\Services\Provision\ProvisionLogger;
-use HardImpact\Orbit\Services\Provision\ProvisionPipeline;
+use HardImpact\Orbit\Core\Data\ProvisionContext;
+use HardImpact\Orbit\Core\Enums\RepoIntent;
+use HardImpact\Orbit\Core\Models\Environment;
+use HardImpact\Orbit\Core\Models\Project;
+use HardImpact\Orbit\Core\Services\OrbitCli\ConfigurationService;
+use HardImpact\Orbit\Core\Services\Provision\ProvisionLogger;
+use HardImpact\Orbit\Core\Services\Provision\ProvisionPipeline;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;

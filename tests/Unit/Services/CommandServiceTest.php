@@ -1,8 +1,8 @@
 <?php
 
-use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Services\OrbitCli\Shared\CommandService;
-use HardImpact\Orbit\Services\SshService;
+use HardImpact\Orbit\Core\Models\Environment;
+use HardImpact\Orbit\Core\Services\OrbitCli\Shared\CommandService;
+use HardImpact\Orbit\Core\Services\SshService;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Process;
 

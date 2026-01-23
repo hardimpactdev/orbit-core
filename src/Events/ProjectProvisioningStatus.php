@@ -1,6 +1,6 @@
 <?php
 
-namespace HardImpact\Orbit\Events;
+namespace HardImpact\Orbit\Core\Events;
 
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;

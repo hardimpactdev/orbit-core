@@ -19,9 +19,9 @@
         "php": "^8.3",
         "illuminate/contracts": "^11.0||^12.0",
         "illuminate/support": "^11.0||^12.0",
-        "inertiajs/inertia-laravel": "^2.0",
-        "laravel/mcp": "^0.5.2",
         "saloonphp/saloon": "^3.14"
+    },
+    "suggest": {
     },
     "require-dev": {
         "laravel/pint": "^1.14",
@@ -32,13 +32,13 @@
     },
     "autoload": {
         "psr-4": {
-            "HardImpact\\Orbit\\": "src/",
-            "HardImpact\\Orbit\\Database\\Factories\\": "database/factories/"
+            "HardImpact\\Orbit\\Core\\": "src/",
+            "HardImpact\\Orbit\\Core\\Database\\Factories\\": "database/factories/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "HardImpact\\Orbit\\Tests\\": "tests/"
+            "HardImpact\\Orbit\\Core\\Tests\\": "tests/"
         }
     },
     "scripts": {
@@ -55,7 +55,7 @@
     "extra": {
         "laravel": {
             "providers": [
-                "HardImpact\\Orbit\\OrbitServiceProvider"
+                "HardImpact\\Orbit\\Core\\CoreServiceProvider"
             ]
         }
     },

@@ -1,9 +1,9 @@
 <?php
 
-namespace HardImpact\Orbit\Services\OrbitCli\Shared;
+namespace HardImpact\Orbit\Core\Services\OrbitCli\Shared;
 
-use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Services\SshService;
+use HardImpact\Orbit\Core\Models\Environment;
+use HardImpact\Orbit\Core\Services\SshService;
 use Illuminate\Support\Facades\Process;
 
 /**

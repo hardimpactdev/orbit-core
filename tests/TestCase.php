@@ -1,8 +1,8 @@
 <?php
 
-namespace HardImpact\Orbit\Tests;
+namespace HardImpact\Orbit\Core\Tests;
 
-use HardImpact\Orbit\OrbitServiceProvider;
+use HardImpact\Orbit\Core\OrbitServiceProvider;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Orchestra\Testbench\TestCase as Orchestra;
 

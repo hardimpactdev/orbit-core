@@ -1,6 +1,6 @@
 <?php
 
-namespace HardImpact\Orbit\Services;
+namespace HardImpact\Orbit\Core\Services;
 
 use Illuminate\Support\Facades\Process;
 

@@ -1,10 +1,10 @@
 <?php
 
-namespace HardImpact\Orbit\Services\OrbitCli\Shared;
+namespace HardImpact\Orbit\Core\Services\OrbitCli\Shared;
 
-use HardImpact\Orbit\Http\Integrations\Orbit\OrbitConnector;
-use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Services\SshService;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\OrbitConnector;
+use HardImpact\Orbit\Core\Models\Environment;
+use HardImpact\Orbit\Core\Services\SshService;
 use Saloon\Http\Request;
 
 /**

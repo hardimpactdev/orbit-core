@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace HardImpact\Orbit\Services\Deletion\Actions;
+namespace HardImpact\Orbit\Core\Services\Deletion\Actions;
 
-use HardImpact\Orbit\Contracts\ProvisionLoggerContract;
-use HardImpact\Orbit\Data\DeletionContext;
-use HardImpact\Orbit\Data\StepResult;
+use HardImpact\Orbit\Core\Contracts\ProvisionLoggerContract;
+use HardImpact\Orbit\Core\Data\DeletionContext;
+use HardImpact\Orbit\Core\Data\StepResult;
 use Illuminate\Support\Facades\Process;
 
 /**

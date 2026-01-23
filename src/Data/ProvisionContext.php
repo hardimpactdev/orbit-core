@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace HardImpact\Orbit\Data;
+namespace HardImpact\Orbit\Core\Data;
 
 /**
  * Context object passed through all provisioning actions.

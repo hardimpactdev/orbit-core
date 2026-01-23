@@ -1,6 +1,6 @@
 <?php
 
-namespace HardImpact\Orbit\Models;
+namespace HardImpact\Orbit\Core\Models;
 
 use Illuminate\Database\Eloquent\Model;
 

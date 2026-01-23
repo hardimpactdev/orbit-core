@@ -1,17 +1,17 @@
 <?php
 
-namespace HardImpact\Orbit\Services\OrbitCli;
+namespace HardImpact\Orbit\Core\Services\OrbitCli;
 
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\CreateProjectRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\DeleteProjectRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetProjectsRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetProvisionStatusRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\RebuildProjectRequest;
-use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Models\Project;
-use HardImpact\Orbit\Services\OrbitCli\Shared\CommandService;
-use HardImpact\Orbit\Services\OrbitCli\Shared\ConnectorService;
-use HardImpact\Orbit\Services\SshService;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\CreateProjectRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\DeleteProjectRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\GetProjectsRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\GetProvisionStatusRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\RebuildProjectRequest;
+use HardImpact\Orbit\Core\Models\Environment;
+use HardImpact\Orbit\Core\Models\Project;
+use HardImpact\Orbit\Core\Services\OrbitCli\Shared\CommandService;
+use HardImpact\Orbit\Core\Services\OrbitCli\Shared\ConnectorService;
+use HardImpact\Orbit\Core\Services\SshService;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Str;

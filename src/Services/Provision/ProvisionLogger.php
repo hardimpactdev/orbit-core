@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace HardImpact\Orbit\Services\Provision;
+namespace HardImpact\Orbit\Core\Services\Provision;
 
-use HardImpact\Orbit\Contracts\ProvisionLoggerContract;
-use HardImpact\Orbit\Events\ProjectProvisioningStatus;
+use HardImpact\Orbit\Core\Contracts\ProvisionLoggerContract;
+use HardImpact\Orbit\Core\Events\ProjectProvisioningStatus;
 use Illuminate\Support\Facades\Log;
 
 /**

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace HardImpact\Orbit\Mcp\Tools;
+namespace HardImpact\Orbit\Core\Mcp\Tools;
 
-use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Services\OrbitCli\ConfigurationService;
+use HardImpact\Orbit\Core\Models\Environment;
+use HardImpact\Orbit\Core\Services\OrbitCli\ConfigurationService;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;

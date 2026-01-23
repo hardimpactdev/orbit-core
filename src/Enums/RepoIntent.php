@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace HardImpact\Orbit\Enums;
+namespace HardImpact\Orbit\Core\Enums;
 
 /**
  * Represents the user's intent for repository handling during project creation.

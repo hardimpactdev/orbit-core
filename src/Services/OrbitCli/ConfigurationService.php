@@ -1,16 +1,16 @@
 <?php
 
-namespace HardImpact\Orbit\Services\OrbitCli;
+namespace HardImpact\Orbit\Core\Services\OrbitCli;
 
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetConfigRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetPhpRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetPhpVersionsRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\ResetPhpRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\SetPhpRequest;
-use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Services\OrbitCli\Shared\CommandService;
-use HardImpact\Orbit\Services\OrbitCli\Shared\ConnectorService;
-use HardImpact\Orbit\Services\SshService;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\GetConfigRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\GetPhpRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\GetPhpVersionsRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\ResetPhpRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\SetPhpRequest;
+use HardImpact\Orbit\Core\Models\Environment;
+use HardImpact\Orbit\Core\Services\OrbitCli\Shared\CommandService;
+use HardImpact\Orbit\Core\Services\OrbitCli\Shared\ConnectorService;
+use HardImpact\Orbit\Core\Services\SshService;
 
 /**
  * Service for orbit configuration management.

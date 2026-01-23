@@ -2,24 +2,24 @@
 
 declare(strict_types=1);
 
-namespace HardImpact\Orbit\Services\Provision;
+namespace HardImpact\Orbit\Core\Services\Provision;
 
-use HardImpact\Orbit\Contracts\ProvisionLoggerContract;
-use HardImpact\Orbit\Data\ProvisionContext;
-use HardImpact\Orbit\Data\StepResult;
-use HardImpact\Orbit\Services\Provision\Actions\BuildAssets;
-use HardImpact\Orbit\Services\Provision\Actions\CloneRepository;
-use HardImpact\Orbit\Services\Provision\Actions\ConfigureEnvironment;
-use HardImpact\Orbit\Services\Provision\Actions\ConfigureTrustedProxies;
-use HardImpact\Orbit\Services\Provision\Actions\CreateDatabase;
-use HardImpact\Orbit\Services\Provision\Actions\CreateGitHubRepository;
-use HardImpact\Orbit\Services\Provision\Actions\DetectNodePackageManager;
-use HardImpact\Orbit\Services\Provision\Actions\ForkRepository;
-use HardImpact\Orbit\Services\Provision\Actions\GenerateAppKey;
-use HardImpact\Orbit\Services\Provision\Actions\InstallComposerDependencies;
-use HardImpact\Orbit\Services\Provision\Actions\InstallNodeDependencies;
-use HardImpact\Orbit\Services\Provision\Actions\RunMigrations;
-use HardImpact\Orbit\Services\Provision\Actions\SetPhpVersion;
+use HardImpact\Orbit\Core\Contracts\ProvisionLoggerContract;
+use HardImpact\Orbit\Core\Data\ProvisionContext;
+use HardImpact\Orbit\Core\Data\StepResult;
+use HardImpact\Orbit\Core\Services\Provision\Actions\BuildAssets;
+use HardImpact\Orbit\Core\Services\Provision\Actions\CloneRepository;
+use HardImpact\Orbit\Core\Services\Provision\Actions\ConfigureEnvironment;
+use HardImpact\Orbit\Core\Services\Provision\Actions\ConfigureTrustedProxies;
+use HardImpact\Orbit\Core\Services\Provision\Actions\CreateDatabase;
+use HardImpact\Orbit\Core\Services\Provision\Actions\CreateGitHubRepository;
+use HardImpact\Orbit\Core\Services\Provision\Actions\DetectNodePackageManager;
+use HardImpact\Orbit\Core\Services\Provision\Actions\ForkRepository;
+use HardImpact\Orbit\Core\Services\Provision\Actions\GenerateAppKey;
+use HardImpact\Orbit\Core\Services\Provision\Actions\InstallComposerDependencies;
+use HardImpact\Orbit\Core\Services\Provision\Actions\InstallNodeDependencies;
+use HardImpact\Orbit\Core\Services\Provision\Actions\RunMigrations;
+use HardImpact\Orbit\Core\Services\Provision\Actions\SetPhpVersion;
 
 /**
  * Pipeline for running provision actions in sequence.

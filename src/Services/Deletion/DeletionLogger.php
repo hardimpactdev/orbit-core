@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace HardImpact\Orbit\Services\Deletion;
+namespace HardImpact\Orbit\Core\Services\Deletion;
 
-use HardImpact\Orbit\Contracts\ProvisionLoggerContract;
-use HardImpact\Orbit\Events\ProjectDeletionStatus;
+use HardImpact\Orbit\Core\Contracts\ProvisionLoggerContract;
+use HardImpact\Orbit\Core\Events\ProjectDeletionStatus;
 use Illuminate\Support\Facades\Log;
 
 /**

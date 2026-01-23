@@ -2,24 +2,24 @@
 
 declare(strict_types=1);
 
-namespace HardImpact\Orbit\Mcp;
+namespace HardImpact\Orbit\Core\Mcp;
 
-use HardImpact\Orbit\Mcp\Prompts\ConfigureLaravelEnvPrompt;
-use HardImpact\Orbit\Mcp\Prompts\SetupHorizonPrompt;
-use HardImpact\Orbit\Mcp\Resources\ConfigResource;
-use HardImpact\Orbit\Mcp\Resources\EnvTemplateResource;
-use HardImpact\Orbit\Mcp\Resources\InfrastructureResource;
-use HardImpact\Orbit\Mcp\Resources\ProjectsResource;
-use HardImpact\Orbit\Mcp\Tools\LogsTool;
-use HardImpact\Orbit\Mcp\Tools\PhpTool;
-use HardImpact\Orbit\Mcp\Tools\ProjectCreateTool;
-use HardImpact\Orbit\Mcp\Tools\ProjectDeleteTool;
-use HardImpact\Orbit\Mcp\Tools\ProjectsTool;
-use HardImpact\Orbit\Mcp\Tools\RestartTool;
-use HardImpact\Orbit\Mcp\Tools\StartTool;
-use HardImpact\Orbit\Mcp\Tools\StatusTool;
-use HardImpact\Orbit\Mcp\Tools\StopTool;
-use HardImpact\Orbit\Mcp\Tools\WorktreesTool;
+use HardImpact\Orbit\Core\Mcp\Prompts\ConfigureLaravelEnvPrompt;
+use HardImpact\Orbit\Core\Mcp\Prompts\SetupHorizonPrompt;
+use HardImpact\Orbit\Core\Mcp\Resources\ConfigResource;
+use HardImpact\Orbit\Core\Mcp\Resources\EnvTemplateResource;
+use HardImpact\Orbit\Core\Mcp\Resources\InfrastructureResource;
+use HardImpact\Orbit\Core\Mcp\Resources\ProjectsResource;
+use HardImpact\Orbit\Core\Mcp\Tools\LogsTool;
+use HardImpact\Orbit\Core\Mcp\Tools\PhpTool;
+use HardImpact\Orbit\Core\Mcp\Tools\ProjectCreateTool;
+use HardImpact\Orbit\Core\Mcp\Tools\ProjectDeleteTool;
+use HardImpact\Orbit\Core\Mcp\Tools\ProjectsTool;
+use HardImpact\Orbit\Core\Mcp\Tools\RestartTool;
+use HardImpact\Orbit\Core\Mcp\Tools\StartTool;
+use HardImpact\Orbit\Core\Mcp\Tools\StatusTool;
+use HardImpact\Orbit\Core\Mcp\Tools\StopTool;
+use HardImpact\Orbit\Core\Mcp\Tools\WorktreesTool;
 use Laravel\Mcp\Server;
 
 final class OrbitServer extends Server

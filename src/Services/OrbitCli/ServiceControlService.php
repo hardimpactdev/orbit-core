@@ -1,25 +1,25 @@
 <?php
 
-namespace HardImpact\Orbit\Services\OrbitCli;
+namespace HardImpact\Orbit\Core\Services\OrbitCli;
 
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\ConfigureServiceRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\DisableServiceRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\EnableServiceRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetServiceInfoRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetServiceLogsRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\ListAvailableServicesRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\ListServicesRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\RestartServiceRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\RestartServicesRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\StartServiceRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\StartServicesRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\StopServiceRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\StopServicesRequest;
-use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Services\HorizonService;
-use HardImpact\Orbit\Services\OrbitCli\Shared\CommandService;
-use HardImpact\Orbit\Services\OrbitCli\Shared\ConnectorService;
-use HardImpact\Orbit\Services\SshService;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\ConfigureServiceRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\DisableServiceRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\EnableServiceRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\GetServiceInfoRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\GetServiceLogsRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\ListAvailableServicesRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\ListServicesRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\RestartServiceRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\RestartServicesRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\StartServiceRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\StartServicesRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\StopServiceRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\StopServicesRequest;
+use HardImpact\Orbit\Core\Models\Environment;
+use HardImpact\Orbit\Core\Services\HorizonService;
+use HardImpact\Orbit\Core\Services\OrbitCli\Shared\CommandService;
+use HardImpact\Orbit\Core\Services\OrbitCli\Shared\ConnectorService;
+use HardImpact\Orbit\Core\Services\SshService;
 use Illuminate\Support\Facades\Process;
 
 /**

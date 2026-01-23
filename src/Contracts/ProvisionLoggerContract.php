@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace HardImpact\Orbit\Contracts;
+namespace HardImpact\Orbit\Core\Contracts;
 
 /**
  * Contract for provision logging implementations.

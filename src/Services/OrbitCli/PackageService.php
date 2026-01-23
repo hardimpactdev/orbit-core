@@ -1,13 +1,13 @@
 <?php
 
-namespace HardImpact\Orbit\Services\OrbitCli;
+namespace HardImpact\Orbit\Core\Services\OrbitCli;
 
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetLinkedPackagesRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\LinkPackageRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\UnlinkPackageRequest;
-use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Services\OrbitCli\Shared\CommandService;
-use HardImpact\Orbit\Services\OrbitCli\Shared\ConnectorService;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\GetLinkedPackagesRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\LinkPackageRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\UnlinkPackageRequest;
+use HardImpact\Orbit\Core\Models\Environment;
+use HardImpact\Orbit\Core\Services\OrbitCli\Shared\CommandService;
+use HardImpact\Orbit\Core\Services\OrbitCli\Shared\ConnectorService;
 
 /**
  * Service for package linking (local development dependencies).

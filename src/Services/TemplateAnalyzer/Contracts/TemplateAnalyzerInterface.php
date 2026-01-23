@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace HardImpact\Orbit\Services\TemplateAnalyzer\Contracts;
+namespace HardImpact\Orbit\Core\Services\TemplateAnalyzer\Contracts;
 
 interface TemplateAnalyzerInterface
 {

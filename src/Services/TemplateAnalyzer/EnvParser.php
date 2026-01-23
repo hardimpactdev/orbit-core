@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace HardImpact\Orbit\Services\TemplateAnalyzer;
+namespace HardImpact\Orbit\Core\Services\TemplateAnalyzer;
 
 /**
  * Parser for .env files following Laravel/Dotenv conventions.

@@ -1,15 +1,15 @@
 <?php
 
-namespace HardImpact\Orbit\Services\OrbitCli;
+namespace HardImpact\Orbit\Core\Services\OrbitCli;
 
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\AddWorkspaceProjectRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\CreateWorkspaceRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\DeleteWorkspaceRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetWorkspacesRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\RemoveWorkspaceProjectRequest;
-use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Services\OrbitCli\Shared\CommandService;
-use HardImpact\Orbit\Services\OrbitCli\Shared\ConnectorService;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\AddWorkspaceProjectRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\CreateWorkspaceRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\DeleteWorkspaceRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\GetWorkspacesRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\RemoveWorkspaceProjectRequest;
+use HardImpact\Orbit\Core\Models\Environment;
+use HardImpact\Orbit\Core\Services\OrbitCli\Shared\CommandService;
+use HardImpact\Orbit\Core\Services\OrbitCli\Shared\ConnectorService;
 
 /**
  * Service for workspace management.

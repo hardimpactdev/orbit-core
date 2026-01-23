@@ -1,8 +1,8 @@
 <?php
 
-namespace HardImpact\Orbit\Database\Factories;
+namespace HardImpact\Orbit\Core\Database\Factories;
 
-use HardImpact\Orbit\Models\TrackedJob;
+use HardImpact\Orbit\Core\Models\TrackedJob;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class TrackedJobFactory extends Factory

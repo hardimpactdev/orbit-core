@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace HardImpact\Orbit\Services\TemplateAnalyzer;
+namespace HardImpact\Orbit\Core\Services\TemplateAnalyzer;
 
-use HardImpact\Orbit\Services\TemplateAnalyzer\Contracts\TemplateAnalyzerInterface;
+use HardImpact\Orbit\Core\Services\TemplateAnalyzer\Contracts\TemplateAnalyzerInterface;
 use Illuminate\Support\Facades\Http;
 
 /**

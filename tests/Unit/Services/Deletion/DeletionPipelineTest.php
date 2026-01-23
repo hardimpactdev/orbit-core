@@ -1,12 +1,12 @@
 <?php
 
-use HardImpact\Orbit\Data\DeletionContext;
-use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Models\Project;
-use HardImpact\Orbit\Services\Deletion\Actions\DeleteProjectFiles;
-use HardImpact\Orbit\Services\Deletion\Actions\DropPostgresDatabase;
-use HardImpact\Orbit\Services\Deletion\DeletionLogger;
-use HardImpact\Orbit\Services\Deletion\DeletionPipeline;
+use HardImpact\Orbit\Core\Data\DeletionContext;
+use HardImpact\Orbit\Core\Models\Environment;
+use HardImpact\Orbit\Core\Models\Project;
+use HardImpact\Orbit\Core\Services\Deletion\Actions\DeleteProjectFiles;
+use HardImpact\Orbit\Core\Services\Deletion\Actions\DropPostgresDatabase;
+use HardImpact\Orbit\Core\Services\Deletion\DeletionLogger;
+use HardImpact\Orbit\Core\Services\Deletion\DeletionPipeline;
 
 beforeEach(function () {
     $environment = Environment::factory()->local()->create([

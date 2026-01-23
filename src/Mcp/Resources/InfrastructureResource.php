@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace HardImpact\Orbit\Mcp\Resources;
+namespace HardImpact\Orbit\Core\Mcp\Resources;
 
-use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Services\OrbitCli\StatusService;
+use HardImpact\Orbit\Core\Models\Environment;
+use HardImpact\Orbit\Core\Services\OrbitCli\StatusService;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Resource;

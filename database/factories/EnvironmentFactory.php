@@ -1,8 +1,8 @@
 <?php
 
-namespace HardImpact\Orbit\Database\Factories;
+namespace HardImpact\Orbit\Core\Database\Factories;
 
-use HardImpact\Orbit\Models\Environment;
+use HardImpact\Orbit\Core\Models\Environment;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class EnvironmentFactory extends Factory

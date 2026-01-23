@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace HardImpact\Orbit\Jobs;
+namespace HardImpact\Orbit\Core\Jobs;
 
-use HardImpact\Orbit\Data\DeletionContext;
-use HardImpact\Orbit\Models\Project;
-use HardImpact\Orbit\Services\Deletion\DeletionLogger;
-use HardImpact\Orbit\Services\Deletion\DeletionPipeline;
+use HardImpact\Orbit\Core\Data\DeletionContext;
+use HardImpact\Orbit\Core\Models\Project;
+use HardImpact\Orbit\Core\Services\Deletion\DeletionLogger;
+use HardImpact\Orbit\Core\Services\Deletion\DeletionPipeline;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;

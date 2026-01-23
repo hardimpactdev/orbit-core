@@ -1,6 +1,6 @@
 <?php
 
-namespace HardImpact\Orbit\Database\Factories;
+namespace HardImpact\Orbit\Core\Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 

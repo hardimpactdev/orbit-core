@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace HardImpact\Orbit\Services\Deletion;
+namespace HardImpact\Orbit\Core\Services\Deletion;
 
-use HardImpact\Orbit\Contracts\ProvisionLoggerContract;
-use HardImpact\Orbit\Data\DeletionContext;
-use HardImpact\Orbit\Data\StepResult;
-use HardImpact\Orbit\Services\Deletion\Actions\DeleteProjectFiles;
-use HardImpact\Orbit\Services\Deletion\Actions\DropPostgresDatabase;
-use HardImpact\Orbit\Services\Deletion\Actions\RegenerateCaddyConfig;
+use HardImpact\Orbit\Core\Contracts\ProvisionLoggerContract;
+use HardImpact\Orbit\Core\Data\DeletionContext;
+use HardImpact\Orbit\Core\Data\StepResult;
+use HardImpact\Orbit\Core\Services\Deletion\Actions\DeleteProjectFiles;
+use HardImpact\Orbit\Core\Services\Deletion\Actions\DropPostgresDatabase;
+use HardImpact\Orbit\Core\Services\Deletion\Actions\RegenerateCaddyConfig;
 
 /**
  * Pipeline for running deletion actions in sequence.

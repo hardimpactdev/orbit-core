@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace HardImpact\Orbit\Services\Provision\Actions;
+namespace HardImpact\Orbit\Core\Services\Provision\Actions;
 
-use HardImpact\Orbit\Contracts\ProvisionLoggerContract;
-use HardImpact\Orbit\Data\ProvisionContext;
-use HardImpact\Orbit\Data\StepResult;
-use HardImpact\Orbit\Models\Project;
+use HardImpact\Orbit\Core\Contracts\ProvisionLoggerContract;
+use HardImpact\Orbit\Core\Data\ProvisionContext;
+use HardImpact\Orbit\Core\Data\StepResult;
+use HardImpact\Orbit\Core\Models\Project;
 
 final readonly class SetPhpVersion
 {

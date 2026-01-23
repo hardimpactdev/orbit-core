@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace HardImpact\Orbit\Services\TemplateAnalyzer\Analyzers;
+namespace HardImpact\Orbit\Core\Services\TemplateAnalyzer\Analyzers;
 
-use HardImpact\Orbit\Services\TemplateAnalyzer\Contracts\TemplateAnalyzerInterface;
-use HardImpact\Orbit\Services\TemplateAnalyzer\EnvParser;
-use HardImpact\Orbit\Services\TemplateAnalyzer\TemplateAnalysisResult;
+use HardImpact\Orbit\Core\Services\TemplateAnalyzer\Contracts\TemplateAnalyzerInterface;
+use HardImpact\Orbit\Core\Services\TemplateAnalyzer\EnvParser;
+use HardImpact\Orbit\Core\Services\TemplateAnalyzer\TemplateAnalysisResult;
 use Illuminate\Support\Facades\Http;
 
 /**

@@ -1,13 +1,13 @@
 <?php
 
-namespace HardImpact\Orbit\Services\OrbitCli;
+namespace HardImpact\Orbit\Core\Services\OrbitCli;
 
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetProjectsRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetStatusRequest;
-use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Services\OrbitCli\Shared\CommandService;
-use HardImpact\Orbit\Services\OrbitCli\Shared\ConnectorService;
-use HardImpact\Orbit\Services\SshService;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\GetProjectsRequest;
+use HardImpact\Orbit\Core\Http\Integrations\Orbit\Requests\GetStatusRequest;
+use HardImpact\Orbit\Core\Models\Environment;
+use HardImpact\Orbit\Core\Services\OrbitCli\Shared\CommandService;
+use HardImpact\Orbit\Core\Services\OrbitCli\Shared\ConnectorService;
+use HardImpact\Orbit\Core\Services\SshService;
 use Illuminate\Support\Facades\Process;
 
 /**

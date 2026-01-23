@@ -1,8 +1,8 @@
 <?php
 
-namespace HardImpact\Orbit\Console\Commands;
+namespace HardImpact\Orbit\Core\Console\Commands;
 
-use HardImpact\Orbit\Models\Environment;
+use HardImpact\Orbit\Core\Models\Environment;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 

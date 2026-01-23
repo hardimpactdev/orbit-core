@@ -1,10 +1,10 @@
 <?php
 
-namespace HardImpact\Orbit\Services;
+namespace HardImpact\Orbit\Core\Services;
 
-use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Services\OrbitCli\ConfigurationService;
-use HardImpact\Orbit\Services\OrbitCli\StatusService;
+use HardImpact\Orbit\Core\Models\Environment;
+use HardImpact\Orbit\Core\Services\OrbitCli\ConfigurationService;
+use HardImpact\Orbit\Core\Services\OrbitCli\StatusService;
 
 class DoctorService
 {

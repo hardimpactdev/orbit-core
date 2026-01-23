@@ -1,8 +1,8 @@
 <?php
 
-namespace HardImpact\Orbit\Services;
+namespace HardImpact\Orbit\Core\Services;
 
-use HardImpact\Orbit\Models\Project;
+use HardImpact\Orbit\Core\Models\Project;
 use Illuminate\Support\Collection;
 
 class ProjectService
