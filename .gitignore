@@ -14,6 +14,9 @@ yarn-error.log
 .phpunit.result.cache
 /build
 
+# Vite dev artifacts (but NOT public/build - that's committed for releases)
+/public/hot
+
 # IDE Helper
 _ide_helper.php
 _ide_helper_models.php
