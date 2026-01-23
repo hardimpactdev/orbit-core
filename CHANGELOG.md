@@ -2,6 +2,17 @@
 
 All notable changes to `orbit-core` will be documented in this file.
 
+## Release 0.0.6 - 2026-01-23
+
+### Added
+
+- Directory picker for Site Paths configuration - click the folder icon to browse and select directories via a modal interface
+- Toast notifications for configuration save feedback
+
+### Fixed
+
+- Config loading now uses correct `/api/` prefix (was returning 405 error)
+
 ## Release 0.0.5 - 2026-01-22
 
 ### What's Changed
