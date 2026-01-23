@@ -169,6 +169,14 @@ composer analyse        # PHPStan analysis
 composer format         # Format with Pint
 ```
 
+## UI Conventions
+
+### Vertical Tab Pages
+When implementing settings or multi-section pages with vertical tabs:
+- Remove border dividers between tabs and content (let spacing create separation)
+- Don't duplicate category titles in content when tabs already show active state
+- Example: Environment Settings page (`/resources/js/pages/environments/Settings.vue`)
+
 ## Important Notes
 
 - Always use fully qualified namespace for models/services

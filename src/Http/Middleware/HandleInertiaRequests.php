@@ -55,6 +55,40 @@ class HandleInertiaRequests extends Middleware
     }
 
     /**
+     * Get the orbit-core version from git tags or commit hash.
+     */
+    protected function getOrbitVersion(): string
+    {
+        static $version = null;
+
+        if ($version !== null) {
+            return $version;
+        }
+
+        $packagePath = dirname(__DIR__, 3); // Navigate from src/Http/Middleware to package root
+
+        // Try git describe first (gives us tag + commits since tag)
+        $result = @shell_exec("cd {$packagePath} && git describe --tags --always 2>/dev/null");
+        if ($result) {
+            $version = trim($result);
+
+            return $version;
+        }
+
+        // Fallback to short commit hash
+        $result = @shell_exec("cd {$packagePath} && git rev-parse --short HEAD 2>/dev/null");
+        if ($result) {
+            $version = trim($result);
+
+            return $version;
+        }
+
+        $version = 'unknown';
+
+        return $version;
+    }
+
+    /**
      * Define the props that are shared by default.
      *
      * @see https://inertiajs.com/shared-data
@@ -87,6 +121,7 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'multi_environment' => $multiEnvironment,
+            'orbit_version' => $this->getOrbitVersion(),
             'reverb' => [
                 'enabled' => config('broadcasting.default') === 'reverb',
                 'host' => $reverbClientHost,
@@ -149,10 +184,10 @@ class HandleInertiaRequests extends Middleware
                             'isActive' => str_starts_with($currentPath, "{$pathPrefix}services"),
                         ],
                         [
-                            'title' => 'Settings',
-                            'href' => "{$urlPrefix}/settings",
-                            'icon' => 'Settings',
-                            'isActive' => str_starts_with($currentPath, "{$pathPrefix}settings"),
+                            'title' => 'Configuration',
+                            'href' => "{$urlPrefix}/configuration",
+                            'icon' => 'Settings2',
+                            'isActive' => str_starts_with($currentPath, "{$pathPrefix}configuration"),
                         ],
                     ];
                 }

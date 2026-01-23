@@ -377,7 +377,7 @@ class EnvironmentController extends Controller
         $notificationsEnabled = app(\HardImpact\Orbit\Services\NotificationService::class)->isEnabled();
         $menuBarEnabled = \HardImpact\Orbit\Models\UserPreference::getValue('menu_bar_enabled', false);
 
-        return \Inertia\Inertia::render('environments/Settings', [
+        return \Inertia\Inertia::render('environments/Configuration', [
             'environment' => $environment,
             'remoteApiUrl' => $remoteApiUrl,
             'editor' => $environment->getEditor(),

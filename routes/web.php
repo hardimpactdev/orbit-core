@@ -71,19 +71,32 @@ Route::prefix('api/environments')->group(function (): void {
     Route::get('tlds', [EnvironmentController::class, 'getAllTlds'])->name('api.environments.tlds');
 });
 
-// Redirect global settings to environment settings
+// Redirect global settings to environment configuration
 Route::get('settings', function () {
     $environment = \HardImpact\Orbit\Models\Environment::getLocal()
         ?? \HardImpact\Orbit\Models\Environment::getDefault()
         ?? \HardImpact\Orbit\Models\Environment::first();
 
     if ($environment) {
-        return redirect()->route('environments.settings', $environment);
+        return redirect()->route('environments.configuration', $environment);
     }
 
     // Fallback if no environment exists (shouldn't happen normally)
     return redirect('/');
 })->name('settings.index');
+
+// Redirect /configuration to environment configuration
+Route::get('configuration', function () {
+    $environment = \HardImpact\Orbit\Models\Environment::getLocal()
+        ?? \HardImpact\Orbit\Models\Environment::getDefault()
+        ?? \HardImpact\Orbit\Models\Environment::first();
+
+    if ($environment) {
+        return redirect()->route('environments.configuration', $environment);
+    }
+
+    return redirect('/');
+})->name('configuration.index');
 
 // Keep POST routes for backwards compatibility (used by desktop app settings)
 Route::post('settings', [SettingsController::class, 'update'])->name('settings.update');

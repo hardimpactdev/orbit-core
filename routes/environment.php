@@ -16,9 +16,12 @@ Route::post('doctor/fix/{check}', [EnvironmentController::class, 'fixDoctorIssue
 // Environment pages
 Route::get('projects', [EnvironmentController::class, 'projectsPage'])->name('environments.projects');
 Route::get('services', [EnvironmentController::class, 'servicesPage'])->name('environments.services');
-Route::get('settings', [EnvironmentController::class, 'settings'])->name('environments.settings');
-Route::post('settings', [EnvironmentController::class, 'updateSettings'])->name('environments.settings.update');
-Route::post('settings/external-access', [EnvironmentController::class, 'updateExternalAccess'])->name('environments.settings.external-access');
+Route::get('configuration', [EnvironmentController::class, 'settings'])->name('environments.configuration');
+Route::post('configuration', [EnvironmentController::class, 'updateSettings'])->name('environments.configuration.update');
+Route::post('configuration/external-access', [EnvironmentController::class, 'updateExternalAccess'])->name('environments.configuration.external-access');
+// Backwards compatibility: redirect old settings URLs
+Route::redirect('settings', 'configuration');
+Route::get('settings/{any?}', fn () => redirect()->route('environments.configuration'))->where('any', '.*');
 
 // Note: api/projects moved to routes/api.php (stateless)
 Route::post('start', [EnvironmentController::class, 'start'])->name('environments.start');

@@ -5,6 +5,7 @@ import {
     LayoutDashboard,
     Server,
     Settings,
+    Settings2,
     FolderGit2,
     HelpCircle,
     Sparkles,
@@ -67,6 +68,7 @@ const iconMap: Record<string, any> = {
     LayoutDashboard,
     Server,
     Settings,
+    Settings2,
     FolderGit2,
     HelpCircle,
     Sparkles,
@@ -147,22 +149,23 @@ router.on('finish', () => {
                 <!-- Toggle button -->
                 <button
                     @click.stop="toggleSidebar"
-                    class="flex items-center justify-center w-7 h-7 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 transition-colors no-drag"
+                    class="flex items-center justify-center w-7 h-7 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 transition-colors no-drag"
+                    :aria-label="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
                     :title="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
                 >
-                    <PanelLeft v-if="sidebarCollapsed" class="w-4 h-4" />
-                    <PanelLeftClose v-else class="w-4 h-4" />
+                    <PanelLeft v-if="sidebarCollapsed" class="w-4 h-4" aria-hidden="true" />
+                    <PanelLeftClose v-else class="w-4 h-4" aria-hidden="true" />
                 </button>
                 <!-- Navigation buttons -->
                 <div v-if="page.props.multi_environment" class="flex items-center ml-3 no-drag">
-                    <button class="flex items-center justify-center w-7 h-7 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-zinc-500" disabled>
-                        <ChevronLeft class="w-4 h-4" />
+                    <button class="flex items-center justify-center w-7 h-7 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-zinc-500" disabled aria-label="Go back">
+                        <ChevronLeft class="w-4 h-4" aria-hidden="true" />
                     </button>
-                    <button class="flex items-center justify-center w-7 h-7 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-zinc-500" disabled>
-                        <ChevronRight class="w-4 h-4" />
+                    <button class="flex items-center justify-center w-7 h-7 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-zinc-500" disabled aria-label="Go forward">
+                        <ChevronRight class="w-4 h-4" aria-hidden="true" />
                     </button>
-                    <button class="flex items-center justify-center w-7 h-7 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 transition-colors ml-1 no-drag">
-                        <Terminal class="w-4 h-4" />
+                    <button class="flex items-center justify-center w-7 h-7 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 transition-colors ml-1 no-drag" aria-label="Open terminal">
+                        <Terminal class="w-4 h-4" aria-hidden="true" />
                     </button>
                 </div>
             </div>
@@ -170,20 +173,21 @@ router.on('finish', () => {
             <!-- Center: Command Palette Trigger -->
             <div class="flex-1 flex justify-center">
                 <button
-                    class="flex items-center justify-center w-16 h-6 text-sm text-zinc-500 bg-zinc-800/60 border border-zinc-700/50 rounded hover:bg-zinc-800 hover:text-zinc-300 hover:border-zinc-600 transition-colors no-drag"
+                    class="flex items-center justify-center w-16 h-6 text-sm text-zinc-500 bg-zinc-800/60 border border-zinc-700/50 rounded hover:bg-zinc-800 hover:text-zinc-300 hover:border-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 transition-colors no-drag"
                     @click="$emit('open-command-palette')"
+                    aria-label="Open command palette"
                 >
-                    <span class="font-mono text-xs">/</span>
+                    <span class="font-mono text-xs" aria-hidden="true">/</span>
                 </button>
             </div>
 
             <!-- Right side: Actions -->
             <div class="flex items-center gap-0.5 pr-4 no-drag">
-                <button class="flex items-center justify-center w-7 h-7 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 transition-colors">
-                    <ExternalLink class="w-4 h-4" />
+                <button class="flex items-center justify-center w-7 h-7 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 transition-colors" aria-label="Open in browser">
+                    <ExternalLink class="w-4 h-4" aria-hidden="true" />
                 </button>
-                <button class="flex items-center justify-center w-7 h-7 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 transition-colors">
-                    <RotateCw class="w-4 h-4" />
+                <button class="flex items-center justify-center w-7 h-7 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 transition-colors" aria-label="Refresh">
+                    <RotateCw class="w-4 h-4" aria-hidden="true" />
                 </button>
             </div>
         </div>
@@ -225,6 +229,7 @@ router.on('finish', () => {
                                     :is="iconMap[item.icon]"
                                     class="w-4 h-4 flex-shrink-0"
                                     :class="{ 'opacity-50': item.enabled === false }"
+                                    aria-hidden="true"
                                 />
                                 <span v-if="!sidebarCollapsed" class="flex items-center gap-2">
                                     {{ item.title }}
@@ -255,7 +260,7 @@ router.on('finish', () => {
                                 ]"
                                 :title="sidebarCollapsed ? item.title : undefined"
                             >
-                                <component :is="iconMap[item.icon]" class="w-4 h-4 flex-shrink-0" />
+                                <component :is="iconMap[item.icon]" class="w-4 h-4 flex-shrink-0" aria-hidden="true" />
                                 <span v-if="!sidebarCollapsed">{{ item.title }}</span>
                             </Link>
                         </li>

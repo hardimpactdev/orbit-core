@@ -441,12 +441,12 @@ onUnmounted(() => {
     <div>
         <!-- Header -->
         <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
-            <div class="flex items-center gap-3">
-                <h1 class="text-2xl font-semibold tracking-tight text-zinc-100">{{ environment.name }}</h1>
-                <span v-if="config" class="px-2 py-0.5 text-xs font-mono bg-zinc-800 text-zinc-400 rounded-full">.{{ tld }}</span>
+            <div class="flex items-center gap-3 min-w-0">
+                <h1 class="text-2xl font-semibold tracking-tight text-zinc-100 truncate">{{ environment.name }}</h1>
+                <span v-if="config" class="px-2 py-0.5 text-xs font-mono bg-zinc-800 text-zinc-400 rounded-full flex-shrink-0">.{{ tld }}</span>
             </div>
             <Button @click="testConnection" variant="outline" size="sm" class="bg-transparent border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100">
-                <Loader2 v-if="connectionStatus === 'testing'" class="w-4 h-4 mr-1.5 animate-spin" />
+                <Loader2 v-if="connectionStatus === 'testing'" class="w-4 h-4 mr-1.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
                 Test Connection
             </Button>
         </header>
@@ -456,11 +456,11 @@ onUnmounted(() => {
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-4">
                     <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-lime-500/15">
-                        <HardDrive v-if="environment.is_local" class="h-5 w-5 text-lime-400" />
-                        <Server v-else class="h-5 w-5 text-lime-400" />
+                        <HardDrive v-if="environment.is_local" class="h-5 w-5 text-lime-400" aria-hidden="true" />
+                        <Server v-else class="h-5 w-5 text-lime-400" aria-hidden="true" />
                     </div>
                     <div>
-                        <p class="text-sm font-medium text-zinc-100">
+                        <p class="text-sm font-medium text-zinc-100 truncate max-w-[200px] sm:max-w-none">
                             {{ environment.is_local ? 'Local Machine' : `${environment.user}@${environment.host}` }}
                         </p>
                         <div class="flex items-center gap-2 mt-0.5">
@@ -469,7 +469,7 @@ onUnmounted(() => {
                             >
                                 <span
                                     v-if="connectionStatus === 'success'"
-                                    class="absolute inline-flex h-full w-full rounded-full bg-lime-400 opacity-75 animate-ping"
+                                    class="absolute inline-flex h-full w-full rounded-full bg-lime-400 opacity-75 animate-ping motion-reduce:animate-none"
                                 />
                                 <span
                                     class="relative inline-flex rounded-full h-2.5 w-2.5"
@@ -485,7 +485,7 @@ onUnmounted(() => {
                                 class="text-sm"
                                 :class="connectionStatus === 'success' ? 'text-zinc-100' : 'text-zinc-500'"
                             >
-                                {{ connectionStatus === 'success' ? 'Connected' : connectionStatus === 'error' ? 'Disconnected' : connectionStatus === 'testing' ? 'Testing...' : 'Not tested' }}
+                                {{ connectionStatus === 'success' ? 'Connected' : connectionStatus === 'error' ? 'Disconnected' : connectionStatus === 'testing' ? 'Testing\u2026' : 'Not tested' }}
                             </span>
                         </div>
                     </div>
@@ -537,7 +537,7 @@ onUnmounted(() => {
             <div class="flex items-center justify-between p-4 border-b border-zinc-800">
                 <h2 class="text-sm font-medium text-zinc-100">Orbit Installation</h2>
                 <Button v-if="installation.installed" variant="ghost" size="sm" class="h-7 px-2 text-xs text-zinc-400 hover:text-zinc-100">
-                    <ExternalLink class="h-3.5 w-3.5 mr-1" />
+                    <ExternalLink class="h-3.5 w-3.5 mr-1" aria-hidden="true" />
                     Open
                 </Button>
             </div>
@@ -545,7 +545,7 @@ onUnmounted(() => {
                 <template v-if="installation.installed">
                     <div class="flex items-start gap-3">
                         <div class="flex h-5 w-5 items-center justify-center rounded-full bg-lime-500/15 mt-0.5">
-                            <Check class="h-3 w-3 text-lime-400" />
+                            <Check class="h-3 w-3 text-lime-400" aria-hidden="true" />
                         </div>
                         <div>
                             <p class="text-sm text-lime-400 font-medium break-all">{{ installation.path }}</p>
@@ -562,7 +562,7 @@ onUnmounted(() => {
                 <template v-else>
                     <div class="flex items-start gap-3">
                         <div class="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500/15 mt-0.5">
-                            <AlertTriangle class="h-3 w-3 text-amber-400" />
+                            <AlertTriangle class="h-3 w-3 text-amber-400" aria-hidden="true" />
                         </div>
                         <div>
                             <p class="text-sm text-amber-400 font-medium">Orbit CLI not found</p>
@@ -577,9 +577,9 @@ onUnmounted(() => {
                         size="sm"
                         class="bg-transparent border-zinc-700 text-zinc-300 hover:bg-zinc-800"
                     >
-                        <Loader2 v-if="cliInstalling" class="w-4 h-4 animate-spin mr-1.5" />
-                        <Download v-else class="w-4 h-4 mr-1.5" />
-                        {{ cliInstalling ? 'Installing...' : 'Install Orbit CLI' }}
+                        <Loader2 v-if="cliInstalling" class="w-4 h-4 animate-spin motion-reduce:animate-none mr-1.5" aria-hidden="true" />
+                        <Download v-else class="w-4 h-4 mr-1.5" aria-hidden="true" />
+                        {{ cliInstalling ? 'Installing\u2026' : 'Install Orbit CLI' }}
                     </Button>
                     <p v-else class="text-zinc-500 text-sm">
                         Install orbit on this environment to manage projects.
@@ -607,7 +607,7 @@ onUnmounted(() => {
                 <!-- Config Display -->
                 <div v-if="!configEditing" class="p-4 space-y-4">
                     <div v-if="configLoading" class="text-zinc-500 text-sm">
-                        Loading configuration...
+                        Loading configuration\u2026
                     </div>
                     <template v-else-if="config">
                         <div>
@@ -648,13 +648,15 @@ onUnmounted(() => {
                                     v-model="editPaths[index]"
                                     type="text"
                                     placeholder="/home/user/sites"
+                                    autocomplete="off"
                                     class="flex-1 font-mono text-sm"
                                 />
                                 <button
                                     @click="removePath(index)"
-                                    class="text-zinc-500 hover:text-red-400 p-2 transition-colors"
+                                    class="text-zinc-500 hover:text-red-400 focus-visible:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/50 p-2 rounded transition-colors"
+                                    aria-label="Remove path"
                                 >
-                                    <Trash2 class="w-4 h-4" />
+                                    <Trash2 class="w-4 h-4" aria-hidden="true" />
                                 </button>
                             </div>
                         </div>
@@ -672,7 +674,10 @@ onUnmounted(() => {
                             v-model="editTld"
                             type="text"
                             id="config-tld"
+                            name="tld"
                             placeholder="test"
+                            autocomplete="off"
+                            :spellcheck="false"
                             class="w-full max-w-xs font-mono text-sm"
                         />
                         <p class="mt-1 text-xs text-zinc-500">
@@ -695,7 +700,7 @@ onUnmounted(() => {
 
                     <div class="flex gap-3 pt-2">
                         <Button @click="saveConfig" :disabled="configSaving" size="sm" class="bg-lime-500 hover:bg-lime-600 text-zinc-950">
-                            {{ configSaving ? 'Saving...' : 'Save changes' }}
+                            {{ configSaving ? 'Saving\u2026' : 'Save Changes' }}
                         </Button>
                         <Button @click="cancelEditConfig" variant="ghost" size="sm">Cancel</Button>
                     </div>

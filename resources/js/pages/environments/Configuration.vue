@@ -100,6 +100,7 @@ const props = defineProps<{
 
 const page = usePage();
 const multiEnvironment = computed(() => page.props.multi_environment);
+const orbitVersion = computed(() => (page.props.orbit_version as string) || "unknown");
 
 const csrfToken = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content || "";
 
@@ -1297,6 +1298,23 @@ const toggleMenuBar = () => {
                                         </Button>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Version Info -->
+                    <div class="mt-8">
+                        <Separator class="bg-zinc-800 mb-6" />
+
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-4 py-6">
+                            <div class="sm:w-1/2 space-y-1">
+                                <Label class="text-sm font-medium text-white">Orbit Version</Label>
+                                <p class="text-xs text-zinc-500">Current version of Orbit.</p>
+                            </div>
+                            <div class="sm:w-1/2 flex sm:justify-end">
+                                <Badge variant="secondary" class="font-mono text-xs">
+                                    {{ orbitVersion }}
+                                </Badge>
                             </div>
                         </div>
                     </div>
