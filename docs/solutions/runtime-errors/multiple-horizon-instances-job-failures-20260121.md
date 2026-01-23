@@ -84,7 +84,7 @@ echo "Starting dev Horizon..."
 cd ~/projects/orbit-web && php artisan horizon
 
 echo "Starting Vite dev server..."
-cd ~/projects/orbit-core && bun run dev orbit-web.ccc
+cd ~/projects/orbit-core && bun run dev
 ```
 
 ### Check if systemd service exists:

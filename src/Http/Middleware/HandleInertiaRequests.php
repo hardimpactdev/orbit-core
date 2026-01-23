@@ -23,6 +23,22 @@ class HandleInertiaRequests extends Middleware
     }
 
     /**
+     * Get the client-side Reverb host based on APP_URL's TLD.
+     * Server connects directly to 127.0.0.1:8080, but browsers need reverb.<tld> via Caddy.
+     */
+    protected function getReverbClientHost(): string
+    {
+        $appUrl = config('app.url', 'https://orbit.test');
+        $host = parse_url($appUrl, PHP_URL_HOST) ?? 'orbit.test';
+
+        // Extract TLD (everything after first dot, e.g., "ccc" from "orbit.ccc")
+        $parts = explode('.', $host);
+        $tld = count($parts) > 1 ? end($parts) : 'test';
+
+        return "reverb.{$tld}";
+    }
+
+    /**
      * Determines the current asset version.
      *
      * @see https://inertiajs.com/asset-versioning
@@ -64,14 +80,18 @@ class HandleInertiaRequests extends Middleware
             return $currentEnv;
         };
 
+        // Compute client-side Reverb host from APP_URL's TLD
+        // Server connects directly to 127.0.0.1:8080, but browsers need reverb.<tld> via Caddy
+        $reverbClientHost = $this->getReverbClientHost();
+
         return [
             ...parent::share($request),
             'multi_environment' => $multiEnvironment,
             'reverb' => [
                 'enabled' => config('broadcasting.default') === 'reverb',
-                'host' => config('reverb.apps.apps.0.options.host', config('reverb.servers.reverb.hostname', 'localhost')),
-                'port' => (int) config('reverb.apps.apps.0.options.port', 443),
-                'scheme' => config('reverb.apps.apps.0.options.scheme', 'https'),
+                'host' => $reverbClientHost,
+                'port' => 443,
+                'scheme' => 'https',
                 'app_key' => config('reverb.apps.apps.0.key', ''),
             ],
             'flash' => [
