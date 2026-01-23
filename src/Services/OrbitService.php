@@ -4,7 +4,10 @@ namespace HardImpact\Orbit\Services;
 
 use HardImpact\Orbit\Http\Integrations\Orbit\OrbitConnector;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\ConfigureServiceRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\CreateSiteRequest;
+use HardImpact\Orbit\Http\Integrations\Orbit\Requests\AddWorkspaceProjectRequest;
+use HardImpact\Orbit\Http\Integrations\Orbit\Requests\CreateProjectRequest;
+use HardImpact\Orbit\Http\Integrations\Orbit\Requests\CreateWorkspaceRequest;
+use HardImpact\Orbit\Http\Integrations\Orbit\Requests\DeleteProjectRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\DeleteWorkspaceRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\DisableServiceRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\EnableServiceRequest;
@@ -15,14 +18,15 @@ use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetPhpVersionsRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetProvisionStatusRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetServiceInfoRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetServiceLogsRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetSitesRequest;
+use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetProjectsRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetStatusRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetWorkspacesRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\GetWorktreesRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\LinkPackageRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\ListAvailableServicesRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\ListServicesRequest;
-use HardImpact\Orbit\Http\Integrations\Orbit\Requests\RebuildSiteRequest;
+use HardImpact\Orbit\Http\Integrations\Orbit\Requests\RebuildProjectRequest;
+use HardImpact\Orbit\Http\Integrations\Orbit\Requests\RemoveWorkspaceProjectRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\RefreshWorktreesRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\ResetPhpRequest;
 use HardImpact\Orbit\Http\Integrations\Orbit\Requests\RestartServiceRequest;
@@ -166,7 +170,7 @@ BASH;
             return $this->executeCommand($environment, 'sites --json');
         }
 
-        return $this->sendRequest($environment, new GetSitesRequest);
+        return $this->sendRequest($environment, new GetProjectsRequest);
     }
 
     /**
@@ -179,7 +183,7 @@ BASH;
             return $this->executeCommand($environment, 'site:list --json');
         }
 
-        return $this->sendRequest($environment, new GetSitesRequest);
+        return $this->sendRequest($environment, new GetProjectsRequest);
     }
 
     /**
@@ -529,7 +533,7 @@ BASH;
             return $this->executeCommand($environment, "site:update --site={$escapedSite} --no-git --json");
         }
 
-        return $this->sendRequest($environment, new RebuildSiteRequest($site));
+        return $this->sendRequest($environment, new RebuildProjectRequest($site));
     }
 
     /**
@@ -1141,7 +1145,7 @@ BASH;
             $payload['php_version'] = $options['php_version'];
         }
 
-        $result = $this->sendRequest($environment, new CreateSiteRequest($payload));
+        $result = $this->sendRequest($environment, new CreateProjectRequest($payload));
 
         if ($result['success']) {
             return [

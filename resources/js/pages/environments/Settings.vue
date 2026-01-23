@@ -764,9 +764,9 @@ const toggleMenuBar = () => {
                 <!-- Site Paths -->
                 <div class="grid grid-cols-2 gap-8 py-6">
                     <div>
-                        <h3 class="text-sm font-medium text-white">Site Paths</h3>
+                        <h3 class="text-sm font-medium text-white">Project Paths</h3>
                         <p class="text-sm text-zinc-500 mt-1">
-                            Directories where your sites are located.
+                            Directories where your projects are located.
                         </p>
                     </div>
                     <div>
@@ -779,7 +779,7 @@ const toggleMenuBar = () => {
                                 <Input
                                     v-model="editPaths[index]"
                                     type="text"
-                                    placeholder="/home/user/sites"
+                                    placeholder="/home/user/projects"
                                     class="flex-1 font-mono"
                                 />
                                 <button
@@ -817,7 +817,7 @@ const toggleMenuBar = () => {
                     <div>
                         <h3 class="text-sm font-medium text-white">TLD</h3>
                         <p class="text-sm text-zinc-500 mt-1">
-                            Top-level domain for local sites. Sites will be accessible at
+                            Top-level domain for local projects. Projects will be accessible at
                             sitename.{{ editTld || 'test' }}
                         </p>
                     </div>
@@ -838,7 +838,7 @@ const toggleMenuBar = () => {
                 <div class="grid grid-cols-2 gap-8 py-6">
                     <div>
                         <h3 class="text-sm font-medium text-white">Default PHP Version</h3>
-                        <p class="text-sm text-zinc-500 mt-1">PHP version used for new sites.</p>
+                        <p class="text-sm text-zinc-500 mt-1">PHP version used for new projects.</p>
                     </div>
                     <div>
                         <Select v-model="editPhpVersion">

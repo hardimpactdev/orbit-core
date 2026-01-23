@@ -52,7 +52,7 @@ const submit = () => {
             >
                 <ArrowLeft class="w-5 h-5" />
             </Link>
-            <Heading title="Create Workspace" description="Group related sites together" />
+            <Heading title="Create Workspace" description="Group related projects together" />
         </div>
 
         <form @submit.prevent="submit" class="max-w-xl space-y-6">

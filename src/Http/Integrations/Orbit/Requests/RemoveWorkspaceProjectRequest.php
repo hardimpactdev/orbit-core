@@ -11,11 +11,11 @@ class RemoveWorkspaceProjectRequest extends Request
 
     public function __construct(
         protected string $workspace,
-        protected string $site,
+        protected string $project,
     ) {}
 
     public function resolveEndpoint(): string
     {
-        return "/workspaces/{$this->workspace}/sites/{$this->site}";
+        return "/workspaces/{$this->workspace}/projects/{$this->project}";
     }
 }

@@ -111,10 +111,10 @@ class HandleInertiaRequests extends Middleware
                             'isActive' => in_array($currentPath, [$pathPrefix ? rtrim($pathPrefix, '/') : '', '/', ''], true),
                         ],
                         [
-                            'title' => 'Sites',
-                            'href' => "{$urlPrefix}/sites",
+                            'title' => 'Projects',
+                            'href' => "{$urlPrefix}/projects",
                             'icon' => 'FolderGit2',
-                            'isActive' => str_starts_with($currentPath, "{$pathPrefix}sites") && ! str_contains($currentPath, 'workspaces'),
+                            'isActive' => str_starts_with($currentPath, "{$pathPrefix}projects") && ! str_contains($currentPath, 'workspaces'),
                         ],
                         [
                             'title' => 'Workspaces',

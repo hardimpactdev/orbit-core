@@ -183,14 +183,14 @@ class DoctorService
     protected function checkApiConnectivity(Environment $environment): array
     {
         // Try to get sites via API
-        $result = $this->status->sites($environment);
+        $result = $this->status->projects($environment);
 
         if ($result['success']) {
-            $siteCount = count($result['data']['sites'] ?? []);
+            $projectCount = count($result['data']['projects'] ?? []);
 
             return [
                 'status' => 'ok',
-                'message' => "API responding, {$siteCount} sites configured",
+                'message' => "API responding, {$projectCount} projects configured",
                 'details' => [
                     'tld' => $environment->tld ?? 'unknown',
                 ],

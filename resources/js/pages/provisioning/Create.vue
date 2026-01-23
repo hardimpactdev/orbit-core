@@ -27,7 +27,7 @@ interface ServerCheckResult {
     error: string | null;
     status?: {
         status: string;
-        sites?: any[];
+        projects?: any[];
     };
 }
 
@@ -244,8 +244,8 @@ const submit = () => {
                             </p>
                             <p class="mt-1 text-sm text-zinc-400">
                                 Status: {{ checkResult.orbit_running ? 'Running' : 'Not running' }}
-                                <span v-if="checkResult.status?.sites?.length">
-                                    · {{ checkResult.status.sites.length }} site(s)</span
+                                <span v-if="checkResult.status?.projects?.length">
+                                    · {{ checkResult.status.projects.length }} project(s)</span
                                 >
                             </p>
                             <p class="mt-2 text-sm text-zinc-500">

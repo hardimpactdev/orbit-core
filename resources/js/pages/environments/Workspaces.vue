@@ -26,7 +26,7 @@ interface Editor {
     name: string;
 }
 
-interface WorkspaceSite {
+interface WorkspaceProject {
     name: string;
     path: string;
 }
@@ -34,8 +34,8 @@ interface WorkspaceSite {
 interface Workspace {
     name: string;
     path: string;
-    sites: WorkspaceSite[];
-    site_count: number;
+    projects: WorkspaceProject[];
+    project_count: number;
     has_workspace_file: boolean;
     has_claude_md: boolean;
 }
@@ -154,7 +154,7 @@ const deleteWorkspace = async () => {
         <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
             <div>
                 <h1 class="text-2xl font-semibold tracking-tight text-zinc-100">Workspaces</h1>
-                <p class="text-sm text-zinc-500 mt-1">Group related sites together for easier management</p>
+                <p class="text-sm text-zinc-500 mt-1">Group related projects together for easier management</p>
             </div>
             <div class="flex items-center gap-2">
                 <Button as-child size="sm" class="bg-lime-500 hover:bg-lime-600 text-zinc-950">
@@ -179,7 +179,7 @@ const deleteWorkspace = async () => {
         >
             <Boxes class="w-12 h-12 mx-auto text-zinc-600 mb-4" />
             <h3 class="text-lg font-medium text-zinc-100 mb-2">No workspaces yet</h3>
-            <p class="text-zinc-400 mb-6">Create a workspace to group related sites together.</p>
+            <p class="text-zinc-400 mb-6">Create a workspace to group related projects together.</p>
             <Button as-child size="sm" class="bg-lime-500 hover:bg-lime-600 text-zinc-950">
                 <Link :href="`/environments/${environment.id}/workspaces/create`">
                     <Plus class="w-4 h-4 mr-1.5" />
@@ -193,7 +193,7 @@ const deleteWorkspace = async () => {
             <!-- Table Header -->
             <div class="grid grid-cols-[1fr_1fr_140px] items-center gap-4 px-4 py-3 border-b border-zinc-800 bg-zinc-800/30">
                 <span class="text-xs font-medium text-zinc-500 uppercase tracking-wide">Workspace</span>
-                <span class="text-xs font-medium text-zinc-500 uppercase tracking-wide">Sites</span>
+                <span class="text-xs font-medium text-zinc-500 uppercase tracking-wide">Projects</span>
                 <span class="text-xs font-medium text-zinc-500 uppercase tracking-wide text-right">Actions</span>
             </div>
 
@@ -217,23 +217,23 @@ const deleteWorkspace = async () => {
                         </Link>
                     </div>
 
-                    <!-- Sites -->
+                    <!-- Projects -->
                     <div class="flex items-center gap-3">
-                        <span class="text-sm text-zinc-500">{{ workspace.site_count }} site{{ workspace.site_count !== 1 ? 's' : '' }}</span>
-                        <div v-if="workspace.sites.length > 0" class="flex -space-x-2">
+                        <span class="text-sm text-zinc-500">{{ workspace.project_count }} project{{ workspace.project_count !== 1 ? 's' : '' }}</span>
+                        <div v-if="workspace.projects.length > 0" class="flex -space-x-2">
                             <div
-                                v-for="site in workspace.sites.slice(0, 3)"
-                                :key="site.name"
+                                v-for="project in workspace.projects.slice(0, 3)"
+                                :key="project.name"
                                 class="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-800 border-2 border-zinc-900 text-xs"
-                                :title="site.name"
+                                :title="project.name"
                             >
                                 <FolderGit2 class="h-3 w-3 text-zinc-400" />
                             </div>
                             <div
-                                v-if="workspace.sites.length > 3"
+                                v-if="workspace.projects.length > 3"
                                 class="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-800 border-2 border-zinc-900 text-xs font-medium text-zinc-400"
                             >
-                                +{{ workspace.sites.length - 3 }}
+                                +{{ workspace.projects.length - 3 }}
                             </div>
                         </div>
                     </div>
@@ -297,7 +297,7 @@ const deleteWorkspace = async () => {
         <div class="p-6">
             <p class="text-zinc-400 mb-6">
                 Are you sure you want to delete the workspace "{{ workspaceToDelete }}"? This will
-                remove the workspace directory and symlinks, but won't delete the actual sites.
+                remove the workspace directory and symlinks, but won't delete the actual projects.
             </p>
             <div class="flex justify-end gap-3">
                 <Button @click="showDeleteModal = false" variant="ghost">Cancel</Button>

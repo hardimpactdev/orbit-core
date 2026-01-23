@@ -46,7 +46,7 @@ interface Editor {
     name: string;
 }
 
-interface Site {
+interface Project {
     name: string;
     domain: string;
     secure?: boolean;
@@ -68,7 +68,7 @@ interface Config {
     paths: string[];
     tld: string;
     default_php_version: string;
-    sites?: Record<string, unknown>;
+    projects?: Record<string, unknown>;
 }
 
 const props = defineProps<{
@@ -99,11 +99,11 @@ const servicesStore = useServicesStore();
 const servicesLoading = ref(true);
 const restartingAll = ref(false);
 
-// Sites
-const sites = ref<Site[]>([]);
-const sitesLoading = ref(true);
+// Projects
+const projects = ref<Project[]>([]);
+const projectsLoading = ref(true);
 const worktrees = ref<Record<string, Worktree[]>>({});
-const expandedSites = ref<Set<string>>(new Set());
+const expandedProjects = ref<Set<string>>(new Set());
 
 // Config
 const config = ref<Config | null>(null);
@@ -174,20 +174,20 @@ async function loadStatus() {
     }
 }
 
-async function loadSites() {
-    sitesLoading.value = true;
+async function loadProjects() {
+    projectsLoading.value = true;
     try {
-        const { data: result } = await api.get(getApiUrl('/sites'), {
+        const { data: result } = await api.get(getApiUrl('/projects'), {
             signal: abortController.value?.signal,
         });
 
         if (result.success && result.data) {
-            sites.value = result.data.sites || [];
+            projects.value = result.data.projects || [];
         }
     } catch (error) {
         if (axios.isCancel(error)) return;
     } finally {
-        sitesLoading.value = false;
+        projectsLoading.value = false;
     }
 }
 
@@ -250,10 +250,10 @@ async function restartAllServices() {
 async function changePhpVersion(site: string, version: string) {
     try {
         const siteName = encodeURIComponent(site);
-        const { data: result } = await api.post(`/sites/${siteName}/php`, { version });
+        const { data: result } = await api.post(`/projects/${siteName}/php`, { version });
 
         if (result.success) {
-            await loadSites();
+            await loadProjects();
         }
     } catch {
         // Error toast handled by axios interceptor
@@ -263,10 +263,10 @@ async function changePhpVersion(site: string, version: string) {
 async function resetPhpVersion(site: string) {
     try {
         const siteName = encodeURIComponent(site);
-        const { data: result } = await api.post(`/sites/${siteName}/php/reset`, {});
+        const { data: result } = await api.post(`/projects/${siteName}/php/reset`, {});
 
         if (result.success) {
-            await loadSites();
+            await loadProjects();
         }
     } catch {
         // Error toast handled by axios interceptor
@@ -310,7 +310,7 @@ async function unlinkWorktree(siteName: string, worktreeName: string) {
 
         if (result.success) {
             await loadWorktrees();
-            await loadSites();
+            await loadProjects();
         }
     } catch {
         // Error toast handled by axios interceptor
@@ -337,10 +337,10 @@ async function installCli() {
 }
 
 function toggleWorktrees(siteName: string) {
-    if (expandedSites.value.has(siteName)) {
-        expandedSites.value.delete(siteName);
+    if (expandedProjects.value.has(siteName)) {
+        expandedProjects.value.delete(siteName);
     } else {
-        expandedSites.value.add(siteName);
+        expandedProjects.value.add(siteName);
     }
 }
 
@@ -387,7 +387,7 @@ async function saveConfig() {
             config.value = result.data;
             configEditing.value = false;
             toast.success('Configuration saved');
-            await loadSites();
+            await loadProjects();
         } else {
             toast.error('Failed to save config', {
                 description: result.error || 'Unknown error',
@@ -422,7 +422,7 @@ onMounted(() => {
     if (props.installation.installed) {
         loadConfig();
         loadStatus();
-        loadSites();
+        loadProjects();
         loadWorktrees();
     }
 });
@@ -502,14 +502,14 @@ onUnmounted(() => {
             <div class="flex flex-col gap-1 p-4 rounded-lg bg-zinc-800/30 border border-zinc-800">
                 <span class="text-xs text-zinc-500 uppercase tracking-wide">Sites</span>
                 <span class="text-2xl font-semibold text-zinc-100 tabular-nums">
-                    <template v-if="sitesLoading">-</template>
-                    <template v-else>{{ sites.length }}</template>
+                    <template v-if="projectsLoading">-</template>
+                    <template v-else>{{ projects.length }}</template>
                 </span>
             </div>
             <div class="flex flex-col gap-1 p-4 rounded-lg bg-zinc-800/30 border border-zinc-800">
                 <span class="text-xs text-zinc-500 uppercase tracking-wide">Workspaces</span>
                 <span class="text-2xl font-semibold text-zinc-100 tabular-nums">
-                    <template v-if="sitesLoading">-</template>
+                    <template v-if="projectsLoading">-</template>
                     <template v-else>{{ Object.keys(worktrees).length }}</template>
                 </span>
             </div>
@@ -566,7 +566,7 @@ onUnmounted(() => {
                         </div>
                         <div>
                             <p class="text-sm text-amber-400 font-medium">Orbit CLI not found</p>
-                            <p class="text-xs text-zinc-500 mt-1">Install to manage sites and services</p>
+                            <p class="text-xs text-zinc-500 mt-1">Install to manage projects and services</p>
                         </div>
                     </div>
                     <Button
@@ -582,7 +582,7 @@ onUnmounted(() => {
                         {{ cliInstalling ? 'Installing...' : 'Install Orbit CLI' }}
                     </Button>
                     <p v-else class="text-zinc-500 text-sm">
-                        Install orbit on this environment to manage sites.
+                        Install orbit on this environment to manage projects.
                     </p>
                 </template>
             </div>

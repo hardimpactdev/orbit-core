@@ -15,18 +15,18 @@ class AddWorkspaceProjectRequest extends Request implements HasBody
 
     public function __construct(
         protected string $workspace,
-        protected string $site,
+        protected string $project,
     ) {}
 
     public function resolveEndpoint(): string
     {
-        return "/workspaces/{$this->workspace}/sites";
+        return "/workspaces/{$this->workspace}/projects";
     }
 
     protected function defaultBody(): array
     {
         return [
-            'site' => $this->site,
+            'project' => $this->project,
         ];
     }
 }

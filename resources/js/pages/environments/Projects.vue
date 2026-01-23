@@ -73,7 +73,7 @@ const getApiUrl = (path: string) => {
 
 const page = usePage();
 
-const projects = ref<Site[]>([]);
+const projects = ref<Project[]>([]);
 const provisioningStatuses = [
     'queued',
     'creating_repo',
@@ -190,9 +190,9 @@ function getProjectDeletionStatusValue(siteName: string): DeletionStatus | null 
     return status?.status ?? null;
 }
 
-function getProjectProvisioningStatus(site: Site): ProvisioningProject | null {
+function getProjectProvisioningStatus(project: Project): ProvisioningProject | null {
     // Check WebSocket status FIRST - it has the most up-to-date status
-    const slug = site.name
+    const slug = project.name
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '');
@@ -203,26 +203,26 @@ function getProjectProvisioningStatus(site: Site): ProvisioningProject | null {
     }
 
     // Fall back to database status if no WebSocket status available
-    if (site.status && provisioningStatuses.includes(site.status)) {
+    if (project.status && provisioningStatuses.includes(project.status)) {
         return {
-            slug: site.name,
-            status: site.status,
-            error: site.error_message ?? null,
-            projectId: site.id,
+            slug: project.name,
+            status: project.status,
+            error: project.error_message ?? null,
+            projectId: project.id,
         };
     }
 
     return null;
 }
 
-function isProjectProvisioning(site: Site): boolean {
-    const status = getProjectProvisioningStatus(site);
+function isProjectProvisioning(project: Project): boolean {
+    const status = getProjectProvisioningStatus(project);
     if (!status) return false;
     return status.status !== 'ready' && status.status !== 'failed';
 }
 
-function getProjectProvisionStatus(site: Site): ProvisionStatus | null {
-    const status = getProjectProvisioningStatus(site);
+function getProjectProvisionStatus(project: Project): ProvisionStatus | null {
+    const status = getProjectProvisioningStatus(project);
     // Return null for 'ready' so it's treated as done (no status shown)
     if (status?.status === 'ready') return null;
     return status?.status ?? null;
@@ -251,7 +251,7 @@ async function loadProjects(silent = false) {
         const { data: result } = await api.get(getApiUrl('/projects'));
 
         if (result.success && result.data) {
-            projects.value = result.data.sites || [];
+            projects.value = result.data.projects || [];
             tld.value = result.data.tld || 'test';
             defaultPhpVersion.value = result.data.default_php_version || '8.4';
             if (result.data.available_php_versions?.length) {
@@ -287,21 +287,21 @@ function openInEditor(path: string) {
     window.open(url, '_blank');
 }
 
-async function changePhpVersion(site: Site, version: string) {
-    if (!site.domain) return;
+async function changePhpVersion(project: Project, version: string) {
+    if (!project.domain) return;
 
-    changingPhpFor.value = site.name;
+    changingPhpFor.value = project.name;
     try {
-        const siteName = encodeURIComponent(site.name);
-        const { data: result } = await api.post(`/projects/${siteName}/php`, {
+        const projectName = encodeURIComponent(project.name);
+        const { data: result } = await api.post(`/projects/${projectName}/php`, {
             version: version,
         });
 
         if (result.success) {
             toast.success('PHP Version Changed', {
-                description: `Now using PHP ${version} for this site.`,
+                description: `Now using PHP ${version} for this project.`,
             });
-            // Refresh sites to get updated PHP version
+            // Refresh projects to get updated PHP version
             await loadProjects(true);
         } else {
             handleApiError(result.error, 'change PHP version');
@@ -315,13 +315,13 @@ async function changePhpVersion(site: Site, version: string) {
 
 // Delete project state
 const showDeleteModal = ref(false);
-const projectToDelete = ref<Site | null>(null);
+const projectToDelete = ref<Project | null>(null);
 const deleting = ref(false);
 const deleteError = ref<string | null>(null);
 const deleteDatabase = ref(true);
 
-function confirmDeleteProject(site: Site) {
-    projectToDelete.value = site;
+function confirmDeleteProject(project: Project) {
+    projectToDelete.value = project;
     deleteError.value = null;
     deleteDatabase.value = true; // Reset to default (checked)
     showDeleteModal.value = true;
@@ -352,7 +352,7 @@ async function deleteProject() {
     const keepDb = !deleteDatabase.value;
 
     try {
-        // When remoteApiUrl is set, use the flat route /sites/{slug}
+        // When remoteApiUrl is set, use the flat route /projects/{slug}
         const deleteUrl = props.remoteApiUrl
             ? `/projects/${slug}`
             : getApiUrl(`/projects/${slug}`);
@@ -371,24 +371,24 @@ async function deleteProject() {
         }
     } catch (error) {
         console.error('Failed to delete project:', error);
-        markProjectDeletionFailed(slug, 'An error occurred while deleting the site');
+        markProjectDeletionFailed(slug, 'An error occurred while deleting the project');
     }
 }
 
 // Rebuild project state
 const rebuildingProject = ref<string | null>(null);
 
-async function rebuildProject(site: Site) {
-    rebuildingProject.value = site.name;
-    const slug = getProjectSlug(site.name);
+async function rebuildProject(project: Project) {
+    rebuildingProject.value = project.name;
+    const slug = getProjectSlug(project.name);
     try {
         const { data: result } = await api.post(getApiUrl(`/projects/${slug}/rebuild`), {});
 
         if (result.success) {
             toast.success('Project Rebuilt', {
-                description: `"${site.name}" has been rebuilt successfully.`,
+                description: `"${project.name}" has been rebuilt successfully.`,
             });
-            // Refresh sites to get updated status
+            // Refresh projects to get updated status
             await loadProjects(true);
         } else {
             handleApiError(result.error, 'rebuild project');

@@ -27,7 +27,7 @@ interface ServerCheckResult {
     error: string | null;
     status?: {
         status: string;
-        sites?: any[];
+        projects?: any[];
     };
 }
 
@@ -172,7 +172,7 @@ const submitRemote = () => {
 
         <Heading title="Add Environment" />
         <p class="text-zinc-400 mb-8 mt-2">
-            Add a local or remote environment to manage development sites.
+            Add a local or remote environment to manage development projects.
         </p>
 
         <!-- Environment Type Toggle -->
@@ -321,8 +321,8 @@ const submitRemote = () => {
                             </p>
                             <p class="mt-1 text-sm text-zinc-400">
                                 Status: {{ checkResult.orbit_running ? 'Running' : 'Not running' }}
-                                <span v-if="checkResult.status?.sites?.length">
-                                    · {{ checkResult.status.sites.length }} site(s)</span
+                                <span v-if="checkResult.status?.projects?.length">
+                                    · {{ checkResult.status.projects.length }} project(s)</span
                                 >
                             </p>
                             <p class="mt-2 text-sm text-zinc-500">

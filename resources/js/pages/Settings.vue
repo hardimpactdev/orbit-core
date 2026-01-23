@@ -244,7 +244,7 @@ watch(() => externalAccessForm.external_access, (newValue, oldValue) => {
             <div class="space-y-1">
                 <h2 class="text-sm font-semibold text-foreground">Code Editor</h2>
                 <p class="text-sm text-muted-foreground">
-                    Select your preferred editor for opening remote sites.
+                    Select your preferred editor for opening remote projects.
                 </p>
             </div>
             <div>
@@ -281,7 +281,7 @@ watch(() => externalAccessForm.external_access, (newValue, oldValue) => {
         <section v-if="$page.props.multi_environment" class="grid gap-x-8 gap-y-6 sm:grid-cols-2">
             <div class="space-y-1">
                 <h2 class="text-sm font-semibold text-foreground">Desktop Notifications</h2>
-                <p class="text-sm text-muted-foreground">Show system notifications for site events.</p>
+                <p class="text-sm text-muted-foreground">Show system notifications for project events.</p>
             </div>
             <div class="flex items-center">
                 <Switch
@@ -449,7 +449,7 @@ watch(() => externalAccessForm.external_access, (newValue, oldValue) => {
         <section class="grid gap-x-8 gap-y-6 sm:grid-cols-2">
             <div class="space-y-1">
                 <h2 class="text-sm font-semibold text-foreground">Template Favorites</h2>
-                <p class="text-sm text-muted-foreground">Manage your favorite site templates.</p>
+                <p class="text-sm text-muted-foreground">Manage your favorite project templates.</p>
             </div>
             <div class="space-y-4">
                 <!-- Empty State -->
