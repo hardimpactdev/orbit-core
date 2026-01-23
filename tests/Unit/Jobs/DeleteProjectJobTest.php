@@ -1,52 +1,52 @@
 <?php
 
-use HardImpact\Orbit\Jobs\DeleteSiteJob;
+use HardImpact\Orbit\Jobs\DeleteProjectJob;
 use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Models\Site;
+use HardImpact\Orbit\Models\Project;
 
 beforeEach(function () {
     $environment = Environment::factory()->local()->create([
         'tld' => 'test',
     ]);
-    $site = Site::create([
+    $project = Project::create([
         'environment_id' => $environment->id,
-        'name' => 'delete-test-site',
-        'display_name' => 'Delete Test Site',
-        'slug' => 'delete-test-site',
-        'path' => '/tmp/delete-test-site',
+        'name' => 'delete-test-project',
+        'display_name' => 'Delete Test Project',
+        'slug' => 'delete-test-project',
+        'path' => '/tmp/delete-test-project',
         'php_version' => '8.4',
         'has_public_folder' => true,
         'status' => 'ready',
-        'domain' => 'delete-test-site.test',
+        'url' => 'delete-test-project.test',
     ]);
 
     test()->environment = $environment;
-    test()->site = $site;
+    test()->project = $project;
 });
 
-describe('DeleteSiteJob', function () {
+describe('DeleteProjectJob', function () {
     describe('constructor', function () {
-        it('accepts siteId and keepDatabase', function () {
-            $job = new DeleteSiteJob(
-                siteId: test()->site->id,
+        it('accepts projectId and keepDatabase', function () {
+            $job = new DeleteProjectJob(
+                projectId: test()->project->id,
                 keepDatabase: false,
             );
 
-            expect($job->siteId)->toBe(test()->site->id);
+            expect($job->projectId)->toBe(test()->project->id);
             expect($job->keepDatabase)->toBeFalse();
         });
 
         it('defaults keepDatabase to false', function () {
-            $job = new DeleteSiteJob(
-                siteId: test()->site->id,
+            $job = new DeleteProjectJob(
+                projectId: test()->project->id,
             );
 
             expect($job->keepDatabase)->toBeFalse();
         });
 
         it('can set keepDatabase to true', function () {
-            $job = new DeleteSiteJob(
-                siteId: test()->site->id,
+            $job = new DeleteProjectJob(
+                projectId: test()->project->id,
                 keepDatabase: true,
             );
 
@@ -56,32 +56,32 @@ describe('DeleteSiteJob', function () {
 
     describe('tags', function () {
         it('returns correct horizon tags', function () {
-            $job = new DeleteSiteJob(
-                siteId: test()->site->id,
+            $job = new DeleteProjectJob(
+                projectId: test()->project->id,
             );
 
             $tags = $job->tags();
 
-            $siteId = test()->site->id;
+            $projectId = test()->project->id;
             expect($tags)->toBe([
-                'delete-site',
-                "site-id:{$siteId}",
+                'delete-project',
+                "project-id:{$projectId}",
             ]);
         });
     });
 
     describe('job configuration', function () {
         it('has 120 second timeout', function () {
-            $job = new DeleteSiteJob(
-                siteId: test()->site->id,
+            $job = new DeleteProjectJob(
+                projectId: test()->project->id,
             );
 
             expect($job->timeout)->toBe(120);
         });
 
         it('has 1 try (no retries)', function () {
-            $job = new DeleteSiteJob(
-                siteId: test()->site->id,
+            $job = new DeleteProjectJob(
+                projectId: test()->project->id,
             );
 
             expect($job->tries)->toBe(1);

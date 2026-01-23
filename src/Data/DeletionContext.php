@@ -38,7 +38,7 @@ final readonly class DeletionContext
             keepRepository: true,
             dbConnection: null,
             dbName: null,
-            tld: self::extractTldFromDomain($project->domain),
+            tld: self::extractTldFromDomain($project->domain ?? $project->url),
         );
     }
 

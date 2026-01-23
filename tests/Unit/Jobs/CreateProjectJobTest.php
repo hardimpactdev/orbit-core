@@ -1,35 +1,35 @@
 <?php
 
 use HardImpact\Orbit\Data\ProvisionContext;
-use HardImpact\Orbit\Jobs\CreateSiteJob;
+use HardImpact\Orbit\Jobs\CreateProjectJob;
 use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Models\Site;
+use HardImpact\Orbit\Models\Project;
 use HardImpact\Orbit\Services\Provision\GitHubService;
 
 beforeEach(function () {
     $environment = Environment::factory()->local()->create([
         'tld' => 'test',
     ]);
-    $site = Site::create([
+    $project = Project::create([
         'environment_id' => $environment->id,
-        'name' => 'test-site',
-        'display_name' => 'Test Site',
-        'slug' => 'test-site',
-        'path' => '~/projects/test-site',
+        'name' => 'test-project',
+        'display_name' => 'Test Project',
+        'slug' => 'test-project',
+        'path' => '~/projects/test-project',
         'php_version' => '8.4',
         'has_public_folder' => false,
         'status' => 'queued',
     ]);
 
     test()->environment = $environment;
-    test()->site = $site;
+    test()->project = $project;
 });
 
-describe('CreateSiteJob', function () {
+describe('CreateProjectJob', function () {
     describe('constructor', function () {
         it('generates slug from name option', function () {
-            $job = new CreateSiteJob(
-                siteId: test()->site->id,
+            $job = new CreateProjectJob(
+                projectId: test()->project->id,
                 options: ['name' => 'My Test Site'],
             );
 
@@ -39,26 +39,26 @@ describe('CreateSiteJob', function () {
 
     describe('tags', function () {
         it('returns correct horizon tags', function () {
-            $job = new CreateSiteJob(
-                siteId: test()->site->id,
+            $job = new CreateProjectJob(
+                projectId: test()->project->id,
                 options: ['name' => 'My Test Site'],
             );
 
             $tags = $job->tags();
 
-            $siteId = test()->site->id;
+            $projectId = test()->project->id;
             expect($tags)->toBe([
-                'create-site',
-                'site:my-test-site',
-                "site-id:{$siteId}",
+                'create-project',
+                'project:my-test-site',
+                "project-id:{$projectId}",
             ]);
         });
     });
 
     describe('job configuration', function () {
         it('has 600 second timeout', function () {
-            $job = new CreateSiteJob(
-                siteId: test()->site->id,
+            $job = new CreateProjectJob(
+                projectId: test()->project->id,
                 options: ['name' => 'test-site'],
             );
 
@@ -66,8 +66,8 @@ describe('CreateSiteJob', function () {
         });
 
         it('has 1 try (no retries)', function () {
-            $job = new CreateSiteJob(
-                siteId: test()->site->id,
+            $job = new CreateProjectJob(
+                projectId: test()->project->id,
                 options: ['name' => 'test-site'],
             );
 
@@ -80,8 +80,8 @@ describe('CreateSiteJob', function () {
 
     describe('context building', function () {
         it('builds context with correct options', function () {
-            $job = new CreateSiteJob(
-                siteId: test()->site->id,
+            $job = new CreateProjectJob(
+                projectId: test()->project->id,
                 options: [
                     'name' => 'test-site',
                     'template' => 'laravel/laravel',
@@ -115,8 +115,8 @@ describe('CreateSiteJob', function () {
         });
 
         it('handles clone URL correctly', function () {
-            $job = new CreateSiteJob(
-                siteId: test()->site->id,
+            $job = new CreateProjectJob(
+                projectId: test()->project->id,
                 options: [
                     'name' => 'cloned-site',
                     'template' => 'owner/repo',
@@ -134,8 +134,8 @@ describe('CreateSiteJob', function () {
         });
 
         it('uses environment TLD', function () {
-            $job = new CreateSiteJob(
-                siteId: test()->site->id,
+            $job = new CreateProjectJob(
+                projectId: test()->project->id,
                 options: ['name' => 'test-site'],
             );
 
@@ -148,15 +148,15 @@ describe('CreateSiteJob', function () {
         });
     });
 
-    describe('site type detection', function () {
+    describe('project type detection', function () {
         it('detects laravel-app correctly', function () {
-            $job = new CreateSiteJob(
-                siteId: test()->site->id,
-                options: ['name' => 'test-site'],
+            $job = new CreateProjectJob(
+                projectId: test()->project->id,
+                options: ['name' => 'test-project'],
             );
 
             $reflection = new ReflectionClass($job);
-            $method = $reflection->getMethod('detectSiteType');
+            $method = $reflection->getMethod('detectProjectType');
 
             // Create test project
             $projectDir = sys_get_temp_dir().'/laravel-app-'.uniqid();
@@ -172,13 +172,13 @@ describe('CreateSiteJob', function () {
         });
 
         it('detects cli app correctly', function () {
-            $job = new CreateSiteJob(
-                siteId: test()->site->id,
-                options: ['name' => 'test-site'],
+            $job = new CreateProjectJob(
+                projectId: test()->project->id,
+                options: ['name' => 'test-project'],
             );
 
             $reflection = new ReflectionClass($job);
-            $method = $reflection->getMethod('detectSiteType');
+            $method = $reflection->getMethod('detectProjectType');
 
             // Create test project
             $projectDir = sys_get_temp_dir().'/cli-app-'.uniqid();
@@ -197,13 +197,13 @@ describe('CreateSiteJob', function () {
         });
 
         it('detects laravel-package correctly', function () {
-            $job = new CreateSiteJob(
-                siteId: test()->site->id,
-                options: ['name' => 'test-site'],
+            $job = new CreateProjectJob(
+                projectId: test()->project->id,
+                options: ['name' => 'test-project'],
             );
 
             $reflection = new ReflectionClass($job);
-            $method = $reflection->getMethod('detectSiteType');
+            $method = $reflection->getMethod('detectProjectType');
 
             // Create test project
             $projectDir = sys_get_temp_dir().'/package-'.uniqid();

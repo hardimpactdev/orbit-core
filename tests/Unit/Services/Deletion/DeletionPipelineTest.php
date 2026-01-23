@@ -2,7 +2,7 @@
 
 use HardImpact\Orbit\Data\DeletionContext;
 use HardImpact\Orbit\Models\Environment;
-use HardImpact\Orbit\Models\Site;
+use HardImpact\Orbit\Models\Project;
 use HardImpact\Orbit\Services\Deletion\Actions\DeleteProjectFiles;
 use HardImpact\Orbit\Services\Deletion\Actions\DropPostgresDatabase;
 use HardImpact\Orbit\Services\Deletion\DeletionLogger;
@@ -16,8 +16,8 @@ beforeEach(function () {
 });
 
 describe('DeletionContext', function () {
-    it('creates context from site model', function () {
-        $site = Site::create([
+    it('creates context from project model', function () {
+        $project = Project::create([
             'environment_id' => test()->environment->id,
             'name' => 'delete-test',
             'display_name' => 'Delete Test',
@@ -25,32 +25,32 @@ describe('DeletionContext', function () {
             'path' => '/tmp/delete-test',
             'php_version' => '8.4',
             'has_public_folder' => true,
-            'domain' => 'delete-test.test',
+            'url' => 'delete-test.test',
             'status' => 'ready',
         ]);
 
-        $context = DeletionContext::fromSite($site, false);
+        $context = DeletionContext::fromProject($project, false);
 
         expect($context->slug)->toBe('delete-test');
         expect($context->projectPath)->toBe('/tmp/delete-test');
-        expect($context->siteId)->toBe($site->id);
+        expect($context->projectId)->toBe($project->id);
         expect($context->keepDatabase)->toBeFalse();
         expect($context->keepRepository)->toBeTrue();
         expect($context->tld)->toBe('test');
     });
 
     it('respects keepDatabase flag', function () {
-        $site = Site::create([
+        $project = Project::create([
             'environment_id' => test()->environment->id,
             'name' => 'keep-db-test',
             'slug' => 'keep-db-test',
             'path' => '/tmp/keep-db-test',
             'php_version' => '8.4',
-            'domain' => 'keep-db-test.test',
+            'url' => 'keep-db-test.test',
             'status' => 'ready',
         ]);
 
-        $context = DeletionContext::fromSite($site, true);
+        $context = DeletionContext::fromProject($project, true);
 
         expect($context->keepDatabase)->toBeTrue();
     });
@@ -64,7 +64,7 @@ describe('DeletionContext', function () {
         $context = new DeletionContext(
             slug: 'env-test',
             projectPath: $projectDir,
-            siteId: null,
+            projectId: null,
             keepDatabase: false,
         );
 
@@ -87,7 +87,7 @@ describe('DeletionContext', function () {
         $context = new DeletionContext(
             slug: 'fallback-slug',
             projectPath: $projectDir,
-            siteId: null,
+            projectId: null,
             keepDatabase: false,
         );
 
@@ -280,6 +280,6 @@ describe('DeletionLogger', function () {
 
         expect($logger)->toBeInstanceOf(\HardImpact\Orbit\Contracts\ProvisionLoggerContract::class);
         expect($logger->getSlug())->toBe('test-slug');
-        expect($logger->getSiteId())->toBe(123);
+        expect($logger->getProjectId())->toBe(123);
     });
 });
