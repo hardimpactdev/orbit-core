@@ -2,6 +2,13 @@
 
 All notable changes to `orbit-core` will be documented in this file.
 
+## v0.1.0 - Core namespace split - 2026-01-23
+
+Breaking change: Namespace changed from HardImpact\Orbit\ to HardImpact\Orbit\Core
+This release separates business logic from UI components. All Models, Services, Jobs, Data classes are now in the Core namespace.
+
+orbit-cli and orbit-ui consumers must update their imports.
+
 ## Release 0.0.8 - 2026-01-23
 
 Include built assets in repo for vendor:publish support
@@ -10,6 +17,7 @@ Now orbit-desktop and orbit-web can use:
 
 ```
 php artisan vendor:publish --tag=orbit-assets --force
+
 
 ```
 without needing to build assets locally.
