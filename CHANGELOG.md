@@ -2,6 +2,10 @@
 
 All notable changes to `orbit-core` will be documented in this file.
 
+## v0.1.5 - 2026-01-24
+
+- fix: deployments table foreign key constraint after servers->environments rename
+
 ## v0.1.3 - Add missing dependencies - 2026-01-23
 
 ### Fixes
@@ -34,6 +38,7 @@ Now orbit-desktop and orbit-web can use:
 
 ```
 php artisan vendor:publish --tag=orbit-assets --force
+
 
 
 
