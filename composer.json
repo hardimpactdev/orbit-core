@@ -44,6 +44,12 @@
         }
     },
     "scripts": {
+        "post-install-cmd": [
+            "whisky update"
+        ],
+        "post-update-cmd": [
+            "whisky update"
+        ],
         "analyse": "vendor/bin/phpstan analyse",
         "test": "vendor/bin/pest",
         "format": "vendor/bin/pint"
